@@ -1,0 +1,27 @@
+<h1>Source Configuration: {{ source.name }}</h1>
+
+{% if channel_list %}
+    <ul>
+    {% for channel in channel_list %}
+        <li><a href="{% url 'channel' channel.id %}">{{ channel.name }}</a></li>
+    {% endfor %}
+    </ul>
+{% else %}
+    <p>No channels are configured.</p>
+{% endif %}
+
+<br>
+
+<h3>Add a channel</h3>
+<form action="{% url 'channel_add' %}" method="post">
+{% csrf_token %}
+
+<select name="chan_add">
+{% for chan in chan_other %}
+    <option value="{{ chan.id }}">{{ chan.name }}</option>
+{% endfor %}
+<option value="new">New Channel</option>
+</select>
+<input type="submit" value="submit">
+</form>
+
