@@ -12,16 +12,8 @@
 
 <br>
 
-<h3>Add a channel</h3>
-<form action="{% url 'channel_add' %}" method="post">
+<form action="{% url 'source' source.id %}" method="post">
 {% csrf_token %}
-<input type="hidden" name="src" value="{{ source.id }}" />
-<select name="chan_add">
-{% for chan in chan_other %}
-    <option value="{{ chan.id }}">{{ chan.name }}</option>
-{% endfor %}
-<option value="new">New Channel</option>
-</select>
+{{ form }}
 <input type="submit" value="Add" />
 </form>
-
