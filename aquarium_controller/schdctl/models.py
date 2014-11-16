@@ -90,40 +90,44 @@ class Profile(models.Model):
         return int(self.gain) + self.scale*calcnum
 
 
-
 class Channel(models.Model):
     name = models.CharField(max_length=20)
-    hwid = models.CharField(max_length=5)
-    source= models.ManyToManyField(Source)
+    hwid = models.CharField(max_length=10)
+    hwtype = models.IntegerField(default=2)
+    # 0=GPIO, Out
+    # 1=OneWire, In
+    # 2=PWM, Out
     pwm = models.ForeignKey(PWM)
+    source= models.ManyToManyField(Source)
     maxIntensity = models.FloatField(default=1)
 
     def __unicode__(self):
         return self.name
 
     def start(self):
-        # Start the PWM
-        PWMctl.start(self.pin, 0, self.pwm.frequency)
-        sleep(1)
+        if self.hwtype == 2:
+            # Start the PWM
+            PWMctl.start(self.hwid, 0, self.pwm.frequency)
+            sleep(1)
 
         return
 
     def stop(self):
-        # Stop the PWM
-        PWMctl.stop(self.pin)
-        sleep(1)
+        if self.hwtype == 2:
+            # Stop the PWM
+            PWMctl.stop(self.hwid)
+            sleep(1)
 
         return
 
     def set(self, calctime=datetime.utcnow()):
-        # Within my stuff, use 0 - 1; this function expects 0 - 100 as a float.
-        PWMctl.set_duty_cycle(self.pin, 100 * self.calc(calctime) *
-                           self.light.maxBrightness)
+        v = self.calc(calctime) * self.light.maxBrightness
 
-        return self.calc(calctime) * self.light.maxBrightness
+        return self.manualset(v)
 
     def manualset(self, v):
-        PWMctl.set_duty_cycle(self.pin, 100 * v)
+        if self.hwtype == 2:
+            PWMctl.set_duty_cycle(self.pin, 100 * v)
 
         return
 
