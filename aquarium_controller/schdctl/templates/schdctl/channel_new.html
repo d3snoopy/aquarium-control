@@ -1,29 +1,8 @@
 <h1>Create a New Channel</h1>
 
-<form action="{% url 'channel_add' %}" method="post">
+<form action="{% url 'channel_new' source.id %}" method="post">
 {% csrf_token %}
-
-{{ srcid }}
-
-<input type="hidden" name="src" value="{{ srcid }}" />
-<input type="hidden" name="chan_add" value="create" />
-
-Name: <input type="text" name="name" /><br>
-Hardware Type: <select name="hwtype">
-<option value="0">GPIO Output</option>
-<option value="1">OneWire Input</option>
-<option value="2">PWM Output</option>
-</select><br>
-Hardware Used: <input type="text" name="hwid" /><br>
-PWM: <select name="pwm">
-{% for p in pwm %}
-    <option value="{{ pwm.id }}">{{ pwm.freq }}</option>
-{% endfor %}
-<option value="new">New PWM</option>
-</select>
-<input type="number" name="pwmfreq" min="200" max="2000" step="10" value="500" /><br>
-Maximum Intensity: <input type="number" name="maxSetting" min="0" max="1" step="0.001" value="1" /><br>
-
+{{ form }}
 <input type="submit" value="Create" />
 </form>
 

@@ -41,9 +41,14 @@ class Source(models.Model):
     def __unicode__(self):
         return self.name
 
+    def __str__(self):
+        return self.name
 
-class PWM(models.Model):
-    frequency = models.FloatField(default=500)
+#class PWM(models.Model):
+#    frequency = models.FloatField(default=500)
+#
+#    def __str__(self):
+#        return str(self.frequency)
 
 class Profile(models.Model):
     name = models.CharField(max_length=20)
@@ -58,6 +63,9 @@ class Profile(models.Model):
 
 
     def __unicode__(self):
+        return self.name
+
+    def __str__(self):
         return self.name
 
     def intensity(self, calctime=datetime.utcnow()):
@@ -93,15 +101,22 @@ class Profile(models.Model):
 class Channel(models.Model):
     name = models.CharField(max_length=20)
     hwid = models.CharField(max_length=10)
-    hwtype = models.IntegerField(default=2)
-    # 0=GPIO, Out
-    # 1=OneWire, In
-    # 2=PWM, Out
-    pwm = models.ForeignKey(PWM)
+    
+    hwChoices = (
+        (0, 'GPIO Out'),
+        (1, 'OneWire In'),
+        (2, 'PWM Out'),
+    )
+    hwtype = models.IntegerField(default=2, choices=hwChoices)
+#    pwm = models.ForeignKey(PWM)
+    pwm = models.FloatField(default=500)
     source= models.ManyToManyField(Source)
     maxIntensity = models.FloatField(default=1)
 
     def __unicode__(self):
+        return self.name
+
+    def __str__(self):
         return self.name
 
     def start(self):
