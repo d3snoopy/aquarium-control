@@ -11,7 +11,6 @@ from time import sleep
 
 class Source(models.Model):
     name = models.CharField(max_length=20)
-    maxSetting = models.FloatField(default=1)
 
     def start(self):
         for d in self.channel_set.all():
@@ -136,7 +135,7 @@ class Channel(models.Model):
         return
 
     def set(self, calctime=datetime.utcnow()):
-        v = self.calc(calctime) * self.light.maxBrightness
+        v = self.calc(calctime)
 
         return self.manualset(v)
 
@@ -148,9 +147,8 @@ class Channel(models.Model):
 
     def calc(self, calctime=datetime.utcnow()):
         # multiply up all of the contributing time profiles
-        v = 1
         for s in self.colorschedule_set.all():
-            v = v * s.profile.intensity(calctime) * s.scale
+            v = min(s.profile.intensity(calctime) * s.scale, self.maxIntensity)
         
         return v
 

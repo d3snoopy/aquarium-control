@@ -1,0 +1,22 @@
+<h1>Schedule Configuration</h1>
+
+<h2>Sources</h2>
+{% if source_list %}
+    <ul>
+    {% for source in source_list %}
+        <li><a href="{% url 'source' source.id %}">{{ source.name }}</a></li>
+    {% endfor %}
+    </ul>
+{% else %}
+    <p>No sources are configured.</p>
+{% endif %}
+
+<br>
+
+<h3>Add a new source</h3>
+<form action="{% url 'hdwr_config' %}" method="post">
+{% csrf_token %}
+{{ form }}
+<input type="submit" value="Add">
+</form>
+

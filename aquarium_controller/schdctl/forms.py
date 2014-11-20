@@ -1,12 +1,10 @@
 from django import forms
 import schdctl.models as schdctl
 
-class SourceAdd(forms.Form):
-    source_name = forms.CharField(label='Name', max_length=100)
-    max_value = forms.FloatField(label='Max Value',
-                                 max_value=1,
-                                 min_value=0,
-                                 initial=1)
+class SourceAdd(ModelForm):
+    class Meta:
+        model = schdctl.Source
+        fields = ['name']
 
 
 class ChannelAdd(forms.Form):
@@ -41,3 +39,7 @@ class ChannelNew(forms.Form):
                                  initial=1)
 
 
+class SourceProfile(forms.Form):
+    name = forms.CharField(label='Name', max_length=20)
+    start = 
+    

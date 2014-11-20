@@ -1,22 +1,18 @@
-<h1>Schedule Configuration</h1>
+<h1>Schedules:</h1>
 
-<h2>Sources</h2>
 {% if source_list %}
-    <ul>
     {% for source in source_list %}
-        <li><a href="{% url 'source' source.id %}">{{ source.name }}</a></li>
+        <h2>{{ source.name }}:</h2>
+   <a href="{% url 'source_schedule' source.id %}">Edit</a></p><br>
+        {% comment %} Add in plot of the source here {% endcomment %}
     {% endfor %}
-    </ul>
 {% else %}
-    <p>No sources are configured.</p>
+    <p>No sources are configured, <a href="{% url 'hdwr_config' %}">setup hardware.</a></p>
 {% endif %}
+
+{% comment %} Add in Info about inputs {% endcomment %}
 
 <br>
 
-<h3>Add a new source</h3>
-<form action="{% url 'index' %}" method="post">
-{% csrf_token %}
-{{ form }}
-<input type="submit" value="Add">
-</form>
-
+<p><a href="{% url 'by_channel' %}">View schedule by channel</a><br>
+<a href="{% url 'hdwr_config' %}">Setup Hardware</a></p>
