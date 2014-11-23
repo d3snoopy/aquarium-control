@@ -21,4 +21,10 @@ urlpatterns = patterns('',
     url(r'^schedule/channel/(?P<Channel_id>\d+)/(?P<Profile_id>\d+)/$',
         views.channel_profile, name='channel_profile'),
 
+    #url(r'^profile/source/(?P<Source_id>\d+)/$',
+    #    views.profile_new_source, name='profile_new_source'),
+
+    #url(r'^profile/channel/?P<Channel_id>\d+)/$',
+    #    views.profile_new_channel, name='profile_new_channel'),
+
 )

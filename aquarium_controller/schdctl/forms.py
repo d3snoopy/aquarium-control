@@ -1,7 +1,7 @@
 from django import forms
 import schdctl.models as schdctl
 
-class SourceAdd(ModelForm):
+class SourceAdd(forms.ModelForm):
     class Meta:
         model = schdctl.Source
         fields = ['name']
@@ -17,14 +17,8 @@ class ChannelAdd(forms.Form):
 class ChannelNew(forms.Form):
     name = forms.CharField(label='Name', max_length=20)
     hwid = forms.CharField(label='Hardware ID', max_length=10)
-
-    hwChoices = (
-        (0, 'GPIO Out'),
-        (1, 'OneWire In'),
-        (2, 'PWM Out'),
-    )
     hwtype = forms.ChoiceField(label='Type of Channel',
-                               choices=hwChoices,
+                               choices=schdctl.hwChoices,
                                initial=2)
 
     pwm = forms.FloatField(
@@ -39,7 +33,35 @@ class ChannelNew(forms.Form):
                                  initial=1)
 
 
-class SourceProfile(forms.Form):
+class Profile(forms.Form):
     name = forms.CharField(label='Name', max_length=20)
-    start = 
+    start = forms.DateTimeField(label='Start Date & Time')
+    stop = forms.DateTimeField(label='Stop Date & Time')
+    shape = forms.ChoiceField(label='Shape',
+                               choices=schdctl.shapeChoices,
+                               initial=0)
+
+    scale = forms.FloatField(
+        label='Scale',
+        max_value=1,
+        min_value=0,
+        initial=1)
     
+    linstart = forms.FloatField(
+        label='Linear Shape Start Value',
+        max_value=1,
+        min_value=0,
+        initial=0)
+
+    linend = forms.FloatField(
+        label='Linear Shape End Value',
+        max_value=1,
+        min_value=0,
+        initial=0)
+
+class ChannelSchedule(forms.Form):
+    scale= forms.FloatField(
+        label='Channel Scale',
+        max_value=1,
+        min_value=0,
+        initial=1)    

@@ -1,0 +1,9 @@
+<h1>Edit a Schedule Profile, Source {{ source.name }}</h1>
+
+<form action="{% url 'source_profile' source.id profileid %}" method="post">
+{% csrf_token %}
+{{ form }}
+{{ formset }}
+<input type="submit" value="Update" />
+</form>
+

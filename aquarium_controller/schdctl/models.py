@@ -4,6 +4,20 @@ import math
 import Adafruit_BBIO.PWM as PWMctl
 from time import sleep
 
+hwChoices = (
+    (0, 'GPIO Out'),
+    (1, 'OneWire In'),
+    (2, 'PWM Out'),
+)
+
+shapeChoices = (
+    (0, 'Constant'),
+    (1, 'Linear'),
+    (2, 'Sine'),
+    (3, 'Square'),
+)
+
+
 # Create your models here.
 
 # TODO: A method to re-roll the same cycle to a another day.
@@ -53,8 +67,8 @@ class Profile(models.Model):
     name = models.CharField(max_length=20)
     start = models.DateTimeField()
     stop = models.DateTimeField()
-    shape = models.IntegerField(default=0)
-    # Shapes: 0-constant, 1-linear slope, 2- sine curve, 3- square wave
+    shape = models.IntegerField(default=0, choices=shapeChoices)
+
     scale = models.FloatField(default=1)
 
     linstart = models.FloatField(default=0)
@@ -100,12 +114,6 @@ class Profile(models.Model):
 class Channel(models.Model):
     name = models.CharField(max_length=20)
     hwid = models.CharField(max_length=10)
-    
-    hwChoices = (
-        (0, 'GPIO Out'),
-        (1, 'OneWire In'),
-        (2, 'PWM Out'),
-    )
     hwtype = models.IntegerField(default=2, choices=hwChoices)
 #    pwm = models.ForeignKey(PWM)
     pwm = models.FloatField(default=500)
