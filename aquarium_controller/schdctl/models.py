@@ -26,31 +26,6 @@ shapeChoices = (
 class Source(models.Model):
     name = models.CharField(max_length=20)
 
-    def start(self):
-        for d in self.channel_set.all():
-            d.start()
-
-        return
-
-    def stop(self):
-        for d in self.channel_set.all():
-            d.stop()
-
-        return
-
-    def set(self, calctime=datetime.utcnow()):
-        for d in self.channel_set.all():
-            d.set()
-
-        return
-
-    def manualset(self, v):
-        # Sets all of the colors in this light to v
-        for d in self.channel_set.all():
-            d.manualset(v)
-
-        return
-
     def __unicode__(self):
         return self.name
 
