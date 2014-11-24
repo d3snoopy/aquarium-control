@@ -1,5 +1,7 @@
 from django import forms
 import schdctl.models as schdctl
+from datetime import datetime
+from datetime import timedelta
 
 class SourceAdd(forms.ModelForm):
     class Meta:
@@ -35,8 +37,12 @@ class ChannelNew(forms.Form):
 
 class Profile(forms.Form):
     name = forms.CharField(label='Name', max_length=20)
-    start = forms.DateTimeField(label='Start Date & Time')
-    stop = forms.DateTimeField(label='Stop Date & Time')
+    start = forms.DateTimeField(label='Start Date & Time',
+        initial=datetime.now(), localize=True)
+
+    stop = forms.DateTimeField(label='Stop Date & Time',
+        initial=datetime.now() + timedelta(hours=8), localize=True)
+
     shape = forms.ChoiceField(label='Shape',
                                choices=schdctl.shapeChoices,
                                initial=0)
@@ -60,8 +66,8 @@ class Profile(forms.Form):
         initial=0)
 
 class ChannelSchedule(forms.Form):
-    scale= forms.FloatField(
-        label='Channel Scale',
+    scale = forms.FloatField(
+        label='scale',
         max_value=1,
         min_value=0,
-        initial=1)    
+        initial=0)    

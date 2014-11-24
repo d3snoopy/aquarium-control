@@ -1,9 +1,23 @@
+{% load schdctlextras %}
+
 <h1>Edit a Schedule Profile, Source {{ source.name }}</h1>
 
 <form action="{% url 'source_profile' source.id profileid %}" method="post">
 {% csrf_token %}
 {{ form }}
-{{ formset }}
-<input type="submit" value="Update" />
+
+{{ formset.management_form }}
+
+    {% for f in formset %}
+        <label>{{ chans|get_at_index:forloop.counter0 }}</label>
+        {{ f }}
+    {% endfor %}
+
+
+{% if profileid %}
+    <input type="submit" value="Update" />
+{% else %}
+    <input type="submit" value="Add" />
+{% endif %}
 </form>
 
