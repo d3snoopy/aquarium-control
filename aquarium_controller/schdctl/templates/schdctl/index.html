@@ -3,8 +3,8 @@
 {% if source_list %}
     {% for source in source_list %}
         <h2>{{ source.name }}:</h2>
-   <a href="{% url 'source_schedule' source.id %}">Edit</a></p><br>
-        {% comment %} Add in plot of the source here {% endcomment %}
+        <img src="{% url 'source_graph' source.id %}">
+        <a href="{% url 'source_schedule' source.id %}">Edit</a></p><br>
     {% endfor %}
 {% else %}
     <p>No sources are configured, <a href="{% url 'hdwr_config' %}">setup hardware.</a></p>

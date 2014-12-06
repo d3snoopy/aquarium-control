@@ -1,7 +1,11 @@
 from django import forms
 import schdctl.models as schdctl
-from datetime import datetime
+#from datetime import datetime
 from datetime import timedelta
+
+from schdctl.widgets import ColorPickerWidget
+
+from django.utils import timezone
 
 class SourceAdd(forms.ModelForm):
     class Meta:
@@ -34,24 +38,26 @@ class ChannelNew(forms.Form):
                                  min_value=0,
                                  initial=1)
 
+    traceColor = forms.CharField(label='Trace Color',
+                                 max_length=7,
+                                 widget=ColorPickerWidget)
+
 
 class Profile(forms.Form):
     name = forms.CharField(label='Name', max_length=20)
     start = forms.DateTimeField(label='Start Date & Time',
-        initial=datetime.now(), localize=True)
+        initial=timezone.now())
 
     stop = forms.DateTimeField(label='Stop Date & Time',
-        initial=datetime.now() + timedelta(hours=8), localize=True)
+        initial=timezone.now() + timedelta(hours=8))
+    
+    refresh = forms.FloatField(
+        label='Refresh Hours',
+        initial=0)
 
     shape = forms.ChoiceField(label='Shape',
                                choices=schdctl.shapeChoices,
                                initial=0)
-
-    scale = forms.FloatField(
-        label='Scale',
-        max_value=1,
-        min_value=0,
-        initial=1)
     
     linstart = forms.FloatField(
         label='Linear Shape Start Value',

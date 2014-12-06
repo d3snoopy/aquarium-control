@@ -1,0 +1,22 @@
+Setup with Apache:
+
+Add this to /etc/apache2/apache2.conf:
+
+# Set up the aq ctrl site
+WSGIScriptAlias / /aquarium-ctrl/aquarium_controller/wsgi.py
+
+
+<Directory /aquarium-ctrl/aquarium_controller>
+<Files wsgi.py>
+Order deny,allow
+Allow from all
+</Files>
+</Directory>
+
+# Set up the static area
+Alias /static /aquarium-ctrl/aquarium_controller/static
+
+<Directory /aquarium-ctrl/aquarium_controller/static>
+Order deny,allow
+Allow from all
+</Directory>

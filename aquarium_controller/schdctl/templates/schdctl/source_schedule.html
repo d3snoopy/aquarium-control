@@ -3,7 +3,8 @@
 {% if profile_list %}
     {% for p in profile_list %}
         <h2>{{ p.name }}:</h2>
-   <a href="{% url 'source_profile' source.id p.id %}">Edit</a></p>
+        <img src="{% url 'source_profile_graph' source.id p.id %}">
+        <a href="{% url 'source_profile' source.id p.id %}">Edit</a></p>
         {% comment %} Add in plot of the source here {% endcomment %}
         <br>
     {% endfor %}
@@ -14,3 +15,4 @@
 <br>
 
 <p><a href="{% url 'source_profile' source.id '0' %}">Add a profile</a></p>
+<p><a href="{% url 'index' %}">Back to Schedule Control Index</a></p>

@@ -5,6 +5,8 @@ from django.forms.formsets import formset_factory
 import schdctl.models as schdctl
 import schdctl.forms as schdforms
 
+from django.utils import timezone
+from datetime import timedelta
 
 #TODO: Update views to use form is not valid for a second chance.
 #TODO: done on hdwr_config, needed elsewhere.
@@ -89,14 +91,26 @@ def channel_new(request, Source_id):
                 hwid = form.cleaned_data['hwid'],
                 hwtype = form.cleaned_data['hwtype'],
                 pwm = form.cleaned_data['pwm'],
-                maxIntensity = form.cleaned_data['maxIntensity'])
+                maxIntensity = form.cleaned_data['maxIntensity'],
+                traceColor = form.cleaned_data['traceColor'])
             c.save()
 
             s.channel_set.add(c)
 
+            # Check to see if any profiles have been associated with source.
+            # If so, create a cps object for this new channel in all profiles.
+            p_list = schdctl.Profile.objects.filter(
+                chanprofsrc__source__id=Source_id).distinct()
+
+            for p in p_list:
+                cps = schdctl.ChanProfSrc(channel=c, profile=p, source=s)
+                cps.save()
+
+
             return HttpResponseRedirect(reverse('source', args=[s.id]))
 
     form = schdforms.ChannelNew()
+
     context = { 'form': form, 
                 'source': s }
 
@@ -111,7 +125,7 @@ def source_schedule(request, Source_id):
     s = schdctl.Source.objects.get(pk=Source_id)
 
     p_list = schdctl.Profile.objects.filter(
-        channelschedule__channel__source__id=Source_id).distinct()
+        chanprofsrc__source__id=Source_id).distinct()
 
     context = {'profile_list': p_list,
                 'source': s }
@@ -128,7 +142,7 @@ def source_profile(request, Source_id, Profile_id):
     Profile_id = int(Profile_id)
 
     if Profile_id:
-        p = schdctl.Profile.objects.get(pk=Source_id)
+        p = schdctl.Profile.objects.get(pk=Profile_id)
         # We have an existing profile, so we'll set initial to existing.
         profileFormset = formset_factory(schdforms.ChannelSchedule, extra=0)
     else:
@@ -164,7 +178,7 @@ def source_profile(request, Source_id, Profile_id):
                             'start':p.start,
                             'stop':p.stop,
                             'shape':p.shape,
-                            'scale':p.scale,
+                            'refresh':p.refresh,
                             'linstart':p.linstart,
                             'linend':p.linend}
 
@@ -173,13 +187,17 @@ def source_profile(request, Source_id, Profile_id):
             formset_initial = []
             for c in s.channel_set.all():
                 formset_initial.append(
-                    {'scale':schdctl.ChannelSchedule.objects.filter(
-                        profile__id=p.pk, channel_id=c.pk)[0].scale})
+                    {'scale':schdctl.ChanProfSrc.objects.filter(
+                        profile__id=p.pk, channel__id=c.pk, source__id=s.pk)[0].scale})
 
             formset = profileFormset(initial=formset_initial, prefix='channel')
         
         else:
-            form = schdforms.Profile(prefix='profile')
+            #Set up initial values for the start and stop.
+            initial_data = {'start':timezone.now(),
+                            'stop':timezone.now() + timedelta(hours=8)}
+
+            form = schdforms.Profile(prefix='profile', initial=initial_data)
             formset = profileFormset(prefix='channel')
 
     c = s.channel_set.all()
@@ -200,13 +218,13 @@ def newProfile(s, form, formset):
         name = form.cleaned_data['name'],
         start = form.cleaned_data['start'],
         stop = form.cleaned_data['stop'],
+        refresh = form.cleaned_data['refresh'],
         shape = form.cleaned_data['shape'],
-        scale = form.cleaned_data['scale'],
         linstart = form.cleaned_data['linstart'],
         linend = form.cleaned_data['linend'])
     p.save()
 
-    #Add the necessary channelschedule objects.
+    #Add the necessary ChanProfSrc objects.
     clist = s.channel_set.all()
 
     idx = 0
@@ -218,9 +236,10 @@ def newProfile(s, form, formset):
         else:
             scl = 0
 
-        cs = schdctl.ChannelSchedule(
+        cs = schdctl.ChanProfSrc(
             channel = clist[idx],
             profile = p,
+            source = s,
             scale = scl)
         cs.save()
         idx += 1
@@ -234,22 +253,20 @@ def updateProfile(s, p, form, formset):
     p.name = form.cleaned_data['name']
     p.start = form.cleaned_data['start']
     p.stop = form.cleaned_data['stop']
+    p.refresh = form.cleaned_data['refresh']
     p.shape = form.cleaned_data['shape']
-    p.scale = form.cleaned_data['scale']
     p.linstart = form.cleaned_data['linstart']
     p.linend = form.cleaned_data['linend']
     p.save()
 
-    #Update the channelschedules.
-    cslist = schdctl.ChannelSchedule.objects.filter(
-        profile__id=p.pk, channel__source__id=s.pk)
+    #Update the ChanProfSrces.
+    cslist = schdctl.ChanProfSrc.objects.filter(
+        profile__id=p.pk, source__id=s.pk)
     for f, cs in zip(formset,cslist):
         cs.scale = f.cleaned_data['scale']
         cs.save()
 
     return
-
-
 
 
 def channel_profile(request, Source_id, Profile_id):

@@ -1,5 +1,7 @@
 <h1>Create a New Channel</h1>
 
+{{ form.media }}
+
 <form action="{% url 'channel_new' source.id %}" method="post">
 {% csrf_token %}
 {{ form }}
