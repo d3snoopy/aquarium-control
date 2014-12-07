@@ -55,22 +55,22 @@ def generate(s, pid=0):
 
     #Find the maximum possible value and set the plot name.
     if not pid:
-        scales = [p.scale for p in s.chanprofsrc_set.all()]
+        #scales = [p.scale for p in s.chanprofsrc_set.all()]
         d.title.text = s.name
 
     else:
         qset = s.chanprofsrc_set.filter(profile__id=pid)
-        scales = [p.scale for p in qset]
+        #scales = [p.scale for p in qset]
         pname = schdctl.Profile.objects.get(pk=pid).name
         d.title.text = s.name + ' - ' + pname
 
-    if not scales:
-        yMax = 0.01
+    #if not scales:
+        #yMax = 0.01
 
-    else:
-        yMax = max(scales)
+    #else:
+        #yMax = max(scales)
 
-    d.chart.yValueAxis.valueMax = yMax
+    #d.chart.yValueAxis.valueMax = yMax
 
     tplot = list(range(0,24*60,5))
 

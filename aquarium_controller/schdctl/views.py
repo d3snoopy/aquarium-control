@@ -18,8 +18,13 @@ def index(request):
 
     return render(request, 'schdctl/index.html', context)
 
+
 def by_channel(request):
-    return HttpResponse('schedules by channel')
+    channel_list = schdctl.Channel.objects.all()
+    context = { 'channel_list': channel_list }
+
+    return render(request, 'schdctl/by_channel.html', context)
+
 
 def hdwr_config(request):
     if request.method == 'POST':
@@ -57,6 +62,15 @@ def source(request, Source_id):
             c = form.cleaned_data['channel_option']
 
             s.channel_set.add(c)
+
+            # Check to see if any profiles have been associated with source.
+            # If so, create a cps object for this new channel in all profiles.
+            p_list = schdctl.Profile.objects.filter(
+                chanprofsrc__source__id=Source_id).distinct()
+
+            for p in p_list:
+                cps = schdctl.ChanProfSrc(channel=c, profile=p, source=s)
+                cps.save()
 
             return HttpResponseRedirect(reverse('source', args=[s.id]))
 
@@ -118,6 +132,7 @@ def channel_new(request, Source_id):
 
 
 def channel(request, Channel_id):
+    #TODO
     return HttpResponse('Channel')
 
 
@@ -133,11 +148,7 @@ def source_schedule(request, Source_id):
     return render(request, 'schdctl/source_schedule.html', context)
 
 
-def channel_schedule(request, Channel_id):
-    return HttpResponse('Schedules by Channel')
-
-
-def source_profile(request, Source_id, Profile_id):
+def profile(request, Source_id, Profile_id):
     s = schdctl.Source.objects.get(pk=Source_id)
     Profile_id = int(Profile_id)
 
@@ -188,7 +199,9 @@ def source_profile(request, Source_id, Profile_id):
             for c in s.channel_set.all():
                 formset_initial.append(
                     {'scale':schdctl.ChanProfSrc.objects.filter(
-                        profile__id=p.pk, channel__id=c.pk, source__id=s.pk)[0].scale})
+                        profile__id=p.pk,
+                        channel__id=c.pk,
+                        source__id=s.pk)[0].scale})
 
             formset = profileFormset(initial=formset_initial, prefix='channel')
         
@@ -208,7 +221,7 @@ def source_profile(request, Source_id, Profile_id):
                 'profileid': Profile_id,
                 'chans': c }
 
-    return render(request, 'schdctl/source_profile.html', context)
+    return render(request, 'schdctl/profile.html', context)
 
 
 #Function to make a new profile, not accessed directly.
@@ -267,9 +280,3 @@ def updateProfile(s, p, form, formset):
         cs.save()
 
     return
-
-
-def channel_profile(request, Source_id, Profile_id):
-    return HttpResponse('Channel Profile')
-
-

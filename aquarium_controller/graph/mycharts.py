@@ -54,7 +54,7 @@ class MyLineChartDrawing(Drawing):
         self.chart.yValueAxis.strokeColor = colors.white
         self.chart.yValueAxis.labels.fillColor = colors.white
         self.chart.yValueAxis.labelTextFormat = '%3.2f'
-        self.chart.yValueAxis.valueMax = 1
+        #self.chart.yValueAxis.valueMax = 1
         self.title.x = self.width/2
         self.title.y = 0
         self.title.textAnchor ='middle'
