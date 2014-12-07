@@ -144,7 +144,7 @@ class Profile(models.Model):
         return r
 
 
-    def calc(self, calctime=[timezone.now()]):
+    def calc(self, calctime=[timezone.now()], p=0):
         # Pre-fetch all of the data by channel.
         name = [self.name]
         color = ['ffffff']
@@ -239,9 +239,10 @@ class Channel(models.Model):
         v = 0
 
         for s in self.source.all():
+            predata = []
             #Pre-seed a list for the data.
             for cps in s.chanprofsrc_set.filter(channel__id=self.pk):
-                predata=[i*cps.scale for i in cps.profile.intensity(calctime)]
+                predata.append(cps.scale * cps.profile.intensity(calctime)[0])
 
             #Now, multiply all of the contributions for this source.
             srcdata = 1
@@ -257,7 +258,9 @@ class Channel(models.Model):
             v += srcdata
 
         #Make sure v is between 0 and maxIntensity:
-        v = max(0, min(v, self.maxIntensity))
+        v = max(0.0001, min(v, self.maxIntensity))
+
+        print(v)
 
         #Return the value
         return self.manualset(v)
@@ -269,7 +272,7 @@ class Channel(models.Model):
         return
 
 
-    def calc(self, calctime=[timezone.now()]):
+    def calc(self, calctime=[timezone.now()], p=0):
         # Pre-fetch all of the data by channel.
         chandata = []
         name = [self.name]
@@ -278,7 +281,7 @@ class Channel(models.Model):
 
         now = timezone.now()
 
-        for s in self.source_set.all():
+        for s in self.source.all():
             #Pre-seed a list for the data.
             predata = []
             for cps in s.chanprofsrc_set.filter(channel__id=self.pk):

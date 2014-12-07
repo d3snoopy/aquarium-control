@@ -72,7 +72,7 @@ def generate(s, pid=0):
 
     d.chart.yValueAxis.valueMax = yMax
 
-    tplot = list(range(0,24*60))
+    tplot = list(range(0,24*60,5))
 
     for i, t in enumerate(tplot):
         tplot[i] = timezone.now()+timedelta(minutes=t)
