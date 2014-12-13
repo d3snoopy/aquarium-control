@@ -2,6 +2,8 @@ from django.shortcuts import render, get_object_or_404
 from django.http import HttpResponseRedirect, HttpResponse
 from django.core.urlresolvers import reverse
 from django.forms.formsets import formset_factory
+from django.contrib.auth.decorators import login_required
+
 import schdctl.models as schdctl
 import schdctl.forms as schdforms
 
@@ -25,6 +27,7 @@ def by_channel(request):
     return render(request, 'schdctl/by_channel.html', context)
 
 
+@login_required
 def hdwr_config(request):
     if request.method == 'POST':
         # Grab the form
@@ -47,6 +50,7 @@ def hdwr_config(request):
     return render(request, 'schdctl/hdwr_config.html', context)
 
 
+@login_required
 def source(request, Source_id):
     s = schdctl.Source.objects.get(pk=Source_id)
 
@@ -88,6 +92,7 @@ def source(request, Source_id):
     return render(request, 'schdctl/source.html', context)
 
 
+@login_required
 def channel_new(request, Source_id):
     s = schdctl.Source.objects.get(pk=Source_id)
     if request.method == 'POST':
@@ -128,11 +133,13 @@ def channel_new(request, Source_id):
     return render(request, 'schdctl/channel_new.html', context)
 
 
+@login_required
 def channel(request, Channel_id):
     #TODO
     return HttpResponse('Channel')
 
 
+@login_required
 def source_schedule(request, Source_id):
     s = schdctl.Source.objects.get(pk=Source_id)
 
@@ -145,6 +152,7 @@ def source_schedule(request, Source_id):
     return render(request, 'schdctl/source_schedule.html', context)
 
 
+@login_required
 def profile(request, Source_id, Profile_id):
     s = schdctl.Source.objects.get(pk=Source_id)
     Profile_id = int(Profile_id)
@@ -273,6 +281,7 @@ def updateProfile(s, p, form, formset):
     return
 
 
+@login_required
 def source_delete(request, Source_id):
     #Find all of the profiles for this source and delete them.
     plist = schdctl.Profile.objects.filter(
@@ -295,6 +304,7 @@ def source_delete(request, Source_id):
     return HttpResponseRedirect(reverse('hdwr_config'))
 
 
+@login_required
 def channel_delete(request, Channel_id):
     #Find all of the CPSes for this channel and delete them.
     cpslist = schdctl.ChanProfSrc.objects.filter(
@@ -310,6 +320,7 @@ def channel_delete(request, Channel_id):
     return HttpResponseRedirect(reverse('hdwr_config'))
 
 
+@login_required
 def profile_delete(request, Profile_id):
     #Grab the referencing source for redirect.
     #Note the lookup will return n of the same so just get the first one.

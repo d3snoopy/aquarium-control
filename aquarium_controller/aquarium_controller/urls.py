@@ -9,6 +9,7 @@ urlpatterns = patterns('',
     # url(r'^blog/', include('blog.urls')),
 
     url(r'^$', 'graph.views.index', name='graph'),
+    url(r'^login/$', 'django.contrib.auth.views.login', {'template_name': 'login.html'}),
     url(r'^graph/', include('graph.urls')),
     url(r'^schdctl/', include('schdctl.urls')),
     url(r'^admin/', include(admin.site.urls)),
