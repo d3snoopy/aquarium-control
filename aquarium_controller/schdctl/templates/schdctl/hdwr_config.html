@@ -7,7 +7,7 @@
         <li>
             <a href="{% url 'source' source.id %}">{{ source.name }}</a>
             <font size="1">
-                <a href="{% url='source_delete' source.id %}">delete</a>
+                <a href="{% url 'source_delete' source.id %}">delete</a>
             </font>
         </li>
     {% endfor %}

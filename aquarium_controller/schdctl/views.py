@@ -9,7 +9,6 @@ from django.utils import timezone
 from datetime import timedelta
 
 #TODO: Update views to use form is not valid for a second chance.
-#TODO: done on hdwr_config, needed elsewhere.
 
 # Create your views here.
 def index(request):
@@ -37,9 +36,6 @@ def hdwr_config(request):
             s.save()
 
             return HttpResponseRedirect(reverse('source', args=[s.id]))
-
-        else:
-            form = schdforms.SourceAdd(form)
 
     else:
         form = schdforms.SourceAdd()
@@ -123,7 +119,8 @@ def channel_new(request, Source_id):
 
             return HttpResponseRedirect(reverse('source', args=[s.id]))
 
-    form = schdforms.ChannelNew()
+    else:
+        form = schdforms.ChannelNew()
 
     context = { 'form': form, 
                 'source': s }
@@ -314,6 +311,11 @@ def channel_delete(request, Channel_id):
 
 
 def profile_delete(request, Profile_id):
+    #Grab the referencing source for redirect.
+    #Note the lookup will return n of the same so just get the first one.
+    s = schdctl.Source.objects.filter(
+                chanprofsrc__profile__id=Profile_id)[0]
+
     #Find all of the CPSes for this profile and delete them.
     cpslist = schdctl.ChanProfSrc.objects.filter(
                 profile__id=Profile_id)
@@ -325,4 +327,4 @@ def profile_delete(request, Profile_id):
     schdctl.Profile.objects.get(pk=Profile_id).delete()
 
     #Redirect to the index view.
-    return HttpResponseRedirect(reverse('index'))
+    return HttpResponseRedirect(reverse('source_schedule', args=[s.id]))

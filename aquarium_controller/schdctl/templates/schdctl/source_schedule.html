@@ -7,7 +7,7 @@
             <img src="{% url 'source_profile_graph' source.id p.id %}">
             <a href="{% url 'profile' source.id p.id %}">Edit</a><br>
             <font size="1">
-                <a href="{% url='profile_delete' profile.id %}">delete</a>
+                <a href="{% url 'profile_delete' p.id %}">delete</a>
             </font>
         </p><br>
     {% endfor %}
