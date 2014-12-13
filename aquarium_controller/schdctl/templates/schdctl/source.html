@@ -1,3 +1,10 @@
+{% extends "base_generic.html" %}
+
+{% block title %}Aquarium Controller: Source Configuration{% endblock %}
+
+{% block content %}
+
+
 <h1>Source Configuration: {{ source.name }}</h1>
 
 {% if channel_list %}
@@ -25,3 +32,5 @@
 </form>
 
 <a href="{% url 'hdwr_config' %}">Back to hardware config</a>
+
+{% endblock %}

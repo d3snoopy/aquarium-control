@@ -11,8 +11,9 @@ class MyLineChartDrawing(Drawing):
     def __init__(self, width=600, height=400, *args, **kw):
         Drawing.__init__(self, *args, **kw)
         #apply(Drawing.__init__,(self,width,height)+args,kw)
+        backcolor = colors.HexColor('#010101')
 
-        self.add(Rect(0, 0, self.width, self.height, fillColor=colors.black))
+        self.add(Rect(0, 0, self.width, self.height, fillColor=backcolor))
 
         self.add(LinePlot(), name='chart')
 

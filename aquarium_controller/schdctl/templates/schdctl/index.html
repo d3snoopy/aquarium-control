@@ -1,3 +1,9 @@
+{% extends "base_generic.html" %}
+
+{% block title %}Aquarium Controller: Scheduled Output Control{% endblock %}
+
+{% block content %}
+
 <h1>Schedules:</h1>
 
 {% if source_list %}
@@ -16,3 +22,5 @@
 
 <p><a href="{% url 'by_channel' %}">View schedules by channel</a><br>
 <a href="{% url 'hdwr_config' %}">Setup Hardware</a></p>
+
+{% endblock %}

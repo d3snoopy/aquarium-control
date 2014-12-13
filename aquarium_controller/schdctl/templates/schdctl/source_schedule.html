@@ -1,3 +1,10 @@
+{% extends "base_generic.html" %}
+
+{% block title %}Aquarium Controller: {{ source.name }} Schedules{% endblock %}
+
+{% block content %}
+
+
 <h1>Edit {{ source.name }} Schedules:</h1>
 
 {% if profile_list %}
@@ -19,3 +26,5 @@
 
 <p><a href="{% url 'profile' source.id '0' %}">Add a profile</a></p>
 <p><a href="{% url 'index' %}">Back to Schedule Control Index</a></p>
+
+{% endblock %}
