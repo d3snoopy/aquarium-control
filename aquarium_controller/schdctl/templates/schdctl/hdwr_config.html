@@ -21,7 +21,7 @@
 <h3>Add a new source</h3>
 <form action="{% url 'hdwr_config' %}" method="post">
 {% csrf_token %}
-{{ form }}
+{{ form.as_p }}
 <input type="submit" value="Add">
 </form>
 

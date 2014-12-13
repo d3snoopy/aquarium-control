@@ -4,13 +4,13 @@
 
 <form action="{% url 'profile' source.id profileid %}" method="post">
 {% csrf_token %}
-{{ form }}
+{{ form.as_p }}
 
 {{ formset.management_form }}
 
     {% for f in formset %}
         <label>{{ chans|get_at_index:forloop.counter0 }}</label>
-        {{ f }}
+        <p>{{ f }}</p>
     {% endfor %}
 
 
