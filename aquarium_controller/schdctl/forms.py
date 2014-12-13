@@ -59,17 +59,6 @@ class Profile(forms.Form):
                                choices=schdctl.shapeChoices,
                                initial=0)
     
-    linstart = forms.FloatField(
-        label='Linear Shape Start Value',
-        max_value=1,
-        min_value=0,
-        initial=0)
-
-    linend = forms.FloatField(
-        label='Linear Shape End Value',
-        max_value=1,
-        min_value=0,
-        initial=0)
 
 class ChannelSchedule(forms.Form):
     scale = forms.FloatField(

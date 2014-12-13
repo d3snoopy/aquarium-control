@@ -14,9 +14,11 @@ hwChoices = (
 
 shapeChoices = (
     (0, 'Constant'),
-    (1, 'Linear'),
-    (2, 'Sine'),
-    (3, 'Square'),
+    (1, 'Positive Linear'),
+    (2, 'Negative Linear'),
+    (3, 'Sine'),
+    (4, 'Square'),
+    (5, '^ Shape'),
 )
 
 
@@ -96,8 +98,6 @@ class Profile(models.Model):
     refresh = models.FloatField(default=24)
     #Note: refresh is the amount of time to add in hours.
     shape = models.IntegerField(default=0, choices=shapeChoices)
-    linstart = models.FloatField(default=0)
-    linend = models.FloatField(default=1)
 
     def __unicode__(self):
         return self.name
@@ -111,30 +111,59 @@ class Profile(models.Model):
         shape = self.shape
         r = ()
         
-        # Shape = 3 is a square wave
-        if shape is 3:
+        # Shape = 5 is a V shape
+        if shape is 5:
+            slope = 2/((stop-start).total_seconds())
+            shift = 1/slope
+
+            for c in calctime:
+                r += ((1 - abs(slope * ((c - start).total_seconds() - shift)))
+                    * int(c > start and c < stop), )
+        
+        # Shape = 4 is a square wave
+        elif shape is 4:
             for c in calctime:
                 r += (int(c > start and c < stop), )
 
-        # Shape = 2 is a sine curve
-        elif shape is 2:
+        # Shape = 3 is a sine curve
+        elif shape is 3:
             # Note: Do the max so we avoid returning negative values
             for c in calctime:
                 r += (max(sin((c - start).total_seconds() * 
                          pi / (stop - start).total_seconds()),
                     0)*int(c > start and c < stop), )
 
-        # Shape = 1 is a linear slope
+        # Shape = 2 is a negative linear slope
+        elif shape is 2:
+            # Calculate the slope & intercept
+            slope = -1/((stop-start).total_seconds())
+            intercept = 1  # x = 0 is at self.start
+
+            # Zero only if after the stop; if before make one.
+            for c in calctime:
+                if c < start:
+                    r += (1, )
+
+                else:
+                    r += ((slope * (c - start).total_seconds() + intercept)
+                        * int(c < stop), )
+
+        # Shape = 1 is a positive linear slope
         elif shape is 1:
             # Calculate the slope & intercept
-            le = self.linend
-            ls = self.linstart
-            slope = (le-ls)/((stop-start).total_seconds())
-            intercept = ls  # x = 0 is at self.start
+            slope = 1/((stop-start).total_seconds())
+            intercept = 0  # x = 0 is at self.start
 
+            # Zero only if before the start
             for c in calctime:
-                r += ((slope * (c - start).total_seconds() + intercept)
-                    * int(c > start and c < stop), )
+                if c < start:
+                    r += (0, )
+
+                elif c > stop:
+                    r += (1, )
+
+                else:
+                    r += ((slope * (c - start).total_seconds() + intercept), )
 
         # If all else fails, treat it like a constant, ignoring time
         else:
@@ -186,7 +215,7 @@ class Profile(models.Model):
             return
 
         #If the schedule has ended, add the refresh time until it's active again.
-        addAmount = timedelta(hours=ceil(
+        addAmount = timedelta(hours=self.refresh*ceil(
             (now - self.stop).total_seconds()/(3600*self.refresh)))
 
         self.start = self.start + addAmount
@@ -259,8 +288,6 @@ class Channel(models.Model):
 
         #Make sure v is between 0 and maxIntensity:
         v = max(0.0001, min(v, self.maxIntensity))
-
-        print(v)
 
         #Return the value
         return self.manualset(v)

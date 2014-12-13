@@ -189,9 +189,7 @@ def profile(request, Source_id, Profile_id):
                             'start':p.start,
                             'stop':p.stop,
                             'shape':p.shape,
-                            'refresh':p.refresh,
-                            'linstart':p.linstart,
-                            'linend':p.linend}
+                            'refresh':p.refresh}
 
             form = schdforms.Profile(initial = default_data, prefix='profile')
 
@@ -232,9 +230,7 @@ def newProfile(s, form, formset):
         start = form.cleaned_data['start'],
         stop = form.cleaned_data['stop'],
         refresh = form.cleaned_data['refresh'],
-        shape = form.cleaned_data['shape'],
-        linstart = form.cleaned_data['linstart'],
-        linend = form.cleaned_data['linend'])
+        shape = form.cleaned_data['shape'])
     p.save()
 
     #Add the necessary ChanProfSrc objects.
@@ -268,8 +264,6 @@ def updateProfile(s, p, form, formset):
     p.stop = form.cleaned_data['stop']
     p.refresh = form.cleaned_data['refresh']
     p.shape = form.cleaned_data['shape']
-    p.linstart = form.cleaned_data['linstart']
-    p.linend = form.cleaned_data['linend']
     p.save()
 
     #Update the ChanProfSrces.
