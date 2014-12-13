@@ -4,3 +4,14 @@ Add a category type for the devices, so we can segregate lights, fans, dosers, e
 Add some presets?
 
 Check out security for the db and static and stuff
+
+Add: Ability to Delete Items
+Add: Auto-schedule on things
+Add: More security, password protection
+Remove: Inputs in schdctl
+
+Add: two more apps:
+ReactiveCtrl - for things that react to inputs
+Sensors - inputs from types of hardware sensors & logging
+Other inputs?
+
