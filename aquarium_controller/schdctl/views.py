@@ -274,3 +274,55 @@ def updateProfile(s, p, form, formset):
         cs.save()
 
     return
+
+
+def source_delete(request, Source_id):
+    #Find all of the profiles for this source and delete them.
+    plist = schdctl.Profile.objects.filter(
+                chanprofsrc__source__id=Source_id).distinct()
+
+    for p in plist:
+        p.delete()
+
+    #Find all of the CPSes for this source and delete them.
+    cpslist = schdctl.ChanProfSrc.objects.filter(
+                source__id=Source_id)
+
+    for c in cpslist:
+        c.delete()
+
+    #Finally, delete the source.
+    schdctl.Source.objects.get(pk=Source_id).delete()
+
+    #Redirect to the hdwr_config view.
+    return HttpResponseRedirect(reverse('hdwr_config'))
+
+
+def channel_delete(request, Channel_id):
+    #Find all of the CPSes for this channel and delete them.
+    cpslist = schdctl.ChanProfSrc.objects.filter(
+                channel__id=Channel_id)
+
+    for c in cpslist:
+        c.delete()
+
+    #Delete the channel.
+    schdctl.Channel.objects.get(pk=Channel_id).delete()
+
+    #Redirect to the hdwr_config view.
+    return HttpResponseRedirect(reverse('hdwr_config'))
+
+
+def profile_delete(request, Profile_id):
+    #Find all of the CPSes for this profile and delete them.
+    cpslist = schdctl.ChanProfSrc.objects.filter(
+                profile__id=Profile_id)
+
+    for c in cpslist:
+        c.delete()
+
+    #Delete the profile.
+    schdctl.Profile.objects.get(pk=Profile_id).delete()
+
+    #Redirect to the index view.
+    return HttpResponseRedirect(reverse('index'))

@@ -3,7 +3,13 @@
 {% if channel_list %}
     <ul>
     {% for channel in channel_list %}
-        <li><a href="{% url 'channel' channel.id %}">{{ channel.name }}</a></li>
+        <li>
+            <a href="{% url 'channel' channel.id %}">{{ channel.name }}</a>
+            <font size="1">
+                <a href="{% url='channel_delete' channel.id %}">delete</a>
+            </font>
+
+        </li>
     {% endfor %}
     </ul>
 {% else %}

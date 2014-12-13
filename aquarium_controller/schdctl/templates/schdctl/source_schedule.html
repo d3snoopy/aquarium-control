@@ -3,10 +3,13 @@
 {% if profile_list %}
     {% for p in profile_list %}
         <h2>{{ p.name }}:</h2>
-        <img src="{% url 'source_profile_graph' source.id p.id %}">
-        <a href="{% url 'profile' source.id p.id %}">Edit</a></p>
-        {% comment %} Add in plot of the source here {% endcomment %}
-        <br>
+        <p>
+            <img src="{% url 'source_profile_graph' source.id p.id %}">
+            <a href="{% url 'profile' source.id p.id %}">Edit</a><br>
+            <font size="1">
+                <a href="{% url='profile_delete' profile.id %}">delete</a>
+            </font>
+        </p><br>
     {% endfor %}
 {% else %}
     <p>No profiles are configured, <a href="{% url 'profile' source.id '0' %}">Add a profile</a></p>
