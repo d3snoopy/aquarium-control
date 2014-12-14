@@ -139,7 +139,6 @@ def channel(request, Channel_id):
     return HttpResponse('Channel')
 
 
-@login_required
 def source_schedule(request, Source_id):
     s = schdctl.Source.objects.get(pk=Source_id)
 
