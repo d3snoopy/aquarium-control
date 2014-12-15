@@ -94,4 +94,3 @@ TEMPLATE_DIRS = (
 
 LOGIN_URL = '/login/'
 
-INTERNAL_IPS = ('192.168.1.8', )

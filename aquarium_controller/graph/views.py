@@ -12,7 +12,7 @@ def index(request):
     binaryStuff = generate(s)
 
     #return HttpResponse(binaryStuff, 'image/png')
-    return render(request, 'base.html')
+    return render(request, 'base.html', {'request': request})
 
 
 def source(request, Source_id):
