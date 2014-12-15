@@ -1,6 +1,6 @@
 from django.http import HttpResponse
 
-#from django.shortcuts import render
+from django.shortcuts import render
 from django.utils import timezone
 from datetime import timedelta
 
@@ -11,7 +11,8 @@ def index(request):
 
     binaryStuff = generate(s)
 
-    return HttpResponse(binaryStuff, 'image/png')
+    #return HttpResponse(binaryStuff, 'image/png')
+    return render(request, 'base.html')
 
 
 def source(request, Source_id):
