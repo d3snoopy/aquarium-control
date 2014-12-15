@@ -7,15 +7,18 @@ def loop():
 
     cycletime = 10 #TODO move over to db
 
-    for c in schdctl.Channel.objects.filter(hwtype=2):
+    chans = schdctl.Channel.objects.filter(hwtype=2)
+    profs = schdctl.Profile.objects.all()
+
+    for c in chans:
         c.start()
 
     while True:
         sleep(cycletime)
-        for c in schdctl.Channel.objects.filter(hwtype=2):
+        for c in chans:
             c.set(timezone.now())
 
-        for p in schdctl.Profile.objects.all():
+        for p in profs:
             p.cleanup()
 
 
