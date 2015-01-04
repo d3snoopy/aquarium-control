@@ -20,3 +20,9 @@ Alias /static /aquarium-ctrl/aquarium_controller/static
 Order deny,allow
 Allow from all
 </Directory>
+
+Connections:
+P9_12 : 1Wire for Temp probes
+28-000005abd542 - BB Temp Probe
+28-0000054f0d80 - Water Temp Probe
+
