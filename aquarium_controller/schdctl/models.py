@@ -41,7 +41,7 @@ class Source(models.Model):
 
         now = timezone.now()
 
-        for c in self.channel_set.all():
+        for c in self.channel_set.all().prefetch_related('chanprofsrc_set__profile'):
             name.append(c.name)
             color.append(c.traceColor)
 
