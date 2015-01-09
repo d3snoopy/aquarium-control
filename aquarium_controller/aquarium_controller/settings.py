@@ -38,6 +38,7 @@ INSTALLED_APPS = (
     'django.contrib.staticfiles',
     'schdctl',
     'graph',
+    'inputctl',
 )
 
 MIDDLEWARE_CLASSES = (

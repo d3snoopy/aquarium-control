@@ -5,6 +5,7 @@ from django.utils import timezone
 from datetime import timedelta
 
 import schdctl.models as schdctl
+import inputctl.models as inputctl
 
 def index(request):
     s = schdctl.Source.objects.get(pk=1)
@@ -41,6 +42,13 @@ def source_profile(request, Source_id, Profile_id):
 
     binaryStuff = generate(s, Profile_id)
 
+    return HttpResponse(binaryStuff, 'image/png')
+
+def probe(request, Probe_id):
+    p = inputctl.Probe.objects.get(pk=Probe_id)
+
+    binaryStuff = generate(p)
+    
     return HttpResponse(binaryStuff, 'image/png')
 
 
@@ -80,9 +88,11 @@ def generate(s, pid=0):
 
     data = s.calc(tplot, pid)
 
+
     labels = data['name']
     labelColors = data['color']
     data = data['data']
+
 
     d.chart.data = data
 

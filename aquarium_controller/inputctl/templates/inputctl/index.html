@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block title %}Aquarium Controller: Input Control{% endblock %}
+
+{% block content %}
+
+<h1>Inputs:</h1>
+
+{% if probe_list %}
+    {% for probe in probe_list %}
+        <h2>{{ probe.name }}:</h2>
+        <img src="{% url 'probe_graph' probe.id %}">
+        <a href="{% url 'probe_config' probe.id %}">Edit</a></p><br>
+    {% endfor %}
+{% else %}
+    <p>No probes are configured, <a href="{% url 'probe_add' %}">Add a probe.</a></p>
+{% endif %}
+
+{% comment %} Add in Info about inputs {% endcomment %}
+
+{% endblock %}
