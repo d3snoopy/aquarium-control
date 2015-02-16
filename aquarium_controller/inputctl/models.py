@@ -4,7 +4,6 @@ from datetime import timedelta
 from django.db import models
 from django.utils import timezone
 from django.conf import settings
-import shutil.copyfile as copyfile
 
 
 # Set up the options for the hardware types.
@@ -44,21 +43,12 @@ class Probe(models.Model):
         return
 
 
-    def start(self):
-        copyfile(os.path.join(settings.BASE_DIR, 'backend/BB-W1-00A0.dtbo'),
-            '/lib/firmware/BB-W1-00A0.dtbo')
-
-        open('/sys/devices/bone_capemgr.9/slots', "wb").write('BB-W1:00A0\n')
-
-        return
-
-
     def cleanup(self):
         cutoff = timezone.now() - timedelta(hours=self.save)
         for s in self.sample_set.objects.filter(datetime__lte=cutoff):
             s.delete()
 
-    return
+        return
 
     def calc(self, t=False, d=False):
         r = ()
@@ -73,7 +63,7 @@ class Probe(models.Model):
 class Sample(models.Model):
     probe = models.ForeignKey(Probe)
     datetime = models.DateTimeField(default=timezone.now())
-    value = models.FloatField(default=self.probe.get())
+    value = models.FloatField(default=0)
 
     def __unicode__(self):
         return self.value

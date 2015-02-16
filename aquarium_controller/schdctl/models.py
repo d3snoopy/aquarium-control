@@ -1,15 +1,16 @@
 from django.db import models
 from django.utils import timezone
 from math import sin,pi,ceil
-import Adafruit_BBIO.PWM as PWMctl
 from time import sleep
 from datetime import timedelta
+
+import hardware.models
 
 # Set up the options for some fields
 hwChoices = (
     (0, 'GPIO Out'),
-    (1, 'OneWire In'),
-    (2, 'PWM Out'),
+    (1, 'BBB PWM Out'),
+    (2, 'TLC PWM Out'),
 )
 
 shapeChoices = (
@@ -21,6 +22,10 @@ shapeChoices = (
     (5, '^ Shape'),
 )
 
+
+# Note, for the models:
+# "calc" method: called by the graphing interface; return a formatted tuple for the graphing.
+# "get" method: [for a channel] called by the hardware interface to find out what to set.
 
 # Create your models here.
 
@@ -228,36 +233,21 @@ class Profile(models.Model):
 
 class Channel(models.Model):
     name = models.CharField(max_length=20)
-    hwid = models.CharField(max_length=10)
-    hwtype = models.IntegerField(default=2, choices=hwChoices)
-    pwm = models.FloatField(default=500)
+    hwobj = models.OneToOneField(hardware.models.Output)
     source= models.ManyToManyField(Source)
     maxIntensity = models.FloatField(default=1)
     traceColor = models.CharField(default='ffffff', max_length=7)
 
+
     def __unicode__(self):
         return self.name
+
 
     def __str__(self):
         return self.name
 
-    def start(self):
-        if self.hwtype is 2:
-            # Start the PWM
-            PWMctl.start(self.hwid, 0, self.pwm)
-            sleep(1)
 
-        return
-
-    def stop(self):
-        if self.hwtype is 2:
-            # Stop the PWM
-            PWMctl.stop(self.hwid)
-            sleep(1)
-
-        return
-
-    def set(self, calctime=0):
+    def get(self, calctime=0):
 
         if not calctime:
             calctime = [timezone.now()]
@@ -287,16 +277,10 @@ class Channel(models.Model):
             v += srcdata
 
         #Make sure v is between 0 and maxIntensity:
-        v = max(0.0001, min(v, self.maxIntensity))
+        v = min(v, self.maxIntensity)
 
         #Return the value
-        return self.manualset(v)
-
-    def manualset(self, v):
-        if self.hwtype is 2:
-            PWMctl.set_duty_cycle(self.hwid, 100 * v)
-
-        return
+        return v
 
 
     def calc(self, calctime=[timezone.now()], p=0):
