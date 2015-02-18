@@ -1,5 +1,6 @@
 from django import forms
 import schdctl.models as schdctl
+import hardware.models as hardware
 #from datetime import datetime
 from datetime import timedelta
 
@@ -20,19 +21,8 @@ class ChannelAdd(forms.Form):
         empty_label="New Channel")
 
 
-class ChannelNew(forms.Form):
+class Channel(forms.Form):
     name = forms.CharField(label='Name', max_length=20)
-    hwid = forms.CharField(label='Hardware ID', max_length=10)
-    hwtype = forms.ChoiceField(label='Type of Channel',
-                               choices=schdctl.hwChoices,
-                               initial=2)
-
-    pwm = forms.FloatField(
-        label='PWM Frequency',
-        max_value=2000,
-        min_value=200,
-        initial=500)
-    
     maxIntensity = forms.FloatField(label='Max Value',
                                  max_value=1,
                                  min_value=0,
@@ -41,6 +31,10 @@ class ChannelNew(forms.Form):
     traceColor = forms.CharField(label='Trace Color',
                                  max_length=7,
                                  widget=ColorPickerWidget)
+
+    hwtype = forms.ChoiceField(label='Hardware Type',
+                               choices=hardware.outputChoices,
+                               initial=2)
 
 
 class Profile(forms.Form):

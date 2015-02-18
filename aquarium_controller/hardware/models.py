@@ -1,5 +1,4 @@
 from django.db import models
-import hardware.driver.TLC59711
 
 # Create your models here.
 
@@ -15,31 +14,68 @@ import hardware.driver.TLC59711
 
 # Channel -> Output <- Device Type
 
-class Output(models.Model):
-    hwClass = models.IntegerField(default=0,
-        choices=((0, 'BBB PWM Out'),
+outputChoices = ((0, 'BBB PWM Out'),
                  (1, 'BBB GPIO Out'),
                  (2, 'SPI TLC59711 Out'),
                 )
-        
+
+inputChoices = ((0, 'BBB GPIO In'),
+                (1, 'BBB Analog In'),
+                (2, 'BBB Counter In'),
+                (3, 'Dallas W1 In'),
+               )
+
+tlc59711Choices = ((12, 'R0'),
+                   (11, 'G0'),
+                   (10, 'B0'),
+                   (9, 'R1'),
+                   (8, 'G1'),
+                   (7, 'B1'),
+                   (6, 'R2'),
+                   (5, 'G2'),
+                   (4, 'B2'),
+                   (3, 'R3'),
+                   (2, 'G3'),
+                   (1, 'B3'),
+                  )
+
+
+class Output(models.Model):
+    hwType= models.IntegerField(default=0,
+        choices=outputChoices)
+
+    def cleanup(self):
+        if hwType is 2:
+            self.tlc59711chan.delete()
+
+        elif hwType is 1:
+            self.gpiooutchan.delete()
+
+        else:
+            self.pwmchan.delete()
+
+        return
 
 
 class Input(models.Model):
+    hwType = models.IntegerField(default=0,
+        choices=inputChoices)
 
 
 class TLC59711Chan(models.Model):
     out = models.OneToOneField(Output)
-    SPIdev = models.IntegerField(default=0, choices=((0, 'SPI0'), (1, 'SPI1')))
     devNum = models.IntegerField(default=0)
     chanNum = models.IntegerField(default=0,
-        choices=hardware.driver.TLC59711.chanChoice)
-
+        choices=tlc59711Choices
+    )
+    #note: the choice numbering is significant, it's the index when building
+    #the data for output.
 
     def __unicode__(self):
-        return self.SPIdev + '_' + self.devNum + '_' + self.chanNum
+        return 'SPI' + self.SPIdev + '_' + self.devNum + '_' + self.chanNum
 
 
     def __str__(self):
-        return self.SPIdev + '_' + self.devNum + '_' + self.chanNum
+        return 'SPI' + self.SPIdev + '_' + self.devNum + '_' + self.chanNum
 
 

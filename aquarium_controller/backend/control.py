@@ -1,24 +1,41 @@
 import schdctl.models as schdctl
+import hardware.driver.TLC59711 as TLC59711
 from time import sleep
 from django.utils import timezone
+import spidev
+
 
 def loop():
     #Run the control loop
 
-    cycletime = 10 #TODO move over to db
+    cycletime = 10 #TODO move over to db?  Or a config file.
 
-    chans = schdctl.Channel.objects.filter(hwtype=2)
-    profs = schdctl.Profile.objects.all()
+    #TODO also move this over to a config file or something.
 
-    for c in chans:
-        c.start()
+    #Enable our capes
+    f = open("/sys/devices/bone_capemgr.9/slots", "wb")
+    f.write("AQ-SPI0")
+    f.close()
+    f = open("/sys/devices/bone_capemgr.9/slots", "wb")
+    f.write("AQ-W1")
+    f.close()
+    
+    #TODO Temperature probe stuff.
+    #cat /sys/devices/w1_bus_master/*
+
+    #Initialize the SPI device.
+    spi = spidev.SpiDev()
+    spi.open(1, 0)
+
+    #Grab our profiles, to be cleaned up.
+    profs = schctl.Profile.objects.all()
 
     while True:
-        sleep(cycletime)
-        for c in chans:
-            c.set(timezone.now())
+        test = TLC59711.set(spi)
+        print(test)
 
         for p in profs:
             p.cleanup()
 
+        sleep(cycletime)
 

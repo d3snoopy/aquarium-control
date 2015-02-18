@@ -9,5 +9,5 @@ urlpatterns = patterns('',
     url(r'^profile/(?P<Profile_id>\d+)/$', views.profile, name='profile_graph'),
     url(r'^source_profile/(?P<Source_id>\d+)/(?P<Profile_id>\d+)/$',
         views.source_profile, name='source_profile_graph'),
-    url(r'^probe/(?<Probe_id>\d+)/$', views.probe, name='probe_graph'),
+    url(r'^probe/(?P<Probe_id>\d+)/$', views.probe, name='probe_graph'),
 )

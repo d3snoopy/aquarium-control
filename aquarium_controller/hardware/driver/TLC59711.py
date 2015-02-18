@@ -1,6 +1,8 @@
 import hardware.models
 
 # Driver to send outputs to TLC59711's.
+# Note: The set function expects to receive an spidev object to transfer to.
+# Also, note: Currently written to handle onle one SPI channel.
 
 # Map of the necessary data:
 # Starting with the MSB:
@@ -51,47 +53,39 @@ def calc(invert=True, v=0):
     if invert:
         v = 1-v
 
-    return max(min(v,1),0)*2**bits
+    n=hex(max(min(v,1),0)*(2**bits-1))
+
+    return([int(n[:-2], 16), int(n[-2:], 16)])
 
 
-def set():
+def set(spi):
     # Header to write per device
-    header = 0x945FFFFF
+    header = [0x94, 0x5F, 0xFF, 0xFF]
     # Invert logic since it's "on" pulls down
     invert = True
     # Number of channels per device
     numchan = 12
+    # Num of bytes per device
+    numDevBytes = 2*numchan + len(header)
     
     # Get the configured channels
     data = hardware.models.TLC59711Chan.objects.all().prefetch_related('out__channel')
 
-    #Find out how many SPI channels we're using.
-    if data.filter(SPIdev=0):
-        #Find out how many devices are on SPI0
-        numSPI0 = int(data.filter(SPIdev=0).order_by(-devNum)[0])+1
+    #Find out how many devices are on SPI0
+    numDev = int(data.filter(SPIdev=0).order_by(-devNum)[0])+1
 
-        #Seed the data with all channels set to off.
-        SPI0 = ([header] + [calc(invert)]*numchan)*numSPI0
+    #Seed the data with all channels set to off.
+    out = (header + calc(invert)*numchan)*numSPI0
 
-    if data.filter(SPIdev=1):
-        #Find out how many devices are on SPI1
-        numSPI0 = int(data.filter(SPIdev=1).order_by(-devNum)[0])+1
+    #Iterate through each object and set the appropriate fields.
+        for d in data:
+            out((numDev-d.devNum-1)*numDevBytes+len(header)+2*d.chanNum-1) =
+                calc(invert)[0]
+            out((numDev-d.devNum-1)*numDevBytes+len(header)+2*d.chanNum) =
+                calc(invert)[1]
 
+    #Send the data down to the device.
+    spi.xfer2(SPI0)
 
-    #Base values to download - header + all chan off for one device * num dev
-    SPI0 = [header] + calc()*numchan
+    return(SPI0)
 
-    #Set SPI0
-    SPI0 = 
-
-
-    for i in range(numSPI0):
-        SPI0 = SPI0 + base
-
-
-    for c in hardware.models.TLC59711Chan.objects.filter(SPIdev=0).order_by('devNum'):
-        
-
-
-
-   #Set SPI1 

@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+
+{% block title %}Aquarium Controller: Edit a TLC59711 Hardware Channel{% endblock %}
+
+{% block content %}
+
+
+<h1>Edit a TLC59711 Hardware Channel</h1>
+
+<form action="{% url 'hardware_output' h.id %}" method="post">
+{% csrf_token %}
+{{ form.as_p }}
+<input type="submit" value="Create" />
+</form>
+
+{% endblock %}

@@ -232,9 +232,9 @@ class Profile(models.Model):
 
 
 class Channel(models.Model):
-    name = models.CharField(max_length=20)
-    hwobj = models.OneToOneField(hardware.models.Output)
-    source= models.ManyToManyField(Source)
+    name = models.CharField(max_length=20, blank=True)
+    hwobj = models.OneToOneField(hardware.models.Output, null=True, blank=True)
+    source= models.ManyToManyField(Source, blank=True)
     maxIntensity = models.FloatField(default=1)
     traceColor = models.CharField(default='ffffff', max_length=7)
 

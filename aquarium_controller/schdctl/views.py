@@ -6,6 +6,7 @@ from django.contrib.auth.decorators import login_required
 
 import schdctl.models as schdctl
 import schdctl.forms as schdforms
+import hardware.models as hardware
 
 from django.utils import timezone
 from datetime import timedelta
@@ -25,6 +26,18 @@ def by_channel(request):
     context = { 'channel_list': channel_list }
 
     return render(request, 'schdctl/by_channel.html', context)
+
+
+def source_schedule(request, Source_id):
+    s = schdctl.Source.objects.get(pk=Source_id)
+
+    p_list = schdctl.Profile.objects.filter(
+        chanprofsrc__source__id=Source_id).distinct()
+
+    context = {'profile_list': p_list,
+                'source': s }
+        
+    return render(request, 'schdctl/source_schedule.html', context)
 
 
 @login_required
@@ -75,7 +88,7 @@ def source(request, Source_id):
             return HttpResponseRedirect(reverse('source', args=[s.id]))
 
         else:
-            return HttpResponseRedirect(reverse('channel_new', args=[s.id]))
+            return HttpResponseRedirect(reverse('channel', args=[s.id, 0]))
 
 
     channel_list = s.channel_set.all()
@@ -93,62 +106,76 @@ def source(request, Source_id):
 
 
 @login_required
-def channel_new(request, Source_id):
+def channel(request, Source_id, Channel_id):
     s = schdctl.Source.objects.get(pk=Source_id)
+    Channel_id = int(Channel_id)
+
+    if Channel_id:
+        c = schdctl.Channel.objects.get(pk=Channel_id)
+    else:
+        c = schdctl.Channel()
+
     if request.method == 'POST':
         # Grab the form
-        form = schdforms.ChannelNew(request.POST)
+        form = schdforms.Channel(request.POST)
         # Check validity
 
         if form.is_valid():
-            c = schdctl.Channel(
-                name = form.cleaned_data['name'],
-                hwid = form.cleaned_data['hwid'],
-                hwtype = form.cleaned_data['hwtype'],
-                pwm = form.cleaned_data['pwm'],
-                maxIntensity = form.cleaned_data['maxIntensity'],
-                traceColor = form.cleaned_data['traceColor'])
+            c.name = form.cleaned_data['name']
+            c.maxIntensity = form.cleaned_data['maxIntensity']
+            c.traceColor = form.cleaned_data['traceColor']
             c.save()
 
-            s.channel_set.add(c)
+            if not Channel_id:
+                s.channel_set.add(c)
 
-            # Check to see if any profiles have been associated with source.
-            # If so, create a cps object for this new channel in all profiles.
-            p_list = schdctl.Profile.objects.filter(
-                chanprofsrc__source__id=Source_id).distinct()
+                # Check to see if any profiles have been associated with source.
+                # If so, create a cps object for this new channel in all profiles.
+                p_list = schdctl.Profile.objects.filter(
+                    chanprofsrc__source__id=Source_id).distinct()
 
-            for p in p_list:
-                cps = schdctl.ChanProfSrc(channel=c, profile=p, source=s)
-                cps.save()
+                for p in p_list:
+                    cps = schdctl.ChanProfSrc(channel=c, profile=p, source=s)
+                    cps.save()
+
+                # Create a hardware output object.
+                h = hardware.Output(hwType=form.cleaned_data['hwtype'])
+                h.save()
+
+                # Associate the channel and hw object.
+                c.hwobj = h
+                c.save()
+
+            else:
+                print(form.cleaned_data)
+                # Check to see if the user changed the hardware type.
+                if c.hwobj.hwType is not form.cleaned_data['hwtype']:
+                    # Delete the old hardware type object.
+                    c.hwobj.cleanup()
+
+                    # Set the new value
+                    c.hwobj.hwType=form.cleaned_data['hwtype']
+                    c.hwobj.save()
 
 
-            return HttpResponseRedirect(reverse('source', args=[s.id]))
+            return HttpResponseRedirect(reverse('hardware_output', args=[h.id]))
 
     else:
-        form = schdforms.ChannelNew()
+        if Channel_id:
+            default_data = {'name': c.name,
+                            'maxIntensity':c.maxIntensity,
+                            'traceColor':c.traceColor}
+
+            form = schdforms.Channel(initial = default_data)
+
+        else:
+            form = schdforms.Channel()
 
     context = { 'form': form, 
-                'source': s }
+                'source': s,
+                'channelid': Channel_id }
 
-    return render(request, 'schdctl/channel_new.html', context)
-
-
-@login_required
-def channel(request, Channel_id):
-    #TODO
-    return HttpResponse('Channel')
-
-
-def source_schedule(request, Source_id):
-    s = schdctl.Source.objects.get(pk=Source_id)
-
-    p_list = schdctl.Profile.objects.filter(
-        chanprofsrc__source__id=Source_id).distinct()
-
-    context = {'profile_list': p_list,
-                'source': s }
-        
-    return render(request, 'schdctl/source_schedule.html', context)
+    return render(request, 'schdctl/channel.html', context)
 
 
 @login_required
