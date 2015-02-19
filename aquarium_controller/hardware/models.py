@@ -72,10 +72,10 @@ class TLC59711Chan(models.Model):
     #the data for output.
 
     def __unicode__(self):
-        return 'SPI' + self.SPIdev + '_' + self.devNum + '_' + self.chanNum
+        return str(self.devNum) + '_' + str(self.chanNum)
 
 
     def __str__(self):
-        return 'SPI' + self.SPIdev + '_' + self.devNum + '_' + self.chanNum
+        return str(self.devNum) + '_' + str(self.chanNum)
 
 

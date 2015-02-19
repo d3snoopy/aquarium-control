@@ -9,22 +9,22 @@ import hardware.models
 # MSB -> LSB  224 bits
 #Header:  (bits 224-213)
 #100101  write command
-#0 timing on falling edge (doesn’t really matter)
+#0 timing on falling edge (doesn't really matter)
 #0 internal clock
 #0 timing reset disabled
 #1 auto repeat enabled
 #0 blanking disabled (output enabled)
 #=(to be ored with next)
 #
-#Global Brightness Control (sink current control) – 3 banks, maximize all (bits 212-206, 205-199, 198-192)
+#Global Brightness Control (sink current control) 3 banks, maximize all (bits 212-206, 205-199, 198-192)
 #7 bits per bank
 #1111111 x3
 #
 #Total header:  945FFFFF
 #
-#Level settings: (MSB: B3, G3, R3, … B0, G0, R0 LSB), bits 212-206, 205-199, …, 15-0
+#Level settings: (MSB: B3, G3, R3, ...  B0, G0, R0 LSB), bits 212-206, 205-199, ..., 15-0
 #
-#Min: 0000, max: FFFF; since I’m driving a digital ctrl w/ pullup: FFFF = off; 0000 = 100%
+#Min: 0000, max: FFFF; since I'm driving a digital ctrl w/ pullup: FFFF = off; 0000 = 100%
 #
 #[FFFF] *  12
 
@@ -53,12 +53,12 @@ def calc(invert=True, v=0):
     if invert:
         v = 1-v
 
-    n=hex(max(min(v,1),0)*(2**bits-1))
+    n=hex(int(max(min(v,1),0)*(2**bits-1)))[2:].zfill(4)
 
-    return([int(n[:-2], 16), int(n[-2:], 16)])
+    return([int(n[2:4], 16), int(n[-2:], 16)])
 
 
-def set(spi):
+def set(spi=False):
     # Header to write per device
     header = [0x94, 0x5F, 0xFF, 0xFF]
     # Invert logic since it's "on" pulls down
@@ -72,20 +72,21 @@ def set(spi):
     data = hardware.models.TLC59711Chan.objects.all().prefetch_related('out__channel')
 
     #Find out how many devices are on SPI0
-    numDev = int(data.filter(SPIdev=0).order_by(-devNum)[0])+1
+    numDev = int(data.order_by('-devNum')[0].devNum)+1
 
     #Seed the data with all channels set to off.
-    out = (header + calc(invert)*numchan)*numSPI0
+    out = (header + calc(invert)*numchan)*numDev
 
     #Iterate through each object and set the appropriate fields.
-        for d in data:
-            out((numDev-d.devNum-1)*numDevBytes+len(header)+2*d.chanNum-1) =
-                calc(invert)[0]
-            out((numDev-d.devNum-1)*numDevBytes+len(header)+2*d.chanNum) =
-                calc(invert)[1]
+    for d in data:
+        r = calc(invert, d.out.channel.get())
+
+        out[(numDev-d.devNum-1)*numDevBytes+len(header)+2*d.chanNum-2] = r[0]
+        out[(numDev-d.devNum-1)*numDevBytes+len(header)+2*d.chanNum-1] = r[1]
 
     #Send the data down to the device.
-    spi.xfer2(SPI0)
+    if spi:
+        spi.xfer2(out)
 
-    return(SPI0)
+    return(out)
 

@@ -13,12 +13,19 @@ def loop():
     #TODO also move this over to a config file or something.
 
     #Enable our capes
-    f = open("/sys/devices/bone_capemgr.9/slots", "wb")
-    f.write("AQ-SPI0")
+    f = open("/sys/devices/bone_capemgr.9/slots", "rb")
+    capes = f.read()
     f.close()
-    f = open("/sys/devices/bone_capemgr.9/slots", "wb")
-    f.write("AQ-W1")
-    f.close()
+
+    if not "AQ-SPI0" in capes:
+        f = open("/sys/devices/bone_capemgr.9/slots", "wb")
+        f.write("AQ-SPI0")
+        f.close()
+
+    if not "AQ-W1" in capes:
+        f = open("/sys/devices/bone_capemgr.9/slots", "wb")
+        f.write("AQ-W1")
+        f.close()
     
     #TODO Temperature probe stuff.
     #cat /sys/devices/w1_bus_master/*
@@ -28,7 +35,7 @@ def loop():
     spi.open(1, 0)
 
     #Grab our profiles, to be cleaned up.
-    profs = schctl.Profile.objects.all()
+    profs = schdctl.Profile.objects.all()
 
     while True:
         test = TLC59711.set(spi)
