@@ -30,18 +30,18 @@ import hardware.models
 
 # Channel choices:
 chanChoice=(
-    (12, 'R0'),
-    (11, 'G0'),
-    (10, 'B0'),
-    (9, 'R1'),
-    (8, 'G1'),
-    (7, 'B1'),
-    (6, 'R2'),
-    (5, 'G2'),
-    (4, 'B2'),
-    (3, 'R3'),
-    (2, 'G3'),
-    (1, 'B3'),
+    (26, 'R0'),
+    (24, 'G0'),
+    (22, 'B0'),
+    (20, 'R1'),
+    (18, 'G1'),
+    (16, 'B1'),
+    (14, 'R2'),
+    (12, 'G2'),
+    (10, 'B2'),
+    (8, 'R3'),
+    (6, 'G3'),
+    (4, 'B3'),
 )
 #note: the choice numbering is significant, it's the index when building
 #the data for output.
@@ -66,7 +66,7 @@ def set(spi=False):
     # Number of channels per device
     numchan = 12
     # Num of bytes per device
-    numDevBytes = 2*numchan + len(header)
+    numDevBytes = 28
     
     # Get the configured channels
     data = hardware.models.TLC59711Chan.objects.all().prefetch_related('out__channel')
@@ -81,8 +81,8 @@ def set(spi=False):
     for d in data:
         r = calc(invert, d.out.channel.get())
 
-        out[(numDev-d.devNum-1)*numDevBytes+len(header)+2*d.chanNum-2] = r[0]
-        out[(numDev-d.devNum-1)*numDevBytes+len(header)+2*d.chanNum-1] = r[1]
+        out[(numDev-d.devNum-1)*numDevBytes+d.chanNum] = r[0]
+        out[(numDev-d.devNum-1)*numDevBytes+d.chanNum+1] = r[1]
 
     #Send the data down to the device.
     if spi:

@@ -40,7 +40,7 @@ def loop():
     while True:
         test = TLC59711.set(spi)
         print(test)
-
+        
         for p in profs:
             p.cleanup()
 

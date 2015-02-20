@@ -147,8 +147,9 @@ def channel(request, Source_id, Channel_id):
                 c.save()
 
             else:
-                print(form.cleaned_data)
                 # Check to see if the user changed the hardware type.
+                print('obj' + str(c.hwobj.hwType))
+                print('form' + str(form.cleaned_data['hwtype'))
                 if c.hwobj.hwType is not form.cleaned_data['hwtype']:
                     # Delete the old hardware type object.
                     c.hwobj.cleanup()

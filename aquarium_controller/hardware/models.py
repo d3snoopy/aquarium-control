@@ -45,10 +45,10 @@ class Output(models.Model):
         choices=outputChoices)
 
     def cleanup(self):
-        if hwType is 2:
+        if self.hwType is 2:
             self.tlc59711chan.delete()
 
-        elif hwType is 1:
+        elif self.hwType is 1:
             self.gpiooutchan.delete()
 
         else:
