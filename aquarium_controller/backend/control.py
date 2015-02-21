@@ -38,8 +38,7 @@ def loop():
     profs = schdctl.Profile.objects.all()
 
     while True:
-        test = TLC59711.set(spi)
-        print(test)
+        TLC59711.set(spi)
         
         for p in profs:
             p.cleanup()

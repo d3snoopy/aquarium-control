@@ -1,4 +1,5 @@
 from django.db import models
+import hardware.driver.TLC59711 as TLC59711
 
 # Create your models here.
 
@@ -24,20 +25,6 @@ inputChoices = ((0, 'BBB GPIO In'),
                 (2, 'BBB Counter In'),
                 (3, 'Dallas W1 In'),
                )
-
-tlc59711Choices = ((12, 'R0'),
-                   (11, 'G0'),
-                   (10, 'B0'),
-                   (9, 'R1'),
-                   (8, 'G1'),
-                   (7, 'B1'),
-                   (6, 'R2'),
-                   (5, 'G2'),
-                   (4, 'B2'),
-                   (3, 'R3'),
-                   (2, 'G3'),
-                   (1, 'B3'),
-                  )
 
 
 class Output(models.Model):
@@ -66,7 +53,7 @@ class TLC59711Chan(models.Model):
     out = models.OneToOneField(Output)
     devNum = models.IntegerField(default=0)
     chanNum = models.IntegerField(default=0,
-        choices=tlc59711Choices
+        choices=TLC59711.chanChoice
     )
     #note: the choice numbering is significant, it's the index when building
     #the data for output.

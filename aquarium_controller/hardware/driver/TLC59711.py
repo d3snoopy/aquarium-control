@@ -55,7 +55,9 @@ def calc(invert=True, v=0):
 
     n=hex(int(max(min(v,1),0)*(2**bits-1)))[2:].zfill(4)
 
-    return([int(n[2:4], 16), int(n[-2:], 16)])
+    print(n)
+
+    return([int(n[0:2], 16), int(n[2:4], 16)])
 
 
 def set(spi=False):
@@ -77,16 +79,20 @@ def set(spi=False):
     #Seed the data with all channels set to off.
     out = (header + calc(invert)*numchan)*numDev
 
+    print(data)
+
     #Iterate through each object and set the appropriate fields.
     for d in data:
         r = calc(invert, d.out.channel.get())
-
-        out[(numDev-d.devNum-1)*numDevBytes+d.chanNum] = r[0]
-        out[(numDev-d.devNum-1)*numDevBytes+d.chanNum+1] = r[1]
+        out[(numDev-d.devNum-1)*numDevBytes+d.chanNum]=r[0]
+        out[(numDev-d.devNum-1)*numDevBytes+d.chanNum+1]=r[1]
 
     #Send the data down to the device.
     if spi:
         spi.xfer2(out)
+
+    print('out:')
+    print(out)
 
     return(out)
 
