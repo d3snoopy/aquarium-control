@@ -32,13 +32,13 @@ class Output(models.Model):
         choices=outputChoices)
 
     def cleanup(self):
-        if self.hwType is 2:
+        if hasattr(self, 'tlc59711chan'):
             self.tlc59711chan.delete()
 
-        elif self.hwType is 1:
+        elif hasattr(self, 'gpiooutchan'):
             self.gpiooutchan.delete()
 
-        else:
+        elif hasattr(self, 'pwmchan'):
             self.pwmchan.delete()
 
         return

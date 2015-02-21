@@ -33,7 +33,6 @@ def TLC59711(request, h):
         # Grab the form
         form = hardforms.TLC59711(request.POST)
         # Check validity
-        print(request.POST)
         if form.is_valid():
             #Test if the channel is already in use.
             if hardware.TLC59711Chan.objects.filter(

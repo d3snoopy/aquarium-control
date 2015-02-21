@@ -21,6 +21,19 @@ Order deny,allow
 Allow from all
 </Directory>
 
+Move apache to listen to port 80:
+vim /etc/apache2/port.conf
+
+add the line:
+Listen 80
+
+
+Disable the services the listen to port 80:
+systemctl disable bonescript.service              
+systemctl disable bonescript.socket
+systemctl disable bonescript-autorun.service
+
+
 Connections:
 P9_12 : 1Wire for Temp probes
 28-000005abd542 - BB Temp Probe
