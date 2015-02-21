@@ -23,6 +23,10 @@ def output(request, Out_id):
     return ret
 
 
+def output_error(request, Out_id):
+    return render(request, 'hardware/output_error.html', {'h': Out_id})
+
+
 # Not directly accessed by urls
 def TLC59711(request, h): 
     if request.method == 'POST':
@@ -31,6 +35,13 @@ def TLC59711(request, h):
         # Check validity
         print(request.POST)
         if form.is_valid():
+            #Test if the channel is already in use.
+            if hardware.TLC59711Chan.objects.filter(
+                devNum=form.cleaned_data['devNum']
+               ).filter(
+                chanNum=form.cleaned_data['chanNum']):
+                return HttpResponseRedirect(reverse('hardware_output_error', args=[h.id]))
+ 
             #See if an object already exists.
             if not hasattr(h, 'tlc59711chan'):
                 #Create an object

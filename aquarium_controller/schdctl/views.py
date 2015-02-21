@@ -149,7 +149,7 @@ def channel(request, Source_id, Channel_id):
             else:
                 # Check to see if the user changed the hardware type.
                 print('obj' + str(c.hwobj.hwType))
-                print('form' + str(form.cleaned_data['hwtype'))
+                print('form' + str(form.cleaned_data['hwtype']))
                 if c.hwobj.hwType is not form.cleaned_data['hwtype']:
                     # Delete the old hardware type object.
                     c.hwobj.cleanup()
@@ -340,8 +340,13 @@ def channel_delete(request, Channel_id):
     for c in cpslist:
         c.delete()
 
+    #Delete the Output and Hardware Channel associated with this channel.
+    c = schdctl.Channel.objects.get(pk=Channel_id)
+    c.hwobj.cleanup()
+    c.hwobj.delete()
+
     #Delete the channel.
-    schdctl.Channel.objects.get(pk=Channel_id).delete()
+    c.delete()
 
     #Redirect to the hdwr_config view.
     return HttpResponseRedirect(reverse('hdwr_config'))
