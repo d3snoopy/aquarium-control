@@ -77,6 +77,7 @@ def set(simulate=False):
     numDev = int(data.order_by('-devNum')[0].devNum)+1
 
     #Seed the data with all channels set to off.
+    out = []
     out = (header + calc(invert)*numchan)*numDev
 
     #Iterate through each object and set the appropriate fields.
@@ -90,8 +91,10 @@ def set(simulate=False):
         import spidev
         spi = spidev.SpiDev()
         spi.open(1, 0)
-        spi.xfer2(copy.copy(out))
+        data = copy.copy(out)
+        spi.xfer2(data)
         spi.close()
+        del(data)
 
     return(out)
 
