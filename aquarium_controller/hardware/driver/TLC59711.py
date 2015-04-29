@@ -1,4 +1,6 @@
 import hardware.models
+import copy
+#import spidev
 
 # Driver to send outputs to TLC59711's.
 # Note: The set function expects to receive an spidev object to transfer to.
@@ -55,12 +57,10 @@ def calc(invert=True, v=0):
 
     n=hex(int(max(min(v,1),0)*(2**bits-1)))[2:].zfill(4)
 
-    print(n)
-
     return([int(n[0:2], 16), int(n[2:4], 16)])
 
 
-def set(spi=False):
+def set(simulate=False):
     # Header to write per device
     header = [0x94, 0x5F, 0xFF, 0xFF]
     # Invert logic since it's "on" pulls down
@@ -79,8 +79,6 @@ def set(spi=False):
     #Seed the data with all channels set to off.
     out = (header + calc(invert)*numchan)*numDev
 
-    print(data)
-
     #Iterate through each object and set the appropriate fields.
     for d in data:
         r = calc(invert, d.out.channel.get())
@@ -88,11 +86,12 @@ def set(spi=False):
         out[(numDev-d.devNum-1)*numDevBytes+d.chanNum+1]=r[1]
 
     #Send the data down to the device.
-    if spi:
-        spi.xfer2(out)
-
-    print('out:')
-    print(out)
+    if not simulate:
+        import spidev
+        spi = spidev.SpiDev()
+        spi.open(1, 0)
+        spi.xfer2(copy.copy(out))
+        spi.close()
 
     return(out)
 

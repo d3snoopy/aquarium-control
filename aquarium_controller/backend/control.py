@@ -1,9 +1,15 @@
 import schdctl.models as schdctl
 import hardware.driver.TLC59711 as TLC59711
-from time import sleep
 from django.utils import timezone
-import spidev
+import sched
+import time
 
+
+def run():
+    #Stuff to do every time
+    out = TLC59711.set()
+    print(str(timezone.now().minute) + ":" +
+        str(timezone.now().second) + ": " + str(out))
 
 def loop():
     #Run the control loop
@@ -26,22 +32,22 @@ def loop():
         f = open("/sys/devices/bone_capemgr.9/slots", "wb")
         f.write("AQ-W1")
         f.close()
-    
+
     #TODO Temperature probe stuff.
     #cat /sys/devices/w1_bus_master/*
-
-    #Initialize the SPI device.
-    spi = spidev.SpiDev()
-    spi.open(1, 0)
 
     #Grab our profiles, to be cleaned up.
     profs = schdctl.Profile.objects.all()
 
-    while True:
-        TLC59711.set(spi)
-        
-        for p in profs:
-            p.cleanup()
+    #Make a count so we don't have to do cleanup all the time.
+    count = 0
 
-        sleep(cycletime)
+    [p.cleanup() for p in schdctl.Profile.objects.all()]
+
+    s = sched.scheduler(time.time, time.sleep)
+
+    for i in range(6*60):
+        s.enter(10*i, 1, run, ())
+
+    s.run()
 
