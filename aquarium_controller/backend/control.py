@@ -5,9 +5,9 @@ import sched
 import time
 
 
-def run():
+def run(pwm):
     #Stuff to do every time
-    out = TLC59711.set()
+    out = TLC59711.set(pwm)
     print(str(timezone.now().minute) + ":" +
         str(timezone.now().second) + ": " + str(out))
 
@@ -44,10 +44,13 @@ def loop():
 
     [p.cleanup() for p in schdctl.Profile.objects.all()]
 
+    #Start the TLC driver
+    pwm = TLC59711.start()
+
     s = sched.scheduler(time.time, time.sleep)
 
     for i in range(6*60):
         s.enter(10*i, 1, run, ())
 
-    s.run()
+    s.run(pwm)
 
