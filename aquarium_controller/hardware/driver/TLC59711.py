@@ -97,7 +97,7 @@ def set(device=False):
     #Send the data down to the device.
     if device:
         data = copy.copy(out)
-        spi.xfer2(data)
+        device.xfer2(data)
         del(data)
 
     return(out)
