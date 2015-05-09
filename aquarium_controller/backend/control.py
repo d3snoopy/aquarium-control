@@ -9,7 +9,7 @@ def run(pwm):
     #Stuff to do every time
     out = TLC59711.set(pwm)
     #print(str(timezone.now().minute) + ":" +
-        str(timezone.now().second) + ": " + str(out))
+    #    str(timezone.now().second) + ": " + str(out))
 
 def loop():
     #Run the control loop
