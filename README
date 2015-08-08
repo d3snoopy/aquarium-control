@@ -53,3 +53,5 @@ vim /mnt/card/uEnv.txt
 Disable the HDMI cape:
 uncomment cape_disable=capemgr.disable_partno=BB-BONELT-HDMI,BB-BONELT-HDMIN
 
+
+Min signal with TLC59711, appears to be ~.02 - .03 (2-3%)
