@@ -1,5 +1,5 @@
 import hardware.models
-import copy
+#import copy
 #import spidev
 
 # Driver to send outputs to TLC59711's.
@@ -102,8 +102,8 @@ def set(device=False):
     #    del(data)
     if device:
         with open(device, 'wb') as f:
-            f.write(bytes(out))
-        
+            #f.write(bytes(out))
+            f.write(bytearray(out))
 
     return(out)
 

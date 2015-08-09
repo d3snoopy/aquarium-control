@@ -39,18 +39,13 @@ def loop():
     #Grab our profiles, to be cleaned up.
     profs = schdctl.Profile.objects.all()
 
-    #Make a count so we don't have to do cleanup all the time.
-    count = 0
-
-    [p.cleanup() for p in schdctl.Profile.objects.all()]
-
     #Start the TLC driver
     pwm = TLC59711.start()
 
-    s = sched.scheduler(time.time, time.sleep)
-
-    for i in range(6*60):
-        s.enter(10*i, 1, run, argument=(pwm,))
-
-    s.run()
+    while True:
+        [p.cleanup() for p in schdctl.Profile.objects.all()]
+        
+        for i in range(360):
+            run(pwm)
+            time.sleep(cycletime)
 
