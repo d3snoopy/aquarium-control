@@ -95,6 +95,8 @@ def set(device=False):
         out[(numDev-d.devNum-1)*numDevBytes+d.chanNum]=r[0]
         out[(numDev-d.devNum-1)*numDevBytes+d.chanNum+1]=r[1]
 
+    del(data)
+
     #Send the data down to the device.
     #if device:
     #    data = copy.copy(out)

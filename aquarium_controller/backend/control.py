@@ -1,7 +1,7 @@
 import schdctl.models as schdctl
 import hardware.driver.TLC59711 as TLC59711
 from django.utils import timezone
-import sched
+#import sched
 import time
 
 
