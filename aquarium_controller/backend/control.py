@@ -19,17 +19,17 @@ def loop():
     #TODO also move this over to a config file or something.
 
     #Enable our capes
-    f = open("/sys/devices/bone_capemgr.9/slots", "rb")
+    f = open("/sys/devices/platform/bone_capemgr/slots", "rb")
     capes = f.read()
     f.close()
 
     if not "AQ-SPI0" in capes:
-        f = open("/sys/devices/bone_capemgr.9/slots", "wb")
+        f = open("/sys/devices/platform/bone_capemgr/slots", "wb")
         f.write("AQ-SPI0")
         f.close()
 
     if not "AQ-W1" in capes:
-        f = open("/sys/devices/bone_capemgr.9/slots", "wb")
+        f = open("/sys/devices/platform/bone_capemgr/slots", "wb")
         f.write("AQ-W1")
         f.close()
 

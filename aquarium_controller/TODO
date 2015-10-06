@@ -16,13 +16,12 @@ ReactiveCtrl - for things that react to inputs
 Sensors - inputs from types of hardware sensors & logging
 Other inputs?
 
-PWM control: fix leak (Think it's in the BBIO code)
-
 Add: "Total Power" plot for groups of channels.
 
 Mechanism to consume PWM channels/BBB resources
 
-Memory leak: seems to be spidev library; just write directly to /dev/spidev via file handle.
+Add: are you sure dialog for the delete button.
+
 
 
 Organization:
