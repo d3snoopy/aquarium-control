@@ -1,0 +1,83 @@
+TODO list:
+
+Add a category type for the devices, so we can segregate lights, fans, dosers, etc.
+Add some presets?
+
+Check out security for the db and static and stuff
+
+Add: Auto-schedule on things
+Add: More security
+Remove: Inputs in schdctl
+
+Add: "Total Power" plot for groups of channels.
+
+Mechanism to consume PWM channels/BBB resources
+
+Add: are you sure dialog for the delete button.
+
+
+
+Organization:
+
+Hardware:  Fixed list of resources.  App
+    Resource:  (These are statically configured from a config file; then dynamically consumed)
+        properties:
+            type: [GPIO out, GPIO in, GPIO io, SPI, I2C, W1, ana in, pwm out]
+            Allowed Instances: 1-99
+            [device_set: (from device ForeignKey)]
+            ID: unique ID of resource (SPI0, GPIO pin, W1 pin, etc.)
+        method:
+            write: only valid for O or IO
+            read: only valid for I or IO
+            check: check if any more instances available
+            
+    Device: A single device (chip, sensor, etc.) - One thing that consumes one hardware resource, driven by driver.
+        properties:
+            resource: ForeignKey resource (on select filter by available)
+            driver: module object (on select filter by compat w/ resource)
+            ID: input ID (Generally, Bus ID)
+            type: sensor/control (either feeds info into the system (sensor) or takes data from the system (control)
+            [channel_set: (from channel ForeignKey)]
+        methods:
+            init(): calls driver init function
+            read(): calls driver read function
+            write(): calls driver write function, pulling values from channels
+            allowedchannels(): calls driver function to read number of allowed channels
+
+    Channel: A subdivision of the device (E.G. PWM chip output number)
+        properties:
+            Device: ForeignKey device
+            ID: channel number (by name or just number???)
+            [one to one relationship to the objects in the controls and sensors apps]
+            [value_set: saved values in the db]
+        methods:
+            get_obj(): return an object which will return values for this channel (sensor: DB data, control: output value) Note: avoid queries after this point, so for schedules return all necessary to do no more DB queries)
+            save_value(): save a value for the channel. (save to logging)
+
+
+Controls:  App
+    Schedules (currently schdctl)
+    Reactions (TODO)
+
+Sensors: App
+
+Logging: App
+    value: a saved value for a channel
+        properties:
+            time:
+            value:
+            channel: ForeignKey (channel)
+
+graph: App (graphing capabilities)
+
+
+
+Hardware needs:
+
+Add a temp sensor to light
+Add an inverter to PWM output, so defaults to off
+[Optional logic inversion for all?]
+Make glass cleaner (or try)
+Make pumps/current things
+Auto feeder?
+
