@@ -20,9 +20,9 @@ BASE_DIR = os.path.dirname(os.path.dirname(__file__))
 SECRET_KEY = '*x(x=v+#wmf7o_e51q3g0p(24!l7kwd#*3s$-)4$+6%&_71k$='
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = False
+DEBUG = True
 
-TEMPLATE_DEBUG = False
+TEMPLATE_DEBUG = True
 
 ALLOWED_HOSTS = ['*']
 
@@ -36,9 +36,6 @@ INSTALLED_APPS = (
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'schdctl',
-    'graph',
-    #'inputctl',
     'hardware',
 )
 

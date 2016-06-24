@@ -1,6 +1,5 @@
-
 from django.shortcuts import render
 
 #Just do the index here, linking to other apps.
-def home(request):
+def index(request):
     return render(request, 'base.html')
