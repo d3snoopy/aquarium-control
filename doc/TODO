@@ -1,0 +1,23 @@
+Top TODO:
+
+Do a rewite in php;  Don't worry too much about mucking with the whole django thing - slim the effort down.
+
+Add: "Total Power" plot for groups of channels.
+
+Mechanism to consume channels
+
+Add: are you sure dialog for the delete button.
+
+
+****************************************************
+
+
+Hardware needs:
+
+Add a temp sensor to light
+Add an inverter to PWM output, so defaults to off
+[Optional logic inversion for all?]
+Make glass cleaner (or try)
+Make pumps/current things
+Auto feeder?
+

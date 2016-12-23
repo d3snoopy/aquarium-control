@@ -82,7 +82,9 @@ def start(recID, busID):
     # I think that's all we have to do for this driver.
     return
 
-
+#########################
+# Need to add: a set and a get function
+# Since this is a control, have get just return a False
 
 
 ##########################

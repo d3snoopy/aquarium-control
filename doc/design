@@ -1,0 +1,37 @@
+Overall design architecture:
+
+List of apps/folders:
+
+aquarium_controller: main django folder, overall setting for the web app portion
+controls: formerly sources; groups of driven chans for a physical attribute
+data: storage services - logging, etc
+graph: graphing services for other apps
+hardware: raw hardware management: host, resource, device, channel
+scheduler: schedule services: manual, web, file
+sensors: channel querying
+static: static folder for scripts, etc
+templates: base, generic templates
+
+
+Info within these folders:
+
+Hardware:
+
+Capes: Capes to load the hardware (BBB, possibly others) - related to hardware manager
+Driver: Modules to drive/control the hardware - interface between specific piece of hardware and web interface
+
+Driver specification/expectations:
+
+function choices: return 2-tuples of channel options available, (value, 'name')
+function name: return a string to describe the hardware
+function hwType: return an integer corresponding to the hwTypes list in hardware.models
+function devType: return 0 for a sensor, 1 for a control
+function start: do whatever initial setup is necessary for this hardware
+function set(resourceID, busID, channel,value list): set the hardware.  Two tuple (channel, value) with the values to set.
+function get(resourceID, busID): get values from the hardware.  returns a two tuple (channel, value) with read values
+
+Note: assumption is that you want to operate on all channels of a device at once.
+
+
+
+

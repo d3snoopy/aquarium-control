@@ -1,3 +1,10 @@
+Setup the database:
+
+add user with pass according to mysql.ini
+create user 'aqctrl'@'localhost' IDENTIFIED BY 'aqctrl_pass';
+grant all privileges on *.* to 'aqctrl'@'localhost' with grant option;
+flush privileges;
+
 Setup with Apache:
 
 Add this to /etc/apache2/apache2.conf:

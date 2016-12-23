@@ -35,6 +35,7 @@ driverChoices = tuple(enumerate([i.name() for i in enDrivers]))
 
 # Create your models here.
 
+# Set up the script for the colorpicker
 class ColorField(models.CharField):
     def __init__(self, *args, **kwargs):
         kwargs['max_length'] = 10
@@ -45,7 +46,10 @@ class ColorField(models.CharField):
         return super(ColorField, self).formfield(**kwargs)
 
 
-# We are defining resources, devices, and channels.  Here's how each relates:
+# We are defining hosts resources, devices, and channels.  Here's how each relates:
+
+# Host: a set of resources related to this particular machine.
+# Since we plan to support several machines.
 
 # Resource: a bucket of objects which represents everything that the host
 # (The BBB) has to offer.  GPIO pins, SPI pins, I2C addresses, etc.
@@ -60,7 +64,12 @@ class ColorField(models.CharField):
 # physically connected to your hardware.  This would be a chip or a sensor or
 # another device connected over one of the busses.
 
-# Channel: a subdivision of a devide, e.g. a PWM chip output
+# Channel: a subdivision of a device, e.g. a PWM chip output
+
+
+# Host class.  Each object in this class is a computer that the system is syncing.
+class Host(models.Model):
+
 
 
 # Resource class.  Each object of this class is a single hardware resource.
@@ -75,19 +84,6 @@ class Resource(models.Model):
     def checkAvail(self):
         # Check to see if this resource can still support more load
         return len(self.device_set.all()) < self.numAllow
-
-    def get(self):
-        #call the driver to read from it (return False if a output device)
-        #Only applies to sensors
-        if not enDrivers[self.driver].devType():
-            return enDrivers[self.driver].get(self.resource.IDnum, self.busID)
-
-        return 0
-
-    def set(self):
-        #call the driver to write to it (return False if an input device)
-        #Only applies to controls
-        return 0
 
 
 # Device class
@@ -112,6 +108,21 @@ class Device(models.Model):
         #call the driver to find out how many channels each device supports
         return 0
 
+    def get(self):
+        #call the driver to read from it (return False if a output device)
+        #Only applies to sensors
+        if not enDrivers[self.driver].devType():
+            return enDrivers[self.driver].get(self.resource.IDnum, self.busID)
+
+        return False
+
+    def set(self):
+        #call the driver to write to it (return False if an input device)
+        #Only applies to controls
+        if enDrivers[self.driver].devType():
+            return False
+
+        return enDrivers[self.driver].set(self.resource.IDnum, self.busID, 'all')
 
 
 # Channel class
