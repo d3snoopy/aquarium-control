@@ -39,6 +39,10 @@ include 'mysql.ini';
 function db_test()
 {
     global $aqctrl_sql_hostname, $aqctrl_sql_user, $aqctrl_sql_pass, $aqctrl_sql_db;
+
+    // Number of quickstart steps plus one
+    $numQuickstart = 5; //Make sure to update this appropriately
+
     // Connect to our db.
     $mysqli = mysqli_connect($aqctrl_sql_hostname, $aqctrl_sql_user,
         $aqctrl_sql_pass, $aqctrl_sql_db);
@@ -94,7 +98,7 @@ function db_create()
     $sql = "CREATE TABLE host (
         id INT(6) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
         name VARCHAR(30) NOT NULL,
-        ip VARCHAR(30) NOT NULL
+        ip VARCHAR(30) NOT NULL UNIQUE
         )";
 
     if(!mysqli_query($mysqli, $sql)) {
@@ -200,45 +204,27 @@ function db_create()
         echo "Error creating table " . mysqli_error($mysqli) . "<br>";
     }
 
+
+    //Quickstart Tracker
+    $sql = "CREATE TABLE quickstart (
+        id INT(6) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        step INT(1) NOT NULL
+        )";
+
+    if(!mysqli_query($mysqli, $sql)) {
+        echo "Error creating table " . mysqli_error($mysqli) . "<br>";
+    }
+
+    //Create a record for the quickstart and set it to 1
+    $sql = "INSERT INTO quickstart (id, step)
+        VALUES (1, 1)";
+
+    if(!mysqli_query($mysqli, $sql)) {
+        echo "Error initiating quickstart count " . mysqli_error($mysqli) . "<br>";
+    }
+
     mysqli_close($mysqli);
     
 
 }
 
-
-
-// Host functions
-
-function host_mod($host_name, $input_values)
-{
-    // Create or edit a host database entry, of name host_name and with values input_values
-
-    
-
-}
-
-function host_read($host_name)
-{
-    // Ask the host for its channel list
-
-
-}
-
-function host_write($host_name)
-{
-    // Send control values out to the host
-
-
-}
-
-function host_get_channels($host_name)
-{
-    // Get the db list of channels for this host
-
-
-}
-
-
-
-
- 
