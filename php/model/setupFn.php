@@ -23,7 +23,21 @@ function setupForm($mysqli, $nextUrl)
     // Iterate through each device found
     $res = mysqli_query($mysqli, "SELECT ALL FROM host");
 
-    
+    if(!mysqli_num_rows($res)) {
+        echo "<p>No Hardware Configured</p>";
+    } else {
+
+        for i in res {
+            echo "<h3>$TableName</h3>";
+            ?>
+            <table>
+            <tr>
+
+        
+            <?php
+
+        }
+    }
 }
 
 

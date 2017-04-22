@@ -7,6 +7,9 @@ flush privileges;
 
 Setup with Apache:
 
+
+
+
 Add this to /etc/apache2/apache2.conf:
 
 # Set up the aq ctrl site
