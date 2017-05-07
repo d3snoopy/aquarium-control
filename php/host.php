@@ -134,7 +134,7 @@ function host_process($JSON_in)
     }
 
     // Insert the data.
-    if (mysqli_multi_query($mysqli, $mQuery)) {
+    if (!mysqli_multi_query($mysqli, $mQuery)) {
         do {
             /* store first result set */
             if ($result = mysqli_store_result($link)) {
@@ -184,59 +184,31 @@ function host_add($JSON_in)
         $mQuery .= "INSERT INTO channel (name, type, variable, active, max, min, color, units, host)
             VALUES(" . $chanName . ", " . $channel["type"] . ", " . $channel["variable"] . "
             , " . $channel["active"] . ", " . $channel["max"] . ", " . $channel["min"] . "
-            , " . $channel["color"] . ", " . $channel["units"] "; "
+            , " . $channel["color"] . ", " . $channel["units"] . ", " . $hostId . "; ";
     }
     
+    // Do the query
+    if (mysqli_multi_query($mysqli, $mQuery)) {
+        do {
+            /* store first result set */
+            if ($result = mysqli_store_result($link)) {
+                while ($row = mysqli_fetch_row($result)) {
+                    printf("%s\n", $row[0]);
+                }
+                mysqli_free_result($result);
+            }
+            /* print divider */
+            if (mysqli_more_results($link)) {
+                printf("-----------------\n");
+            }
+        } while (mysqli_next_result($link));
 
+    return;
+    }
 
+    // Return
+    echo "Successfully added host";
 
-
-
-$time1 = time();
-usleep (1000000);
-$time2 = time();
-usleep (1000000);
-$time3 = time();
-
-$JSON_data = [
-  "id" => uniqid(),
-  "name" => "test_host",
-  "channel1" => [
-    "type" => "testa",
-    "variable" => "true",
-    "active" => "true",
-    "max" => 100,
-    "min" => 0,
-    "color" => "000000",
-    "units" => "testunits",
-  ],
-  "channel2" => [
-    "type" => "testa",
-    "variable" => "true",
-    "active" => "true",
-    "max" => 50,
-    "min" => 10,
-    "color" => "FFFFFF",
-    "units" => "test2",
-  ],
-  "channel3" => [
-    "type" => "testb",
-    "variable" => "false",
-    "active" => "true",
-    "max" => 100,
-    "min" => 0,
-    "color" => "999999",
-    "units" => "bla",
-    $time1 => 48.456,
-    $time2 => 5.4325,
-    $time3 => 345.24,
-  ],
-];
-
-
-
-$JSON_string = json_encode($JSON_data);
-
-echo $JSON_string;
+}
 
 

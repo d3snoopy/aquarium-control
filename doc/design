@@ -34,8 +34,11 @@ Message format out to the server, in the form of the POST string "data"
 
 Also, include an "HMAC" POST string, with an authentication SHA-256 hash of "data"
 
-Return from the server, in the form of a page of JSON data - very similar to the host message.
-
+Return from the server, in the form of a page of JSON data.
+{
+  "channelname": { # channel name isn't expected to be parsed, but serves as a placeholder to iterate
+    
+    
 
 
 
