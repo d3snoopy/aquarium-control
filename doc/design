@@ -1,37 +1,68 @@
-Overall design architecture:
+Overall design:
 
-List of apps/folders:
+Server:
+Handles comms to each host
+Coordinates the actions between the hosts
+Note: the hosts "check in" the whole time, on an interval.
 
-aquarium_controller: main django folder, overall setting for the web app portion
-controls: formerly sources; groups of driven chans for a physical attribute
-data: storage services - logging, etc
-graph: graphing services for other apps
-hardware: raw hardware management: host, resource, device, channel
-scheduler: schedule services: manual, web, file
-sensors: channel querying
-static: static folder for scripts, etc
-templates: base, generic templates
+Host Comms:
+Hosts should receive and send info in an JSON format.
+
+Message format out to the server, in the form of the POST string "data"
+
+# "host" POST string info
+{
+  "id":"string", #Generate a random uuid for this
+  "name":"string", #Human-readable string
+  "channelname": { # Channel info for the first channel (this is the name) - note, values stored in server override
+    "type":"string", #Human-readable; channels must be of a common type to be within a common source
+    "variable":"boolean", #true: scales 0-1, false: values is either 0 or 1
+    "active":"boolean", #true: connected to something, false: exists, but unused
+    "max":"number", #applies to variable: number between 0 and 1
+    "min":"number", #Same as max
+    "color":"string", #hex color string, minus the #
+    "units":"string", #human readable representation of units; it's up to host to scale from units to the values the hardware wants.
+    "date1":"value1" #Data to transfer over to the server.  Note: once data is transferred, clear it out from memory on the host
+    "date2":"value2" #date is in linuxtime, UTC, value in "units" units
+    ...
+  },
+
+  "channelname": {
+           ...
+  },
+}
+
+Also, include an "HMAC" POST string, with an authentication SHA-256 hash of "data"
+
+Return from the server, in the form of a page of JSON data - very similar to the host message.
 
 
-Info within these folders:
-
-Hardware:
-
-Capes: Capes to load the hardware (BBB, possibly others) - related to hardware manager
-Driver: Modules to drive/control the hardware - interface between specific piece of hardware and web interface
-
-Driver specification/expectations:
-
-function choices: return 2-tuples of channel options available, (value, 'name')
-function name: return a string to describe the hardware
-function hwType: return an integer corresponding to the hwTypes list in hardware.models
-function devType: return 0 for a sensor, 1 for a control
-function start: do whatever initial setup is necessary for this hardware
-function set(resourceID, busID, channel,value list): set the hardware.  Two tuple (channel, value) with the values to set.
-function get(resourceID, busID): get values from the hardware.  returns a two tuple (channel, value) with read values
-
-Note: assumption is that you want to operate on all channels of a device at once.
 
 
+
+
+
+Server design:
+index.php: starting location
+quickstart.php: a startup wizard
+host.php: the page by which the server communicates with hosts
+
+status.php: the page showing status of all of the stuff
+configure.php: the page to set up all of the stuff once it's connected/accepted
+setup.php: the page to add hosts to the system and configure their basic properties
+help.php: a page to help people get oriented
+
+model/ : functions to handle the DB interactions
+    model.php: basic db stuff: connect, reset, disconect, etc.
+    hostFn.php: functions in support of host.php
+    statusFn.php: functions in support of status.php
+    ...Fn.php: functions in support of ....php
+    setupFn.php: functions in support of setup.php
+    
+template/ : header, footer, etc. to include as part of paiting the pages in a uniform style
+
+test/ : test functions to support development
+
+../static/ : jss/css/pictures/etc.
 
 

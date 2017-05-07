@@ -1,6 +1,6 @@
 <?php
 
-/* Model code; make a function per model actions desired
+/* model.php; make a function per model actions desired
 
 Models objects:
 
@@ -30,22 +30,28 @@ More details/links between these: see design docs
 
 namespace aqctrl;
 
-include 'mysql.ini';
+// Read the ini file
+$config = parse_ini_file("/etc/aqctrl.ini");
+
+if(!$config) {
+    echo "<p>could not read /etc/aqctrl.ini</p>";
+    return;
+}
 
 // access via: \aqctrl\db_create();, etc
 
 // Db functions
 
-function db_test()
+function db_connect()
 {
-    global $aqctrl_sql_hostname, $aqctrl_sql_user, $aqctrl_sql_pass, $aqctrl_sql_db;
+    global $config;
 
     // Number of quickstart steps plus one
     $numQuickstart = 5; //Make sure to update this appropriately
 
     // Connect to our db.
-    $mysqli = mysqli_connect($aqctrl_sql_hostname, $aqctrl_sql_user,
-        $aqctrl_sql_pass, $aqctrl_sql_db);
+    $mysqli = mysqli_connect($config["sql_hostname"], $config["sql_user"],
+    $config["sql_pass"], $config["sql_db"]);
 
     if(!$mysqli) {
         return False;
@@ -55,50 +61,52 @@ function db_test()
 
     $out = mysqli_num_rows($res);
 
-    mysqli_close($mysqli);
-
     if(!$out) {
         return False;
     } else {
-        return True;
+        return $mysqli;
     }
 }
 
-
+function db_close()
+{
+    mysqli_close($mysqli);
+}
 
 function db_create()
 {
     // Create the necessary db tables to get our database going.
-    // Pull global variables
-    global $aqctrl_sql_hostname, $aqctrl_sql_user, $aqctrl_sql_pass, $aqctrl_sql_db;
+    global $config;
 
     // Connect
-    $mysqli = mysqli_connect($aqctrl_sql_hostname, $aqctrl_sql_user,
-        $aqctrl_sql_pass);
+    $mysqli = db_connect();
+
     if (!$mysqli) {
         die("<p>Failed to connect to MySQL: (" . mysqli_connect_errno() . ") " . mysqli_connect_error(). "</p>");
     }
 
     // Drop the old database
-    $sql = "DROP DATABASE " . $aqctrl_sql_db;
+    $sql = "DROP DATABASE " . $config["sql_db"];
 
     $res = mysqli_query($mysqli, $sql);
 
     // Create the database
-    $sql = "CREATE DATABASE " . $aqctrl_sql_db;
+    $sql = "CREATE DATABASE " . $config["sql_db"];
 
     if(!mysqli_query($mysqli, $sql)) {
         echo "Error creating database: " . mysqli_error($mysqli) . "<br>";
     }
 
     // Create tables in the database
-    $res = mysqli_select_db($mysqli, $aqctrl_sql_db);
+    $res = mysqli_select_db($mysqli, $config["sql_db"]);
 
     // Host
     $sql = "CREATE TABLE host (
         id INT(6) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        ident VARCHAR(30) NOT NULL,
         name VARCHAR(30) NOT NULL,
-        ip VARCHAR(30) NOT NULL UNIQUE
+        auth VARCHAR(30),
+        lastPing DATETIME NOT NULL
         )";
 
     if(!mysqli_query($mysqli, $sql)) {
@@ -110,11 +118,12 @@ function db_create()
         id INT(6) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
         name VARCHAR(30) NOT NULL,
         type VARCHAR(30) NOT NULL,
-        variable INT(1),
-        max FLOAT(4,4) NOT NULL,
-        min FLOAT(4,4) NOT NULL,
-        scale FLOAT(4,4) NOT NULL,
+        variable INT(1) UNSIGNED NOT NULL,
+        active INT(1) UNSIGNED NOT NULL,
+        max FLOAT(10,4) UNSIGNED NOT NULL,
+        min FLOAT(10,4) UNSIGNED NOT NULL,
         color CHAR(6) NOT NULL,
+        units VARCHAR(30) NOT NULL,
         host INT(6) UNSIGNED,
         FOREIGN KEY(host)
         REFERENCES host(id)
@@ -154,16 +163,16 @@ function db_create()
         start TIMESTAMP,
         stop TIMESTAMP,
         type INT(2) UNSIGNED NOT NULL,
-        coeff0 FLOAT(6,4) NOT NULL,
-        coeff1 FLOAT(8,4) NOT NULL,
-        coeff2 FLOAT(8,4) NOT NULL,
-        coeff3 FLOAT(8,4) NOT NULL,
-        coeff4 FLOAT(8,4) NOT NULL,
-        coeff5 FLOAT(8,4) NOT NULL,
-        coeff6 FLOAT(8,4) NOT NULL,
-        coeff7 FLOAT(8,4) NOT NULL,
-        coeff8 FLOAT(8,4) NOT NULL,
-        coeff9 FLOAT(8,4) NOT NULL
+        coeff0 FLOAT(10,4) NOT NULL,
+        coeff1 FLOAT(10,4) NOT NULL,
+        coeff2 FLOAT(10,4) NOT NULL,
+        coeff3 FLOAT(10,4) NOT NULL,
+        coeff4 FLOAT(10,4) NOT NULL,
+        coeff5 FLOAT(10,4) NOT NULL,
+        coeff6 FLOAT(10,4) NOT NULL,
+        coeff7 FLOAT(10,4) NOT NULL,
+        coeff8 FLOAT(10,4) NOT NULL,
+        coeff9 FLOAT(10,4) NOT NULL
         )";
 
     if(!mysqli_query($mysqli, $sql)) {
@@ -174,7 +183,7 @@ function db_create()
     //CP
     $sql = "CREATE TABLE cp (
         id INT(6) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-        scale FLOAT(4,4) NOT NULL,
+        scale FLOAT(10,4) NOT NULL,
         channel INT(6) UNSIGNED,
         profile INT(6) UNSIGNED,
         FOREIGN KEY (channel) REFERENCES channel(id),
@@ -189,8 +198,8 @@ function db_create()
     //Reaction
     $sql = "CREATE TABLE reaction (
         id INT(6) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-        action INT(2) NOT NULL,
-        scale FLOAT(4,4) NOT NULL,
+        action INT(2) UNSIGNED NOT NULL,
+        scale FLOAT(10,4) UNSIGNED NOT NULL,
         channel INT(6) UNSIGNED,
         profile INT(6) UNSIGNED,
         Pcol INT(2) UNSIGNED NOT NULL,
@@ -205,10 +214,24 @@ function db_create()
     }
 
 
+    //Data
+    $sql = "CREATE TABLE data (
+        id INT(10) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        date DATETIME NOT NULL,
+        value FLOAT(10,4) NOT NULL,
+        channel INT(6) UNSIGNED,
+        FOREIGN KEY (channel) REFERENCES channel(id)
+        )";
+
+    if(!mysqli_query($mysqli, $sql)) {
+        echo "Error creating table " . mysqli_error($mysqli) . "<br>";
+    }
+
+
     //Quickstart Tracker
     $sql = "CREATE TABLE quickstart (
         id INT(6) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-        step INT(1) NOT NULL
+        step INT(1) UNSIGNED NOT NULL
         )";
 
     if(!mysqli_query($mysqli, $sql)) {

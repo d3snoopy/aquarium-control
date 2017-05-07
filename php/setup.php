@@ -1,30 +1,26 @@
 <?php
 
+// setup.php
+
 set_include_path("template:model");
 
 include 'model.php';
 include 'setupFn.php';
 
-// Test the dB connection
-$sqconnect = \aqctrl\db_test();
+// Connect to the db.
+$mysqli = \aqctrl\db_connect();
 
 $title = "Setup";
 
-// Add the header
-include 'header.php';
-
 // Do my content here
-if(!$sqconnect) {
+if(!$mysqli) {
     //Complain about not being able to connect and give up.
-    echo "<p>Could not connect to dB, check mysql.ini</p>";
-    echo "<p>Or, try going to the <a href=quickstart.php>quickstart page.</a>";
+    include 'header.php';
+    echo "<p>Could not connect to dB, check /etc/aqctrl.ini</p>";
+    echo "<p>Or, try going to the <a href=quickstart.php>quickstart page.</a></p>";
+    include 'footer.php';
     return;
 }
-
-include 'mysql.ini';
-
-$mysqli = mysqli_connect($aqctrl_sql_hostname, $aqctrl_sql_user,
-    $aqctrl_sql_pass, $aqctrl_sql_db);
 
 echo "<h1>Setup</h1>";
 
@@ -35,10 +31,9 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
     header("Location: setup.php");
 
 } else {
+    include 'header.php';
     //Show the form
     \aqctrl\setupForm($mysqli, "setup.php");
+    include 'footer.php';
 }
-
-
-include 'footer.php';
 
