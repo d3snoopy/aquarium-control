@@ -22,6 +22,9 @@ if(($_SERVER['REQUEST_METHOD'] == "POST" && isset($_POST['okay']) && isset($_POS
 // GET: read the step from the db and load the correct form the fill out
 // In both cases: Do a quickstart dressing and pull another function to actually create the form, do the db work, etc.
 
+// TODO: "saved" status.
+// TODO: Color-code the "last ping" & make it a delta, not a date.
+
 //Set the quickstart step number
 $res = mysqli_query($mysqli, "SELECT step FROM quickstart WHERE id = 1");
 
@@ -62,6 +65,13 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
 
         header("Location: quickstart.php");
         return;
+
+    } elseif (isset($_POST['save'])) {
+        $procRtn = $stepRtn($mysqli, $_POST);
+
+        header("Location: quickstart.php");
+        return;
+
 
     } elseif (isset($_POST['nextSave'])) {
         $newStep = $stepNum+1;
@@ -105,6 +115,7 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
     echo "<h1>Quickstart Step " . $stepNum . ": " . $stepTitle . "</h1>";
 
     //Show the form
+    echo '<form action="quickstart.php" method="post">';
     $stepForm($mysqli, "quickstart.php");
 }
 
@@ -113,11 +124,11 @@ mysqli_close($mysqli);
 // At the end allow for a "reset" option
 ?>
 
-<form action="quickstart.php" method="post">
   <p class="alignleft">
     <input type="submit" name="back" value="Back, Discarding Changes" />
   </p>
   <p class="alignright">
+    <input type="submit" name="save" value="Save" />
     <input type="submit" name="nextCan" value="Continue, Discarding Changes" />
     <input type="submit" name="nextSave" value="Save and Continue" />
   </p>

@@ -21,37 +21,84 @@ function setupForm($mysqli, $nextUrl)
     echo "<h2>Hardware Hosts</h2>";
 
     // Iterate through each host found
-    $res = mysqli_query($mysqli, "SELECT ALL FROM host");
+    $knownHosts = mysqli_query($mysqli, "SELECT * FROM host");
 
-    if(!$res) {
+    $numHosts = mysqli_num_rows($knownHosts);
+
+    if(!$numHosts) {
         echo "<p>No Hosts Configured.</p>";
         $host= gethostname();
         $ip = gethostbyname($host);
         echo "<p>Configure your hosts to point to ";
         echo $ip;
-        echo " and turn them on now.<br><br><br><br></p>";
+        echo " and turn them on now then ";
+
+        echo "<a href=".">refresh</a> the page.</p>";
         
     } else {
+        ?>
+        <table>
+          <tr>
+            <th>Name</th>
+            <th>ID</th>
+            <th>Key</th>
+            <th>Last Ping</th>
+          <tr>
+        <?php
 
-//        for i in res {
-//            echo "<h3>$TableName</h3>";
-            ?>
-            <table>
-            <tr>
-
+        for($i=1; $i <= $numHosts; $i++) {
+            $row = mysqli_fetch_array($knownHosts);
         
-            <?php
+            echo "<tr>";
+            echo "<td>" . $row["name"] . "</td>";
+            echo "<td>" . $row["ident"] . "</td>";
+            echo "<td><input type='text' name='auth" . $i . "' value='" . $row["auth"] . "'></td>";
+            echo "<td>" . $row["lastPing"] . "</td>";
+            echo "</tr>";
 
-//        }
+        }
+
+    echo "</table>";
     }
 }
 
 
-
 function setupRtn($mysqli, $postRet)
 {
-
     // Handle our form
 
+    $i = 1;
+    $mQuery = "";
+
+    while (true) {
+        // Iterate through all of the auth fields given.
+        $keyName = "auth" . $i;
+
+        if(array_key_exists($keyName, $_POST)) {
+            $mQuery .= "UPDATE host SET auth = '" . $_POST["$keyName"] .  "' WHERE id = $i";
+        } else {
+            break;
+        }
+        $i += 1;
+    }
+    
+    // Do the updates
+    if (!mysqli_multi_query($mysqli, $mQuery)) {
+        do {
+            /* store first result set */
+            if ($result = mysqli_store_result($link)) {
+                while ($row = mysqli_fetch_row($result)) {
+                    printf("%s\n", $row[0]);
+                }
+                mysqli_free_result($result);
+            }
+            /* print divider */
+            if (mysqli_more_results($link)) {
+                printf("-----------------\n");
+            }
+        } while (mysqli_next_result($link));
+
+    return;
+    }
 }
 

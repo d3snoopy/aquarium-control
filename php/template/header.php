@@ -9,11 +9,11 @@
 <body>
     <div class="linkbar">
         <ul>
-            <li><a href="/php/">Home</a></li>
-            <li><a href="/php/status.php">Status</a></li>
-            <li><a href="/php/configure.php">Configure</a></li>
-            <li><a href="/php/setup.php">Setup</a></li>
-            <li><a href="/php/help.php">Help</a></li>
+            <li><a href="/">Home</a></li>
+            <li><a href="/status.php">Status</a></li>
+            <li><a href="/configure.php">Configure</a></li>
+            <li><a href="/setup.php">Setup</a></li>
+            <li><a href="/help.php">Help</a></li>
         </ul>
     </div>
 
