@@ -21,6 +21,18 @@ set_include_path("model");
 include 'model.php';
 include 'hostFn.php';
 
+
+// Set offsets based on the JSON message format
+$JSONServerSkip = 3;
+
+
+// Check to see if the host is just looking for a timehack.
+if($_SERVER['REQUEST_METHOD'] == "POST" && isset($_POST['init'])) {
+    // Return linux time.
+    echo time();
+    return;
+}
+
 // Connect to the dB
 $mysqli = \aqctrl\db_connect();
 
@@ -55,11 +67,20 @@ for($i=1; $i <= $numHosts; $i++) {
     if($row['ident'] == $JSON_in['id']) {
         // We've seen this host before.
 
-        // Update lastping.
-        if(!mysqli_query($mysqli, "UPDATE host SET lastPing = FROM_UNIXTIME(
-            " . time() . ") WHERE ident = '" . $JSON_in['id'] . "'")) {
-            echo "Error updating ping date: " . mysqli_error($mysqli);
-            mysqli_close($mysqli);
+        // Check date against lastping, make sure we're not seeing a replay.
+        $res = mysqli_query($mysqli, "SELECT lastping FROM host WHERE ident = '" . $JSON_in['id'] . "'");
+
+        $lastPing = mysqli_fetch_row($res)[0];
+        // Update lastping if this is really a new ping.
+        if($JSON_in['date'] > $lastPing) {
+            if(!mysqli_query($mysqli, "UPDATE host SET lastPing = FROM_UNIXTIME(
+                " . $JSON_in['date'] . ") WHERE ident = '" . $JSON_in['id'] . "'")) {
+                echo "Error updating ping date: " . mysqli_error($mysqli);
+                mysqli_close($mysqli);
+                return;
+            }
+        } else {
+            echo 'Check your date';
             return;
         }
 
@@ -71,7 +92,7 @@ for($i=1; $i <= $numHosts; $i++) {
         } else {
             // We've also validated this host.
             // Check the hash.
-            $hash_expected = hash('sha1', $_POST['host'] . $row['auth']);
+            $hash_expected = hash_HMAC('sha256', $_POST['host'], $row['auth']);
 
             if(md5($_POST['HMAC']) === md5($hash_expected)) {
                 // We have a valid message.
@@ -108,10 +129,13 @@ function host_process($JSON_in, $mysqli)
     //Function to process a validated host with a validated message.
 
     // Get the channel dB objects that match to our host.
+    global $JSONServerSkip;
+
     $res = mysqli_query($mysqli, "SELECT id FROM host WHERE ident = '" . $JSON_in['id'] . "'");
 
     if(!$res) {
-        die("Could not find host in host_process");
+        echo("Could not find host in host_process");
+        return;
     }
 
     $hostId = mysqli_fetch_row($res)[0];
@@ -119,7 +143,8 @@ function host_process($JSON_in, $mysqli)
     $chanRes = mysqli_query($mysqli, "SELECT * FROM channel WHERE host = " . $hostId);
 
     if(!$chanRes) {
-        die("Could not get channel list for host in host_process");
+        echo("Could not get channel list for host in host_process");
+        return;
     }
 
     // Set up a multiQuery string
@@ -128,23 +153,23 @@ function host_process($JSON_in, $mysqli)
     // Set up the response array
     $JSON_data = [];
 
-    // Drop the first two elements of the $JSON_in array
-    $JSON_in = array_slice($JSON_in, 2);
+    // Drop the first header elements of the $JSON_in array
+    $JSON_in = array_slice($JSON_in, $JSONServerSkip);
 
     // Loop through the channels in our message
     foreach($JSON_in as $channel) {
         $chanInfo = mysqli_fetch_assoc($chanRes);
 
-        $chanId = $chanInfo['id'];
         // Check if this channel is active - if not parse response but not data.
         if($channel['active']) {
-            // Drop the first 7 elements of the array.
-            $chanData = array_slice($channel, 7, NULL, true);
+            // Get the timestamps and data
+            $times = $channel['times'];
+            $values = $channel['values'];
 
-            foreach($chanData as $dataDate => $data) {
+            foreach($times as $i => $timeStamp) {
                 // Add data for this channel.
                 $mQuery .= "INSERT INTO data (date, value, channel)
-                    VALUES (FROM_UNIXTIME(" . $dataDate . "), " . $data . ", " . $chanId . ");";
+                    VALUES (FROM_UNIXTIME(" . $timeStamp . "), " . $values[$i] . ", " . $chanInfo['id'] . ");";
             }
         }
 
@@ -170,6 +195,7 @@ function host_add($JSON_in, $mysqli)
 {
     //Function to add a newly discovered host to the dB.
     //Do this via a multiQuery too, since we'll be adding multiple entries.
+    global $JSONServerSkip;
     $mQuery = "";
 
     //Parse through each line of JSON_in
@@ -185,7 +211,7 @@ function host_add($JSON_in, $mysqli)
 
     $mQuery = "";
 
-    $JSON_in = array_slice($JSON_in, 2, NULL, true);
+    $JSON_in = array_slice($JSON_in, $JSONServerSkip, NULL, true);
 
     $hostId = mysqli_insert_id($mysqli);
 

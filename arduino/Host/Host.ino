@@ -142,20 +142,10 @@ void readChannels() {
   for(int i = 0; i < numChan; i++){
     timeStamps[i][chanReg[i]] = Ltime;
     chanVals[i][chanReg[i]] = millis();
+    chanVals[i][chanReg[i]] /= 1000000;
     chanReg[i]++;
   }
 }
-
-// Function to print hash output
-void printHash(uint8_t* hash) {
-  int i;
-  for (i=0; i<32; i++) {
-    Serial.print("0123456789abcdef"[hash[i]>>4]);
-    Serial.print("0123456789abcdef"[hash[i]&0xf]);
-  }
-  Serial.println();
-}
-
 
 // Function to POST to the server
 void post() {
@@ -187,19 +177,25 @@ void post() {
   if (Ltime < 1000) {
     //Ping for a timehack
     client.print("6\r\n\r\n");
-    client.print("init=1");
+    client.print("init=1\r\n");
 
     delay(100);
 
     // Read one line and use it if it's all numeric
-    char line[11];
+    char line[12];
     boolean isNum = true;
     int i = 0;
+    //String line;
     
+    // Read all the lines of the reply from server and print them to Serial, saving the last.
     while(client.available()){
-      char c = client.read();
-      line[i] = c;
-      if(!isdigit(line[i])) {
+      String nline = client.readStringUntil('\r');
+      Serial.print(nline);
+      nline.toCharArray(line, 12);
+    }
+
+    for (i=1; i < strlen(line); i++) { 
+      if(!isDigit(line[i])) {
         isNum = false;
         break;
       }
@@ -207,12 +203,12 @@ void post() {
 
     if(isNum) {
       Ltime = atol(line);
-      Serial.println(Ltime);
+      //Serial.println(Ltime);
     }
-    Serial.print(line);
   
     Serial.println();
     Serial.println("closing connection");
+    //client.close();
 
     return;
     
@@ -253,9 +249,10 @@ void post() {
       //
     }
 
-    // Print the output for debug purposes
-    root.prettyPrintTo(Serial);
-    Serial.println();
+    ////// Print the output for debug purposes
+    //root.prettyPrintTo(Serial);
+    //Serial.println();
+    ///////
 
     Sha256.initHmac(key,20);
 
@@ -266,7 +263,7 @@ void post() {
     client.print("\r\n\r\n");
     client.print("host=");
     root.printTo(client);
-    client.print("$HMAC=");
+    client.print("&HMAC=");
     int i;
     uint8_t* hash = Sha256.resultHmac();
     
@@ -346,7 +343,7 @@ void loop() {
   if (millis() % 1000 < lastRem) {
     //We've rolled over another second
     Ltime++;
-    Serial.println(Ltime);
+    //Serial.println(Ltime);
   } 
 
   //Update our last remainder.

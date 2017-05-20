@@ -35,7 +35,7 @@ Message format out to the server, in the form of the POST string "data"
 
 Also, include an "HMAC" POST string, with an authentication SHA-256 hash of "data"
 
-Finally, include an "init" POST string, giving either a 0 or a 1 - to request a time hack from the server.  Note: an init=1 will get simply a linux time response and nothing more.
+Finally, include an "init" POST string, giving a value of 1 to request a time hack from the server.  Note: an init=1 will get simply a linux time response and nothing more.
    Note: hosts are going to need to get this time hack before the server will accept anything from them: the server will only accept increasing "date" values.
 
 Return from the server, in the form of a page of JSON data.
