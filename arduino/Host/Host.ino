@@ -203,7 +203,6 @@ void post() {
 
     if(isNum) {
       Ltime = atol(line);
-      //Serial.println(Ltime);
     }
   
     Serial.println();

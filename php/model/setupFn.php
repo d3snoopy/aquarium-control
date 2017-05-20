@@ -53,7 +53,7 @@ function setupForm($mysqli, $nextUrl)
             echo "<td>" . $row["name"] . "</td>";
             echo "<td>" . $row["ident"] . "</td>";
             echo "<td><input type='text' name='auth" . $i . "' value='" . $row["auth"] . "'></td>";
-            echo "<td>" . $row["lastPing"] . "</td>";
+            echo "<td>" . time_elapsed_string(strtotime($row["lastPing"])) . "</td>";
             echo "</tr>";
 
         }
@@ -101,4 +101,35 @@ function setupRtn($mysqli, $postRet)
     return;
     }
 }
+
+
+
+function time_elapsed_string($ago, $full = false) {
+    $now = time();
+    $diff = $now - $ago;
+
+    $diff->w = floor($diff->d / 7);
+    $diff->d -= $diff->w * 7;
+
+    $string = array(
+        'y' => 'year',
+        'm' => 'month',
+        'w' => 'week',
+        'd' => 'day',
+        'h' => 'hour',
+        'i' => 'minute',
+        's' => 'second',
+    );
+    foreach ($string as $k => &$v) {
+        if ($diff->$k) {
+            $v = $diff->$k . ' ' . $v . ($diff->$k > 1 ? 's' : '');
+        } else {
+            unset($string[$k]);
+        }
+    }
+
+    if (!$full) $string = array_slice($string, 0, 1);
+    return $string ? implode(', ', $string) . ' ago' : 'just now';
+}
+
 

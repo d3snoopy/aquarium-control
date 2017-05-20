@@ -68,11 +68,13 @@ for($i=1; $i <= $numHosts; $i++) {
         // We've seen this host before.
 
         // Check date against lastping, make sure we're not seeing a replay.
-        $res = mysqli_query($mysqli, "SELECT lastping FROM host WHERE ident = '" . $JSON_in['id'] . "'");
+        $res = mysqli_query($mysqli, "SELECT UNIX_TIMESTAMP(lastping) FROM host WHERE ident = '"
+             . $JSON_in['id'] . "'");
 
         $lastPing = mysqli_fetch_row($res)[0];
         // Update lastping if this is really a new ping.
-        if($JSON_in['date'] > $lastPing) {
+
+        if($JSON_in['date'] > (int)$lastPing) {
             if(!mysqli_query($mysqli, "UPDATE host SET lastPing = FROM_UNIXTIME(
                 " . $JSON_in['date'] . ") WHERE ident = '" . $JSON_in['id'] . "'")) {
                 echo "Error updating ping date: " . mysqli_error($mysqli);
@@ -243,3 +245,5 @@ function chan_vals($chanId)
     //Function to create the return for a host
     return $chanId;
 }
+
+
