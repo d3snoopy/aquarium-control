@@ -103,9 +103,9 @@ function db_create()
     // Host
     $sql = "CREATE TABLE host (
         id INT(6) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-        ident VARCHAR(30) NOT NULL,
-        name VARCHAR(30) NOT NULL,
-        auth VARCHAR(30),
+        ident VARCHAR(50) NOT NULL,
+        name VARCHAR(50) NOT NULL,
+        auth VARCHAR(50),
         lastPing DATETIME NOT NULL
         )";
 

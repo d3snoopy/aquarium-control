@@ -34,6 +34,17 @@ if(!$mysqli) {
 // Decode the JSON data from the host.
 $JSON_in = json_decode($_POST['host'], true);
 
+//Test for decode error, if we have an error, print and error and return
+$JSON_err = json_last_error_msg();
+
+if($JSON_err != "No error") {
+  //Print the error
+  echo "JSON decode error: ";
+  echo $JSON_err;
+  return;
+}
+
+
 // Decide whether we know about this host yet.
 $knownHosts = mysqli_query($mysqli, "SELECT * FROM host");
 
@@ -60,7 +71,7 @@ for($i=1; $i <= $numHosts; $i++) {
         } else {
             // We've also validated this host.
             // Check the hash.
-            $hash_expected = hash_hmac('sha256', $_POST['host'], $row['auth']);
+            $hash_expected = hash('sha1', $_POST['host'] . $row['auth']);
 
             if(md5($_POST['HMAC']) === md5($hash_expected)) {
                 // We have a valid message.
@@ -142,7 +153,10 @@ function host_process($JSON_in, $mysqli)
     }
 
     // Insert the data.
-    if(!mysqli_multi_query($mysqli, $mQuery)) {
+    if (empty($mQuery)) {
+        echo "No channel data provided.\n";
+    }
+    elseif(!mysqli_multi_query($mysqli, $mQuery)) {
         echo "multiquery: " . $mQuery . " failed.";
         return;
     }
@@ -184,7 +198,10 @@ function host_add($JSON_in, $mysqli)
     }
     
     // Do the query
-    if (!mysqli_multi_query($mysqli, $mQuery)) {
+    if (empty($mQuery)) {
+        echo "No channels provided.";
+    }
+    elseif (!mysqli_multi_query($mysqli, $mQuery)) {
         echo "multiquery: " . $mQuery . " failed.";
         return;
     }
