@@ -1,7 +1,8 @@
 #include <ESP8266WiFi.h>
 #include <sha256.h>
 #include <ArduinoJson.h>
-//#include <ctype.h>
+#include <Wire.h>
+#include "Adafruit_TSL2591.h"
 
 
 // Info about connecting: our wireless access point, server hostname
@@ -17,6 +18,7 @@ const uint8_t key[] = "9eafc21877e34241b206"; //Secret key to validate messages,
 const char hostName[] = "Light Sensor 1"; //Human Readable name for this host.
 
 const int numChan = 2; //Number of hardware channels this host handles.
+const unsigned int maxVals = 1000; //Max number of readings to hold in memory.
 
 // Info about each channel
 const char chanName1[] = "Light Sensor";
@@ -92,7 +94,7 @@ const char * chanUnits[] =
 };
 
 // Also, setup our hardware needs
-
+Adafruit_TSL2591 tsl = Adafruit_TSL2591(2591);
 
 // Initialize our time variables to track current linux time.
 unsigned long Ltime = 0;
@@ -106,11 +108,56 @@ unsigned long lastRem = 999;
 // If a channel is an output, this gets populated from the server on pings.
 // If a channel is an input, this gets uploaded to the server on pings.
 
-unsigned long timeStamps[numChan][1000]; //Note: one thousand values per channel
-float chanVals[numChan][1000]; //Note: again, one thousand values per channel
+unsigned long timeStamps[numChan][maxVals]; //Note: one thousand values per channel
+float chanVals[numChan][maxVals]; //Note: again, one thousand values per channel
 
 // make this {0, 0}
 unsigned int chanReg[] = {0, 0}; //Register tracker to log which value applies next
+
+
+// Function to start the hardware
+void startChannels() {
+  // Channel 1: lux sensor.  
+  if (tsl.begin()) 
+    {
+      Serial.println("Found a TSL2591 sensor");
+      tsl.setGain(TSL2591_GAIN_LOW); // _GAIN_MED or _GAIN_HIGH or _GAINMAX
+      tsl.setTiming(TSL2591_INTEGRATIONTIME_100MS); //200MS, 300MS, ... 600MS
+      
+    } 
+    else 
+    {
+      Serial.println("No lux sensor found ... check your wiring?");
+    }
+}
+
+
+// Function to drive output hardware
+
+
+// function to read input hardware
+void readChannels() {
+  // Channel1: Really Measure the lux.
+  uint32_t lum = tsl.getFullLuminosity();
+  uint16_t ir, full;
+  ir = lum >> 16;
+  full = lum & 0xFFFF;
+
+  timeStamps[0][chanReg[0]] = Ltime;
+  chanVals[0][chanReg[0]] = tsl.calculateLux(full, ir);
+  chanReg[0]++;
+
+  
+  
+  // Fake the subsequent channels.
+  for(int i = 1; i < numChan; i++){
+    timeStamps[i][chanReg[i]] = Ltime;
+    chanVals[i][chanReg[i]] = millis();
+    chanVals[i][chanReg[i]] /= 1000000;
+    chanReg[i]++;
+  }
+}
+
 
 // Function to connect to the WIFI.
 void startWIFI() {
@@ -132,20 +179,6 @@ void startWIFI() {
   Serial.println(WiFi.localIP());
 }
 
-
-// Function to drive output hardware
-
-
-// function to read input hardware
-void readChannels() {
-  // Fake it for now
-  for(int i = 0; i < numChan; i++){
-    timeStamps[i][chanReg[i]] = Ltime;
-    chanVals[i][chanReg[i]] = millis();
-    chanVals[i][chanReg[i]] /= 1000000;
-    chanReg[i]++;
-  }
-}
 
 // Function to POST to the server
 void post() {
@@ -301,9 +334,9 @@ void setup() {
   // The second time should get our initial values
   post();
 
-  delay(1000);
-
-  post();
+  // Start the hardware
+  startChannels();
+  
 }
 
 
@@ -324,7 +357,7 @@ void loop() {
   
   if (Mtime >= nextRead) {
     readChannels();
-    nextRead += 5;
+    nextRead += 60;
   }
 
   //if (Mtime >= nextWrite) {
@@ -335,7 +368,7 @@ void loop() {
   //Test our JSON gen
   if (Mtime >= nextPing) {
     post();
-    nextPing += 30;
+    nextPing += 300; //TODO change this to let the server drive our next ping
   }
 
   //See if we need to update our Ltime.
@@ -348,7 +381,12 @@ void loop() {
   //Update our last remainder.
   lastRem = millis() % 1000;
 
-  //Test our chanReg for maxing out size; if so, trigger a ping
+  //Test our chanReg for maxing out size; if so, trigger a ping.  Hopefully this never has to trigger.
+  for (int i = 1; i < numChan; i++){
+    if (chanReg[i] == maxVals) {
+      post();
+    }
+  }
 }
 
 

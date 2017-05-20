@@ -21,7 +21,7 @@ function setupForm($mysqli, $nextUrl)
     echo "<h2>Hardware Hosts</h2>";
 
     // Iterate through each host found
-    $knownHosts = mysqli_query($mysqli, "SELECT * FROM host");
+    $knownHosts = mysqli_query($mysqli, "SELECT id,ident,name,auth,UNIX_TIMESTAMP(lastPing) FROM host");
 
     $numHosts = mysqli_num_rows($knownHosts);
 
@@ -53,7 +53,7 @@ function setupForm($mysqli, $nextUrl)
             echo "<td>" . $row["name"] . "</td>";
             echo "<td>" . $row["ident"] . "</td>";
             echo "<td><input type='text' name='auth" . $i . "' value='" . $row["auth"] . "'></td>";
-            echo "<td>" . time_elapsed_string(strtotime($row["lastPing"])) . "</td>";
+            echo "<td>" . time_elapsed_string($row["UNIX_TIMESTAMP(lastPing)"]) . " ago</td>";
             echo "</tr>";
 
         }
@@ -104,32 +104,22 @@ function setupRtn($mysqli, $postRet)
 
 
 
-function time_elapsed_string($ago, $full = false) {
-    $now = time();
-    $diff = $now - $ago;
+function time_elapsed_string($tm) {
+    $cur_tm = time();
+    $dif = $cur_tm - $tm;
 
-    $diff->w = floor($diff->d / 7);
-    $diff->d -= $diff->w * 7;
+    $pds = array('second','minute','hour','day','week','month','year','decade');
+    $lngh = array(1,60,3600,86400,604800,2630880,31570560,315705600);
 
-    $string = array(
-        'y' => 'year',
-        'm' => 'month',
-        'w' => 'week',
-        'd' => 'day',
-        'h' => 'hour',
-        'i' => 'minute',
-        's' => 'second',
-    );
-    foreach ($string as $k => &$v) {
-        if ($diff->$k) {
-            $v = $diff->$k . ' ' . $v . ($diff->$k > 1 ? 's' : '');
-        } else {
-            unset($string[$k]);
-        }
+    for($v = sizeof($lngh)-1; ($v >= 0)&&(($no = $dif/$lngh[$v])<=1); $v--); if($v < 0) $v = 0; $_tm = $cur_tm-($dif%$lngh[$v]);
+        $no = floor($no);
+        if($no <> 1)
+            $pds[$v] .='s';
+        $x = sprintf("%d %s ",$no,$pds[$v]);
+        if(($rcs == 1)&&($v >= 1)&&(($cur_tm-$_tm) > 0))
+            $x .= time_ago($_tm);
+        return $x;
     }
 
-    if (!$full) $string = array_slice($string, 0, 1);
-    return $string ? implode(', ', $string) . ' ago' : 'just now';
-}
 
 
