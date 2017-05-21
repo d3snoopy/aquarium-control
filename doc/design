@@ -8,51 +8,57 @@ Note: the hosts "check in" the whole time, on an interval.
 Host Comms:
 Hosts should receive and send info in an JSON format.
 
-Message format out to the server, in the form of the POST string "data"
+Message format out to the server, in the form of the POST strings:
 
 # "host" POST string info
 {
   "id":string, #Generate a random uuid for this
   "name":string, #Human-readable string
   "date":date, #Date of the ping; used to prevent replay attacks
-  "channelname": { # Channel info for the first channel (this is the name) - note, values stored in server override
-    "type":string, #Human-readable; channels must be of a common type to be within a common source
-    "variable":boolean, #true: scales 0-1, false: values is either 0 or 1
-    "active":boolean, #true: connected to something, false: exists, but unused
-    "max":number, #applies to variable: number between 0 and 1
-    "min":"number", #Same as max
-    "color":"string", #hex color string, minus the #
-    "units":"string", #human readable representation of units; it's up to host to scale from units to the values the hardware wants.
-    "times":[time, time, time, ...], #Data to transfer over to the server.  Note: once data is transferred, clear it out from memory on the host
-    "values":[value, value, value, ...] #time is in linuxtime, UTC, value in "units" units
-    ...
-  },
+  "maxVals":int, #Maximum number of values that the server should send
+  "channels":[
+    { "name":"string" # Channel info for the first channel (this is the name) - note, values stored in server override
+      "type":string, #Human-readable; channels must be of a common type to be within a common source
+      "variable":boolean, #true: scales 0-1, false: values is either 0 or 1
+      "active":boolean, #true: connected to something, false: exists, but unused
+      "max":number, #applies to variable: number between 0 and 1
+      "min":"number", #Same as max
+      "color":"string", #hex color string, minus the #
+      "units":"string", #human readable representation of units; it's up to host to scale from units to the values the hardware wants.
+      "times":[time, time, time, ...], #Data to transfer over to the server.  Note: once data is transferred, clear it out from memory on the host
+      "values":[value, value, value, ...] #time is in linuxtime, UTC, value in "units" units
+    },
 
-  "channelname": {
+    "channelname": {
            ...
-  },
+    },
+  ],
 }
 
 Also, include an "HMAC" POST string, with an authentication SHA-256 hash of "data"
 
-Finally, include an "init" POST string, giving a value of 1 to request a time hack from the server.  Note: an init=1 will get simply a linux time response and nothing more.
-   Note: hosts are going to need to get this time hack before the server will accept anything from them: the server will only accept increasing "date" values.
+Note: hosts are going to need to get a time hack before the server will accept anything from them: the server will only accept increasing "date" values.
 
-Return from the server, in the form of a page of JSON data.
+Return from the server, in the form of a page of data.
+
+First line: Reserved for debug messages
+Second line: HMAC #The hash of the JSON data.
+Third line: empty
+Fourth line: start of the JSON data:
 {
-  "HMAC":"value", #HMAC of the rest of the message, starting with character ######TODO
   "date":"date", # Linux time status, host will check to make sure this is greater than seen before
   "nextping":"date", # Server specification of the next time the controller should check in
-  "InInterval":s, #Interval to read each input channels
-  "OutInterval":s, #Interval at which to update the output channels
-  "channelname": { # channel name isn't expected to be parsed, but serves as a placeholder to iterate
-     "times":[time, time, time, ...],
-     "values":[value, value, value, ...]
-  }
-  "channelName" : {
-     ....
-  }
-  ...
+  "inInterval":int seconds, #Interval to read each input channels
+  "outInterval":int seconds, #Interval at which to update the output channels
+  "channels": [
+    {  "times":[time, time, time, ...], #in Linuxtime.  Limited to a quantity the respects maxVals given
+       "values":[value, value, value, ...] #in units.
+    },
+
+    {
+       ....
+    },
+  ],
 }
     
 

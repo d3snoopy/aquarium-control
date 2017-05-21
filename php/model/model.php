@@ -38,7 +38,15 @@ if(!$config) {
     return;
 }
 
-// access via: \aqctrl\db_create();, etc
+function debug_status()
+{
+    global $config;
+    if(isset($config["debug_mode"]) && ($config["debug_mode"])) {
+        return True;
+    }
+return False;
+}
+
 
 // Db functions
 
@@ -56,6 +64,8 @@ function db_connect()
     if(!$mysqli) {
         return False;
     }
+
+    mysqli_set_charset($mysqli, "utf8");
 
     $res = mysqli_query($mysqli, "SHOW TABLES");
 
@@ -106,7 +116,10 @@ function db_create()
         ident VARCHAR(50) NOT NULL,
         name VARCHAR(50) NOT NULL,
         auth VARCHAR(50),
-        lastPing DATETIME NOT NULL
+        lastPing DATETIME NOT NULL,
+        inInterval INT(6) UNSIGNED,
+        outInterval INT(6) UNSIGNED,
+        pingInterval INT(6) UNSIGNED
         )";
 
     if(!mysqli_query($mysqli, $sql)) {

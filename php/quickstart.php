@@ -9,6 +9,9 @@ include 'model.php';
 // Connect to the db.
 $mysqli = \aqctrl\db_connect();
 
+// Find out if we're in debug mode.
+$debug_mode = \aqctrl\debug_status();
+
 // Test to see if we should reset the db
 if(($_SERVER['REQUEST_METHOD'] == "POST" && isset($_POST['okay']) && isset($_POST['reset'])) || !$mysqli) {
     //Reset the db
@@ -60,16 +63,18 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
             WHERE id = 1";
 
         if(!mysqli_query($mysqli, $sql)) {
-            echo "<p>Error adding quickstart count " . mysqli_error($mysqli) . "</p>";
+            if ($debug_mode) echo "<p>Error adding quickstart count " . mysqli_error($mysqli) . "</p>";
         }
 
         header("Location: quickstart.php");
+        mysqli_close($mysqli);
         return;
 
     } elseif (isset($_POST['save'])) {
-        $procRtn = $stepRtn($mysqli, $_POST);
+        $procRtn = $stepRtn($mysqli, $_POST, $debug_mode);
 
         header("Location: quickstart.php");
+        mysqli_close($mysqli);
         return;
 
 
@@ -80,18 +85,20 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
             WHERE id = 1";
 
         if(!mysqli_query($mysqli, $sql)) {
-            echo "<p>Error adding quickstart count " . mysqli_error($mysqli) . "</p>";
+            if ($debug_mode) echo "<p>Error adding quickstart count " . mysqli_error($mysqli) . "</p>";
         }
 
-        $procRtn = $stepRtn($mysqli, $_POST);
+        $procRtn = $stepRtn($mysqli, $_POST, $debug_mode);
 
         header("Location: quickstart.php");
+        mysqli_close($mysqli);
         return;
 
     } elseif (isset($_POST['back'])) {
         $newStep = $stepNum-1;
         if ($newStep == 0) {
             header("Location: quickstart.php");
+            mysqli_close($mysqli);
             return;
         }
         $sql = "UPDATE quickstart
@@ -99,10 +106,11 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
             WHERE id = 1";
 
         if(!mysqli_query($mysqli, $sql)) {
-            echo "<p>Error adding quickstart count " . mysqli_error($mysqli) . "</p>";
+            if ($debug_mode) echo "<p>Error adding quickstart count " . mysqli_error($mysqli) . "</p>";
         }
 
         header("Location: quickstart.php");
+        mysqli_close($mysqli);
         return;
     }
 
@@ -116,7 +124,7 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
 
     //Show the form
     echo '<form action="quickstart.php" method="post">';
-    $stepForm($mysqli, "quickstart.php");
+    $stepForm($mysqli, $debug_mode);
 }
 
 mysqli_close($mysqli);
@@ -150,4 +158,3 @@ mysqli_close($mysqli);
         
 <?php
 include 'footer.php';
-

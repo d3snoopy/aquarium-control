@@ -21,25 +21,15 @@ set_include_path("model");
 include 'model.php';
 include 'hostFn.php';
 
-
-// Set offsets based on the JSON message format
-$JSONServerSkip = 3;
-
-
-// Check to see if the host is just looking for a timehack.
-if($_SERVER['REQUEST_METHOD'] == "POST" && isset($_POST['init'])) {
-    // Return linux time.
-    echo time();
-    return;
-}
+// Find out if we're in debug mode.
+$debug_mode = \aqctrl\debug_status();
 
 // Connect to the dB
 $mysqli = \aqctrl\db_connect();
 
 if(!$mysqli) {
     //Complain about not being able to connect and give up.
-    echo "<p>Could not connect to dB, check /etc/aqctrl.ini</p>";
-    echo "<p>Or, try going to the <a href=quickstart.php>quickstart page.</a></p>";
+    if ($debug_mode) echo "Could not connect to dB";
     return;
 }
 
@@ -51,8 +41,8 @@ $JSON_err = json_last_error_msg();
 
 if($JSON_err != "No error") {
   //Print the error
-  echo "JSON decode error: ";
-  echo $JSON_err;
+  if ($debug_mode) echo "JSON decode error: " . $JSON_err;
+  mysqli_close($mysqli);
   return;
 }
 
@@ -62,33 +52,42 @@ $knownHosts = mysqli_query($mysqli, "SELECT * FROM host");
 
 $numHosts = mysqli_num_rows($knownHosts);
 
+$hostFound = false;
+
+// Start our JSON response
+$JSON_data = [];
+$JSON_data["date"] = time();
+
 for($i=1; $i <= $numHosts; $i++) {
     $row = mysqli_fetch_array($knownHosts);
     if($row['ident'] == $JSON_in['id']) {
         // We've seen this host before.
+        $hostFound = true;
 
         // Check date against lastping, make sure we're not seeing a replay.
         $res = mysqli_query($mysqli, "SELECT UNIX_TIMESTAMP(lastping) FROM host WHERE ident = '"
-             . $JSON_in['id'] . "'");
+             . mysqli_real_escape_string($mysqli, $JSON_in['id']) . "'");
 
         $lastPing = mysqli_fetch_row($res)[0];
         // Update lastping if this is really a new ping.
 
-        if($JSON_in['date'] > (int)$lastPing) {
+        if((int)$JSON_in['date'] > (int)$lastPing) {
             if(!mysqli_query($mysqli, "UPDATE host SET lastPing = FROM_UNIXTIME(
-                " . $JSON_in['date'] . ") WHERE ident = '" . $JSON_in['id'] . "'")) {
-                echo "Error updating ping date: " . mysqli_error($mysqli);
+                " . (int)$JSON_in['date'] . ") WHERE ident = '"
+                . mysqli_real_escape_string($mysqli, $JSON_in['id']) . "'")) {
+                if ($debug_mode) echo "Error updating ping date: " . mysqli_error($mysqli);
                 mysqli_close($mysqli);
                 return;
             }
         } else {
-            echo 'Check your date';
+            mysqli_close($mysqli);
+            if ($debug_mode) echo 'Check your date';
             return;
         }
 
         if(!$row['auth']) {
             mysqli_close($mysqli);
-            echo "Known, non-validated host";
+            if ($debug_mode) echo "Known, non-validated host";
             return;
             
         } else {
@@ -99,67 +98,89 @@ for($i=1; $i <= $numHosts; $i++) {
             if(md5($_POST['HMAC']) === md5($hash_expected)) {
                 // We have a valid message.
 
-                \aqctrl\host_process($JSON_in, $mysqli);
+                $JSON_data = \aqctrl\host_process($JSON_in, $JSON_data, $mysqli);
 
-                // Disconnect and return
-                mysqli_close($mysqli);
-                return;
             } else {
                 // Hash failed
-                echo "HMAC failed";
+                if ($debug_mode) echo "HMAC failed";
 
                 mysqli_close($mysqli);
                 return;
             }
         }
 
-    } 
+    }
 }
 
-// We made it through the loop without finding the host, this must be a new host.
+// Test to see if we found this host.
+if(!$hostFound) \aqctrl\host_add($JSON_in, $mysqli);
 
-\aqctrl\host_add($JSON_in, $mysqli);
+// Encode our JSON, make HMAC, echo our response.
+$respString = json_encode($JSON_data);
+
+echo "\r";
+if(isset($row)) {
+  echo hash_HMAC('sha256', $respString, $row['auth']);
+  echo "\r\r";
+  echo $respString;
+}
 
 // Disconnect and return
 mysqli_close($mysqli);
 return;
 
 
-
-function host_process($JSON_in, $mysqli)
+function host_process($JSON_in, $JSON_data, $mysqli)
 {
     //Function to process a validated host with a validated message.
 
     // Get the channel dB objects that match to our host.
-    global $JSONServerSkip;
+    global $JSONServerSkip, $debug_mode;
 
-    $res = mysqli_query($mysqli, "SELECT id FROM host WHERE ident = '" . $JSON_in['id'] . "'");
+    $res = mysqli_query($mysqli, "SELECT id, auth, inInterval, outInterval, pingInterval FROM host WHERE ident = '"
+    . mysqli_real_escape_string($mysqli, $JSON_in['id']) . "'");
 
     if(!$res) {
-        echo("Could not find host in host_process");
+        if ($debug_mode) echo("Could not find host in host_process");
         return;
     }
 
-    $hostId = mysqli_fetch_row($res)[0];
+    $hostInfo = mysqli_fetch_row($res);
 
-    $chanRes = mysqli_query($mysqli, "SELECT * FROM channel WHERE host = " . $hostId);
+    $chanRes = mysqli_query($mysqli, "SELECT * FROM channel WHERE host = " . $hostInfo[0]);
 
     if(!$chanRes) {
-        echo("Could not get channel list for host in host_process");
+        if ($debug_mode) echo("Could not get channel list for host in host_process");
         return;
+    }
+
+    // Test for an empty set: if so, call channels_add and re-query.
+    if(!mysqli_num_rows($chanRes)) {
+        \aqctrl\channels_add($JSON_in, $mysqli, $hostInfo[0]);
+        
+        // Not sure why - a select right behind an insert/update isn't working.
+
+        $chanRes = mysqli_query($mysqli, "SELECT * FROM channel WHERE host = " . $hostInfo[0]);
+
+        if(!$chanRes) {
+            if ($debug_mode) echo("Could not get channel list for host in host_process");
+            return;
+        }
     }
 
     // Set up a multiQuery string
     $mQuery = "";
 
-    // Set up the response array
-    $JSON_data = [];
+    // Get how many values to limit to
+    $chanValLim = (int)$JSON_in['maxVals'];
 
-    // Drop the first header elements of the $JSON_in array
-    $JSON_in = array_slice($JSON_in, $JSONServerSkip);
+    // Set up the response array
+    $JSON_data["nextPing"] = time() + min($hostInfo[4], $chanValLim*$hostInfo[2]);
+    $JSON_data["inInterval"] = $hostInfo[2];
+    $JSON_data["outInterval"] = $hostInfo[3];
 
     // Loop through the channels in our message
-    foreach($JSON_in as $channel) {
+    foreach($JSON_in["channels"] as $chNum => $channel) {
         $chanInfo = mysqli_fetch_assoc($chanRes);
 
         // Check if this channel is active - if not parse response but not data.
@@ -170,26 +191,31 @@ function host_process($JSON_in, $mysqli)
 
             foreach($times as $i => $timeStamp) {
                 // Add data for this channel.
-                $mQuery .= "INSERT INTO data (date, value, channel)
-                    VALUES (FROM_UNIXTIME(" . $timeStamp . "), " . $values[$i] . ", " . $chanInfo['id'] . ");";
+                if (is_numeric($timeStamp) && is_numeric($values[$i]))
+                    $mQuery .= "INSERT INTO data (date, value, channel)
+                        VALUES (FROM_UNIXTIME(" . $timeStamp . "), " . $values[$i] . ", "
+                        . $chanInfo['id'] . ");";
             }
         }
 
         // Construct the return.
-        $JSON_data[$chanInfo['name']] = \aqctrl\chan_vals($chanId);
+        $JSON_data['channels'][$chNum] = \aqctrl\chan_vals($chanInfo['id'], $chanValLim);
     }
 
     // Insert the data.
     if (empty($mQuery)) {
-        echo "No channel data provided.\n";
+        if ($debug_mode) echo "No channel data provided.\n";
     }
     elseif(!mysqli_multi_query($mysqli, $mQuery)) {
-        echo "multiquery: " . $mQuery . " failed.";
+        if ($debug_mode) echo "multiquery: " . $mQuery . " failed.";
+        //Flush the results.
+        while (mysqli_next_result($mysqli)) {;};
         return;
     }
 
-    // Now, encode the response.
-    echo json_encode($JSON_data);
+    while (mysqli_next_result($mysqli)) {;};
+
+    return $JSON_data;
 }
 
 
@@ -197,53 +223,71 @@ function host_add($JSON_in, $mysqli)
 {
     //Function to add a newly discovered host to the dB.
     //Do this via a multiQuery too, since we'll be adding multiple entries.
-    global $JSONServerSkip;
+    global $JSONServerSkip, $debug_mode;
     $mQuery = "";
 
     //Parse through each line of JSON_in
-    $sqlQuery = "INSERT INTO host (ident, name, auth, lastPing)
-      VALUES ('" . $JSON_in["id"] . "', '" . $JSON_in["name"] . "',
-      0, FROM_UNIXTIME(" . time() . "))";
+    $sqlQuery = "INSERT INTO host (ident, name, auth, lastPing, inInterval, outInterval, pingInterval)
+      VALUES ('"
+      . mysqli_real_escape_string($mysqli, $JSON_in["id"]) . "', '"
+      . mysqli_real_escape_string($mysqli, $JSON_in["name"]) . "',
+      0, FROM_UNIXTIME(" . time() . "), 60, 60, 600)";
 
     if(!mysqli_query($mysqli, $sqlQuery)) {
-        echo "Query: " . $sqlQuery;
-        echo "Error inserting host: " . mysqli_error($mysqli);
+        if ($debug_mode) echo "Error inserting host: " . mysqli_error($mysqli);
         return;
     }
 
+    if ($debug_mode) echo "Successfully added host";
+}
+
+
+function channels_add($JSON_in, $mysqli, $hostId)
+{
+    //Function to add channels to our host, called the first time the host pings
+    global $debug_mode;
+
     $mQuery = "";
 
-    $JSON_in = array_slice($JSON_in, $JSONServerSkip, NULL, true);
-
-    $hostId = mysqli_insert_id($mysqli);
-
     // Loop through the channels in our message
-    foreach($JSON_in as $chanName => $channel) {
+    foreach($JSON_in["channels"] as $channel) {
         $mQuery .= "INSERT INTO channel (name, type, variable, active, max, min, color, units, host)
-            VALUES('" . $chanName . "', '" . $channel["type"] . "', " . $channel["variable"] . "
-            , " . $channel["active"] . ", " . $channel["max"] . ", " . $channel["min"] . "
-            , '" . $channel["color"] . "', '" . $channel["units"] . "', " . $hostId . "); ";
+            VALUES('" . mysqli_real_escape_string($mysqli, $channel["name"]) . "', '"
+            . mysqli_real_escape_string($mysqli, $channel["type"]) . "', " 
+            . (int)$channel["variable"] . ", " . (int)$channel["active"] . ", " 
+            . (float)$channel["max"] . ", " . (float)$channel["min"] . "
+            , '" . mysqli_real_escape_string($mysqli, $channel["color"]) . "', '" 
+            . mysqli_real_escape_string($mysqli, $channel["units"]) . "', " . $hostId . "); ";
     }
     
     // Do the query
     if (empty($mQuery)) {
-        echo "No channels provided.";
+        if ($debug_mode) echo "No channels provided.";
     }
     elseif (!mysqli_multi_query($mysqli, $mQuery)) {
-        echo "multiquery: " . $mQuery . " failed.";
+        if ($debug_mode) echo "multiquery: " . $mQuery . " failed.";
+        // Flush the results
+        while (mysqli_next_result($mysqli)) {;};
         return;
     }
 
+    while (mysqli_next_result($mysqli)) {;};
+
     // Return
-    echo "Successfully added host";
+    if ($debug_mode) echo "Successfully added channels. ";
 
 }
 
 
-function chan_vals($chanId)
+function chan_vals($chanId, $chanValLim)
 {
     //Function to create the return for a host
-    return $chanId;
+    global $debug_mode;
+
+    $retInfo['times'] = array(1, 2, 3); #timestamps for the data
+    $retInfo['values'] = array(3.4, 4.5, 5.6); #values for the data
+
+    return $retInfo;
 }
 
 
