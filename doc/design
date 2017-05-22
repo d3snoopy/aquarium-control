@@ -42,9 +42,10 @@ Note: hosts are going to need to get a time hack before the server will accept a
 Return from the server, in the form of a page of data.
 
 First line: Reserved for debug messages
-Second line: HMAC #The hash of the JSON data.
-Third line: empty
-Fourth line: start of the JSON data:
+Second line: empty
+Third line: HMAC #The hash of the JSON data.
+Fourth line: empty
+Fifth line: start of the JSON data:
 {
   "date":"date", # Linux time status, host will check to make sure this is greater than seen before
   "nextping":"date", # Server specification of the next time the controller should check in

@@ -59,57 +59,51 @@ $JSON_data = [];
 $JSON_data["date"] = time();
 
 for($i=1; $i <= $numHosts; $i++) {
-    $row = mysqli_fetch_array($knownHosts);
-    if($row['ident'] == $JSON_in['id']) {
-        // We've seen this host before.
-        $hostFound = true;
+  $row = mysqli_fetch_array($knownHosts);
+  if($row['ident'] == $JSON_in['id']) {
+    // We've seen this host before.
+    $hostFound = true;
 
-        // Check date against lastping, make sure we're not seeing a replay.
-        $res = mysqli_query($mysqli, "SELECT UNIX_TIMESTAMP(lastping) FROM host WHERE ident = '"
-             . mysqli_real_escape_string($mysqli, $JSON_in['id']) . "'");
+    // Check date against lastping, make sure we're not seeing a replay.
+    $res = mysqli_query($mysqli, "SELECT UNIX_TIMESTAMP(lastping) FROM host WHERE ident = '"
+       . mysqli_real_escape_string($mysqli, $JSON_in['id']) . "'");
 
-        $lastPing = mysqli_fetch_row($res)[0];
-        // Update lastping if this is really a new ping.
+    $lastPing = mysqli_fetch_row($res)[0];
+    // Update lastping if this is really a new ping.
 
-        if((int)$JSON_in['date'] > (int)$lastPing) {
-            if(!mysqli_query($mysqli, "UPDATE host SET lastPing = FROM_UNIXTIME(
-                " . (int)$JSON_in['date'] . ") WHERE ident = '"
-                . mysqli_real_escape_string($mysqli, $JSON_in['id']) . "'")) {
-                if ($debug_mode) echo "Error updating ping date: " . mysqli_error($mysqli);
-                mysqli_close($mysqli);
-                return;
-            }
+    if((int)$JSON_in['date'] > (int)$lastPing) {
+      if(!mysqli_query($mysqli, "UPDATE host SET lastPing = FROM_UNIXTIME(
+          " . (int)$JSON_in['date'] . ") WHERE ident = '"
+          . mysqli_real_escape_string($mysqli, $JSON_in['id']) . "'")) {
+            if ($debug_mode) echo "Error updating ping date: " . mysqli_error($mysqli);
+      }
+
+      if(!$row['auth']) {
+         mysqli_close($mysqli);
+         if ($debug_mode) echo "Known, non-validated host";
+
+      } else {
+        // We've also validated this host.
+        // Check the hash.
+        $hash_expected = hash_HMAC('sha256', $_POST['host'], $row['auth']);
+
+        if(md5($_POST['HMAC']) === md5($hash_expected)) {
+          // We have a valid message.
+
+          $JSON_data = \aqctrl\host_process($JSON_in, $JSON_data, $mysqli);
+
         } else {
-            mysqli_close($mysqli);
-            if ($debug_mode) echo 'Check your date';
-            return;
+          // Hash failed
+          if ($debug_mode) echo "HMAC failed";
+                
         }
+      }
 
-        if(!$row['auth']) {
-            mysqli_close($mysqli);
-            if ($debug_mode) echo "Known, non-validated host";
-            return;
-            
-        } else {
-            // We've also validated this host.
-            // Check the hash.
-            $hash_expected = hash_HMAC('sha256', $_POST['host'], $row['auth']);
-
-            if(md5($_POST['HMAC']) === md5($hash_expected)) {
-                // We have a valid message.
-
-                $JSON_data = \aqctrl\host_process($JSON_in, $JSON_data, $mysqli);
-
-            } else {
-                // Hash failed
-                if ($debug_mode) echo "HMAC failed";
-
-                mysqli_close($mysqli);
-                return;
-            }
-        }
-
+    } else {
+      mysqli_close($mysqli);
+      if ($debug_mode) echo "Check your date";
     }
+  }
 }
 
 // Test to see if we found this host.
@@ -118,10 +112,10 @@ if(!$hostFound) \aqctrl\host_add($JSON_in, $mysqli);
 // Encode our JSON, make HMAC, echo our response.
 $respString = json_encode($JSON_data);
 
-echo "\r";
+echo "\r\n\r\n";
 if(isset($row)) {
   echo hash_HMAC('sha256', $respString, $row['auth']);
-  echo "\r\r";
+  echo "\r\n\r\n";
   echo $respString;
 }
 
