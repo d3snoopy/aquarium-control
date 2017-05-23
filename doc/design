@@ -6,66 +6,108 @@ Coordinates the actions between the hosts
 Note: the hosts "check in" the whole time, on an interval.
 
 Host Comms:
-Hosts should receive and send info in an JSON format.
+Hosts should receive and send info in plaintext, with comma separated values in the specified order.
+The message parsing is extremely simple in the interest of preserving memory on the hosts.
+Note: for all values, quotes (' or ") and commas are illegal.
 
 Message format out to the server, in the form of the POST strings:
+Note: "host" and "HMAC" post strings are required.  Strings are enclosed with double quotes.  Trailing commas are okay
 
-# "host" POST string info
-{
-  "id":string, #Generate a random uuid for this
-  "name":string, #Human-readable string
-  "date":date, #Date of the ping; used to prevent replay attacks
-  "maxVals":int, #Maximum number of values that the server should send
-  "channels":[
-    { "name":"string" # Channel info for the first channel (this is the name) - note, values stored in server override
-      "type":string, #Human-readable; channels must be of a common type to be within a common source
-      "variable":boolean, #true: scales 0-1, false: values is either 0 or 1
-      "active":boolean, #true: connected to something, false: exists, but unused
-      "max":number, #applies to variable: number between 0 and 1
-      "min":"number", #Same as max
-      "color":"string", #hex color string, minus the #
-      "units":"string", #human readable representation of units; it's up to host to scale from units to the values the hardware wants.
-      "times":[time, time, time, ...], #Data to transfer over to the server.  Note: once data is transferred, clear it out from memory on the host
-      "values":[value, value, value, ...] #time is in linuxtime, UTC, value in "units" units
-    },
+# "host" POST string:
 
-    "channelname": {
-           ...
-    },
-  ],
-}
+string "id", #Generate a random uuid for this
+string "name", #Human-readable string
+int date, #LinuxDate of the ping; used to prevent replay attacks
+int maxVals, #Maximum number of values that the server should send
+string "chan1Name", #Channel1 Name
+string "chan1Type", #Human-readable; channels must be of a common type to be within a common source
+int chan1Variable, #true: values scale, false: values is either 0 or 1
+int chan1Active, #true: connected to something, false: exists, but unused
+float chan1Max, #applies to variable: maximum number the channel will accept
+float chan1Min, #minimum number the channel will accept
+string "chan1color", #hex color string, minus the #
+string "chan1units", #human readable representation of units (units in which it expects values)
+.... Repeat channel infor for subsequent channels.  Note: malforming this will cause strange behavior
 
-Also, include an "HMAC" POST string, with an authentication SHA-256 hash of "data"
+
+# "time1" POST string: #Timestamps for data for the first channel
+int time1,
+int time2,
+...
+int timen,
+
+# "data1" POST string: #Data associated with the timestamps for the first channel
+float data1,
+float data2,
+...
+float datan,
+
+# "time2" POST string: #Timestamps for data for the second channel
+int time1,
+int time2,
+...
+int timen,
+
+# "data2" POST string: #Data for the second channel
+float data1,
+float data2,
+...
+float datan,
+
+# "timen" POST string: # More time data
+int ch3time1,
+...
+int chmtimen,
+
+# "datan" POST string:
+...
+
+Note: not all channels must return data, but any "timen" needs a paired "datan".
+Also: strings must be provided in channel order, I.E.: 2,5,7 NOT 5,2,7.
+
+
+# "retn" POST string: This a list of the channels for which the host wants data.  Note: this allows the host to get the data one channel at a time for memory purposes.
+
+int chanNum,
+int chanNum,
+int chanNum,
+...
+int chanNum
+
+
+# "HMAC" POST string: SHA-256 HMAC of the concatenation of the "host", "time#", and "data#" post strings.
+# Important note: This does not include the "host=" or "&time1=", etc. found in the HTMP message.
+# If the HTML message were: "host=a&time1=1,2,&data1=4,5,&time4=3,&data4=2," you would want to hash "a1,2,4,5,3,2,".
 
 Note: hosts are going to need to get a time hack before the server will accept anything from them: the server will only accept increasing "date" values.
 
 Return from the server, in the form of a page of data.
 
-First line: Reserved for debug messages
+First line: Reserved for debug messages #Returned regardless of hash/time
 Second line: empty
-Third line: HMAC #The hash of the JSON data.
+Third line: HMAC #The hash of the upcoming data.  Note: hash all of line 5 and noting more.
 Fourth line: empty
-Fifth line: start of the JSON data:
-{
-  "date":"date", # Linux time status, host will check to make sure this is greater than seen before
-  "nextping":"date", # Server specification of the next time the controller should check in
-  "inInterval":int seconds, #Interval to read each input channels
-  "outInterval":int seconds, #Interval at which to update the output channels
-  "channels": [
-    {  "times":[time, time, time, ...], #in Linuxtime.  Limited to a quantity the respects maxVals given
-       "values":[value, value, value, ...] #in units.
-    },
+Fifth line: The data, all in a single string:
 
-    {
-       ....
-    },
-  ],
-}
-    
+int date, # Linux time status, host will check to make sure this is greater than seen before, always returned.
+int nextPing, # Server wish next time the controller should check in (Note: host my check in again earlier than this)
+int inInterval, #Internal in seconds to perform reads
+int outInterval, #Interval in seconds to output controls (Note: linear interpolate between data points)
+"t01", #Flag that we're giving timestamps for channel 1 - make sure to include the double quotes.
+int time1,
+int time2,
+...
+int timen,
+"v01", #Flag that we're now giving values to pair to the timestamps.
+float data1,
+float data2,
+....
+float datan,
+"t04", #another flag. Note that not all channels need to be covered.
+....
 
 
-
-
+Note: only date is returned if the incoming message was validated (known host, good HMAC, newer time)
 
 
 Server design:

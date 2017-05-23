@@ -281,15 +281,15 @@ void rxPost(WiFiClient client) {
   // Read all the lines of the reply from server.
   Serial.println("Server Response:");
 
-  uint8_t hash[65];
+  //uint8_t hash[65];
   int count = 0;
   uint8_t lastByte = 0;
   int i = 0;
-  uint8_t jsonData;
+  uint8_t jsonData[500];
 
   // Init our buffers.
-  Sha256.initHmac(key,20);
-  //DynamicJsonBuffer jsonBuffer;
+  //Sha256.initHmac(key,20);
+  DynamicJsonBuffer jsonBuffer;
   
   
   while(client.connected()){
@@ -318,7 +318,7 @@ void rxPost(WiFiClient client) {
         //We are now reading the HMAC
         if(c != '\r' && c != '\n'){
           //Byte we want to keep
-          hash[i] = c;
+          //hash[i] = c;
           i++;
         } else {
           if(lastByte == '\n' && c == '\r'){
@@ -333,8 +333,8 @@ void rxPost(WiFiClient client) {
         break;
       case 3:
         //We are reading the JSON
-        Sha256.write(c);
-        //jsonData[i] = c;
+        //Sha256.write(c);
+        jsonData[i] = c;
         i++;
         break;
     }
@@ -342,29 +342,37 @@ void rxPost(WiFiClient client) {
   }
 
   //Test if our hashes match
-  uint8_t* myHash = Sha256.resultHmac();
+  //uint8_t* myHash = Sha256.resultHmac();
 
-  if(myHash == hash){
-    Serial.println("hashes matched!");
-  } else {
-    Serial.println("hashes did not match");
-  }
+  //if(myHash == hash){
+  //  Serial.println("hashes matched!");
+  //} else {
+  //  Serial.println("hashes did not match");
+  //}
 
   
-  for (int i=0; i<32; i++) {
-    Serial.print("0123456789abcdef"[hash[i]>>4]);
-    Serial.print("0123456789abcdef"[hash[i]&0xf]);
-  }
+  //for (int i=0; i<32; i++) {
+  //  Serial.print("0123456789abcdef"[hash[i]>>4]);
+  //  Serial.print("0123456789abcdef"[hash[i]&0xf]);
+  //}
 
-  for (int i=0; i<32; i++) {
-    Serial.print("0123456789abcdef"[myHash[i]>>4]);
-    Serial.print("0123456789abcdef"[myHash[i]&0xf]);
-  }
+  //Serial.println("...");
+
+  //for (int i=0; i<32; i++) {
+  //  Serial.print("0123456789abcdef"[myHash[i]>>4]);
+  //  Serial.print("0123456789abcdef"[myHash[i]&0xf]);
+  //}
+
+  //Serial.println("...");
+
+  //for (int i=0; i<64; i++) {
+  //  Serial.write(myHash[i]);
+  //}
 
   //Parse the JSON
-  //JsonObject& root = jsonBuffer.parseObject(jsonData);
+  JsonObject& root = jsonBuffer.parseObject(jsonData);
 
-  //Toffset = atol(root["date"]) - millis()/1000;
+  Toffset = atol(root["date"]) - millis()/1000;
   //nextPing = root["nextPing"];
   //inInterval = root["inInterval"];
   //outInterval = root["outInterval"];
@@ -416,7 +424,7 @@ void loop() {
   
   if (Ltime >= nextRead) {
     readChannels();
-    nextRead += 60;
+    nextRead = Ltime + 60;
   }
 
   //if (Ltime >= nextWrite) {
@@ -427,7 +435,7 @@ void loop() {
   //Test our JSON gen
   if (Ltime >= nextPing) {
     post();
-    nextPing += 300; //TODO change this to let the server drive our next ping
+    nextPing = Ltime + 600; //TODO change this to let the server drive our next ping
   }
 
   //update our time.
