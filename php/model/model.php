@@ -137,6 +137,7 @@ function db_create()
         min FLOAT(10,4) UNSIGNED NOT NULL,
         color CHAR(6) NOT NULL,
         units VARCHAR(30) NOT NULL,
+        lastPing DATETIME NOT NULL,
         host INT(6) UNSIGNED,
         FOREIGN KEY(host)
         REFERENCES host(id)

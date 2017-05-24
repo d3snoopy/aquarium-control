@@ -71,7 +71,7 @@ for($i=1; $i <= $numHosts; $i++) {
     $lastPing = mysqli_fetch_row($res)[0];
     // Update lastping if this is really a new ping.
 
-    if((int)$JSON_in['date'] > (int)$lastPing) {
+    if((int)$JSON_in['date'] >= (int)$lastPing) {
       if(!mysqli_query($mysqli, "UPDATE host SET lastPing = FROM_UNIXTIME(
           " . (int)$JSON_in['date'] . ") WHERE ident = '"
           . mysqli_real_escape_string($mysqli, $JSON_in['id']) . "'")) {
@@ -179,6 +179,7 @@ function host_process($JSON_in, $JSON_data, $mysqli)
 
         // Check if this channel is active - if not parse response but not data.
         if($channel['active']) {
+            #TODO: check to make sure we have a new date.
             // Get the timestamps and data
             $times = $channel['times'];
             $values = $channel['values'];

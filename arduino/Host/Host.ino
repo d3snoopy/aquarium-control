@@ -1,10 +1,9 @@
 //#include <PipedStream.h>
 #include <ESP8266WiFi.h>
 #include <sha256.h>
-#include <ArduinoJson.h>
+//#include <ArduinoJson.h>
 #include <Wire.h>
 #include "Adafruit_TSL2591.h"
-
 
 
 // Info about connecting: our wireless access point, server hostname
@@ -20,6 +19,7 @@ const uint8_t key[] = "9eafc21877e34241b206"; //Secret key to validate messages,
 const char hostName[] = "Light Sensor 1"; //Human Readable name for this host.
 
 const int numChan = 2; //Number of hardware channels this host handles.
+const boolean chanIn[] = {true, false}; //Flag whether we read or write to channel.  If we read, true; if we write: false.
 const unsigned int maxVals = 1000; //Max number of readings to hold in memory.
 
 // Info about each channel
@@ -111,15 +111,15 @@ unsigned long outInterval = 60;
 // If a channel is an output, this gets populated from the server on pings.
 // If a channel is an input, this gets uploaded to the server on pings.
 
-unsigned long timeStamps[numChan][maxVals]; //Note: one thousand values per channel
-float chanVals[numChan][maxVals]; //Note: again, one thousand values per channel
+// Data arrays.
+unsigned long timeStamps[numChan][maxVals];
+float chanVals[numChan][maxVals];
 
 unsigned int chanReg[] = {0, 0}; //Register tracker to log which value applies next
 boolean chanRot[] = {false, false}; //Register tracker - detect if we're overwriting data.
 
-//PipedStreamPair pipes;
-//PipedStream& streamIn = pipes.first;
-//PipedStream& streamOut = pipes.second;
+
+
 
 // Function to start the hardware
 void startChannels() {
@@ -138,7 +138,12 @@ void startChannels() {
 }
 
 
+
 // Function to drive output hardware
+void writeChannels() {
+  // Output to our output channels.
+}
+
 
 
 // function to read input hardware
@@ -156,6 +161,7 @@ void readChannels() {
   // Do additional channels here.
   // In this case, act like channel 2 is an output, so ignore it here
 }
+
 
 
 // Function to connect to the WIFI.
@@ -179,6 +185,7 @@ void startWIFI() {
 }
 
 
+
 // Function to POST to the server
 void post() {
   WiFiClient client;
@@ -191,155 +198,208 @@ void post() {
     Serial.println("connection failed");
     return;
   }
-  
-  sendPost(client);
-  //delay(1000);
-  rxPost(client);
+
+  // Send and receive for each channel
+  for(int i=0;i<numChan; i++) {
+    // Send and receive.
+    sendPost(client, i);
+    rxPost(client, i);
+  }
+
+  // Close the connection.
+  client.stop();
 }
 
-void sendPost(WiFiClient client) {
+
+
+void sendPost(WiFiClient client, int i) {
   // We now create a URI for the request
   Serial.print("Requesting URL: ");
   Serial.println(url);
   Serial.println("Sending request");
 
-  // Send the common part
+  //Buffer the floating point prints.
+  char buffer[20]; 
+
+  // Send the message
   client.print("POST ");
   client.print(url);
   client.print(" HTTP/1.1\r\n");
   client.print("Host: ");
   client.print(serverAddr);
-  client.print("\r\nConnection: close\r\n");
+  client.print("\r\nConnection: keep-alive\r\n");
   client.print("Content-Type: application/x-www-form-urlencoded\r\n");
   client.print("Content-length: ");
-  
-  // Generate & print our data.
-  // Start the pool
-  DynamicJsonBuffer jsonBuffer;
-  
-  JsonObject& root = jsonBuffer.createObject();
 
-  // Setup our data
-  root["id"] = hostID;
-  root["name"] = hostName;
-  root["date"] = Ltime;
-  root["maxVals"] = maxVals;
-
-  JsonArray& chans = root.createNestedArray("channels");
-
-  for(int i = 0; i < numChan; i++){
-    JsonObject& chan = chans.createNestedObject();
-
-    chan["name"] = chanNames[i];
-    chan["type"] = chanTypes[i];
-    chan["variable"] = chanVars[i];
-    chan["active"] = chanActives[i];
-    chan["max"] = chanMaxs[i];
-    chan["min"] = chanMins[i];
-    chan["color"] = chanColors[i];
-    chan["units"] = chanUnits[i];
-
-    JsonArray& times = chan.createNestedArray("times");
-    JsonArray& values = chan.createNestedArray("values");
-
-    int chLim = chanReg[i];
-
-    if(chanRot[i]) {
-      chLim = maxVals;
-    }
-
-    for(int j = 0; j < chLim; j++){
-      times.add(timeStamps[i][j]);
-      values.add(chanVals[i][j], 6);
-      }
-    //
-    // Testing: reset the chanReg - in the long run do this only after a successful upload
-    chanReg[i] = 0;
-    //
-    //
-  }
-
+  // Calculate the length of our message.
+  // Fixed numbers: 13 commas in "host" + 5 chars for "host=" + 6 chars for "&time=" +
+  // 6 chars for "&data=" + 6 chars for "&HMAC=" + 64 chars for HMAC + 
+  // 5x10 = 50 int characters + 2*13 = 26 float characters = 176
+  client.print(176+strlen(hostID)+strlen(hostName)+strlen(chanNames[i])+strlen(chanTypes[i])
+    +strlen(chanColors[i])+strlen(chanUnits[i])+((chanReg[i])*25));
+    
   Sha256.initHmac(key,20);
-
-  // Feed the JSON into the hash
-  root.printTo(Sha256);
-
-  client.print(root.measureLength() + 75);
+  
   client.print("\r\n\r\n");
   client.print("host=");
-  root.printTo(client);
-  client.print("&HMAC=");
+
+  // Print host info
+  client.print(hostID);
+  Sha256.print(hostID);
+  client.print(",");
+  Sha256.print(",");
+  client.print(hostName);
+  Sha256.print(hostName);
+  client.print(",");
+  Sha256.print(",");
+  client.printf("%010d", Ltime);
+  Sha256.printf("%010d", Ltime);
+  client.print(",");
+  Sha256.print(",");
+  client.printf("%010d", maxVals);
+  Sha256.printf("%010d", maxVals);
+  client.print(",");
+  Sha256.print(",");
+  client.printf("%010d", i);
+  Sha256.printf("%010d", i);
+  client.print(",");
+  Sha256.print(",");
+  client.print(chanNames[i]);
+  Sha256.print(chanNames[i]);
+  client.print(",");
+  Sha256.print(",");
+  client.print(chanTypes[i]);
+  Sha256.print(chanTypes[i]);
+  client.print(",");
+  Sha256.print(",");
+  client.printf("%010d", chanVars[i]);
+  Sha256.printf("%010d", chanVars[i]);
+  client.print(",");
+  Sha256.print(",");
+  client.printf("%010d", chanActives[i]);
+  Sha256.printf("%010d", chanActives[i]);
+  client.print(",");
+  Sha256.print(",");
+  dtostrf(chanMaxs[i],13,3, buffer);
+  client.print(buffer);
+  Sha256.print(buffer);
+  client.print(",");
+  Sha256.print(",");
+  dtostrf(chanMins[i],13,3, buffer);
+  client.print(buffer);
+  Sha256.print(buffer);
+  client.print(",");
+  Sha256.print(",");
+  client.print(chanColors[i]);
+  Sha256.print(chanColors[i]);
+  client.print(",");
+  Sha256.print(",");
+  client.print(chanUnits[i]);
+  Sha256.print(chanUnits[i]);
+  client.print(",");
+  Sha256.print(",");
+
+  //Print the time data
+  client.print("&time=");
+
+  for(int j=0;j<chanReg[i];j++){
+    client.printf("%010d", timeStamps[i][j]);
+    Sha256.printf("%010d", timeStamps[i][j]);
+    client.print(",");
+    Sha256.print(","); 
+  }
+
+  //Print the values
+  client.print("&data=");
+
+  for(int j=0;j<chanReg[i];j++){
+    dtostrf(chanVals[i][j],13,3, buffer);
+    client.print(buffer);
+    Sha256.print(buffer);
+    client.print(",");
+    Sha256.print(","); 
+  }
+
+  //Print the HMAC
   uint8_t* hash = Sha256.resultHmac();
-   
-  for (int i=0; i<32; i++) {
-    client.print("0123456789abcdef"[hash[i]>>4]);
-    client.print("0123456789abcdef"[hash[i]&0xf]);
+  client.print("&HMAC=");
+  
+
+  for (int j=0; j<32; j++) {
+    client.print("0123456789abcdef"[hash[j]>>4]);
+    client.print("0123456789abcdef"[hash[j]&0xf]);
   }
 }
 
-void rxPost(WiFiClient client) {
+
+
+void rxPost(WiFiClient client, int i) {
   // Read all the lines of the reply from server.
-  Serial.println("Server Response:");
+  Serial.println("\r\nServer Response:");
 
   //uint8_t hash[65];
   int count = 0;
-  uint8_t lastByte = 0;
-  int i = 0;
   uint8_t jsonData[500];
 
   // Init our buffers.
-  //Sha256.initHmac(key,20);
-  DynamicJsonBuffer jsonBuffer;
+  Sha256.initHmac(key,20);
+
+  uint8_t ring[] = "000000";
+
   
-  
-  while(client.connected()){
+  while(client.available()){
     uint8_t c = client.read();
     Serial.write(c);
+  }
+
+  nextPing = Ltime + 30;
+
+  return;
 
     //We're counting empty lines
     //after the first: our debug line
     //after the second: our HMAC
     //after the third: the JSON data.
 
-    switch (count) {
-      case 0:
-        if(lastByte == '\n' && c == '\r'){
+    //switch (count) {
+      //case 0:
+        //if(lastByte == '\n' && c == '\r'){
           //Increase our count
-          count++;
-        }
-        break;
-      case 1:
-        if(lastByte == '\n' && c == '\r'){
+        //  count++;
+      //  }
+      //  break;
+     // case 1:
+     //   if(lastByte == '\n' && c == '\r'){
           //Increase our count
-          count++;
-        }
-        break;
-      case 2:
+      //    count++;
+      //  }
+     //   break;
+     // case 2:
         //We are now reading the HMAC
-        if(c != '\r' && c != '\n'){
+     //   if(c != '\r' && c != '\n'){
           //Byte we want to keep
           //hash[i] = c;
-          i++;
-        } else {
-          if(lastByte == '\n' && c == '\r'){
+      //    i++;
+     //   } else {
+      //    if(lastByte == '\n' && c == '\r'){
             //Increase our count
-            count++;
+       //     count++;
             //Read one more byte.
-            c = client.read();
-            Serial.write(c);
-            i = 0;
-          }
-        }
-        break;
-      case 3:
+      //      c = client.read();
+       //     Serial.write(c);
+      //      i = 0;
+     //     }
+    //    }
+    //    break;
+   //   case 3:
         //We are reading the JSON
         //Sha256.write(c);
-        jsonData[i] = c;
-        i++;
-        break;
-    }
-    lastByte = c;
-  }
+   //     jsonData[i] = c;
+   //     i++;
+  //      break;
+  //  }
+  //  lastByte = c;
+ // }
 
   //Test if our hashes match
   //uint8_t* myHash = Sha256.resultHmac();
@@ -370,9 +430,9 @@ void rxPost(WiFiClient client) {
   //}
 
   //Parse the JSON
-  JsonObject& root = jsonBuffer.parseObject(jsonData);
+  //JsonObject& root = jsonBuffer.parseObject(jsonData);
 
-  Toffset = atol(root["date"]) - millis()/1000;
+  //Toffset = atol(root["date"]) - millis()/1000;
   //nextPing = root["nextPing"];
   //inInterval = root["inInterval"];
   //outInterval = root["outInterval"];
@@ -394,19 +454,16 @@ void setup() {
   Serial.begin(115200);
   delay(1000);
 
+  // Start the hardware
+  startChannels();
+
   // We start by connecting to a WiFi network
   startWIFI();
 
   delay(1000);
 
   // Bootstrap our info
-  // Ping twice: the first time should get a time hack
-  // The second time should get our initial values
   post();
-
-  // Start the hardware
-  startChannels();
-  
 }
 
 
@@ -416,40 +473,35 @@ void loop() {
     delay(1);
     startWIFI();
   }
-
-  //Go through our tests to see if we need to do actions.
-  //if (Ltime >= nextPing) {
-  //  post();
-  //}
   
   if (Ltime >= nextRead) {
     readChannels();
-    nextRead = Ltime + 60;
+    nextRead = Ltime + inInterval;
   }
 
-  //if (Ltime >= nextWrite) {
-  //  readChannels();
-  //  nextRead += 5;
-  //}
+  if (Ltime >= nextWrite) {
+    writeChannels();
+    nextRead = Ltime + outInterval;
+  }
 
   //Test our JSON gen
   if (Ltime >= nextPing) {
     post();
-    nextPing = Ltime + 600; //TODO change this to let the server drive our next ping
   }
 
   //update our time.
   Ltime = millis()/1000 + Toffset;
 
+  boolean full = false;
   //Test our chanReg for maxing out size; if so, trigger a ping.  Hopefully this never has to trigger.
   for (int i = 1; i < numChan; i++){
     if (chanReg[i] == maxVals) {
-      post();
-      //Reset the chanReg whether it sucessfully uploaded data or not.
-      //Note: this effectively rotates data, so set a flag for that.
-      chanReg[i] = 0;
-      chanRot[i] = true;
+      full = true;
     }
+  }
+
+  if (full){
+    post();
   }
 }
 
