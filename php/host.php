@@ -34,7 +34,7 @@ if(!$mysqli) {
 }
 
 // Explode the host data from the host.
-$data_in = explode(",", $_POST["host"]);
+$data_in = explode(",", $_POST['host']);
 
 // Decide whether we know about this host yet.
 $knownHosts = mysqli_query($mysqli, "SELECT id,ident,auth,UNIX_TIMESTAMP(lastPing),inInterval,outInterval,pingInterval FROM host");
@@ -92,13 +92,18 @@ for($i=1; $i <= $numHosts; $i++) {
 }
 
 // Test to see if we found this host.
-if(!$hostFound) \aqctrl\host_add($data_in, $mysqli);
+if(!$hostFound) {
+  \aqctrl\host_add($data_in, $mysqli);
+  $row['auth'] = 0;
+}
 
 // Encode our JSON, make HMAC, echo our response.
-$respString = json_encode($JSON_data);
+$HMAC = hash_HMAC('sha256', $data_out, $row['auth']);
+
+$data_out .= '"HMAC",' . $HMAC;
 
 echo "\r\n\r\n";
-echo $respString;
+echo $data_out;
 
 // Disconnect and return
 mysqli_close($mysqli);
@@ -114,7 +119,8 @@ function host_process($data_in, $data_out, $mysqli, $row)
   global $debug_mode;
 
   // TODO: Update what we get based on our calculation needs
-  $chanRes = mysqli_query($mysqli, "SELECT id,variable,active,max,min,UNIX_TIMESTAMP(lastPing) FROM channel WHERE host = " . $row['id']);
+  $chanRes = mysqli_query($mysqli, "SELECT id,variable,active,max,min,UNIX_TIMESTAMP(lastPing) FROM channel
+    WHERE host = " . $row['id']);
 
   if(!$chanRes) {
     if ($debug_mode) echo("Could not get channel list for host in host_process");
@@ -122,7 +128,7 @@ function host_process($data_in, $data_out, $mysqli, $row)
   }
 
   // Test for how many channelse we have, if we don't have enough call channels_add.
-  if((mysqli_num_rows($chanRes) <= (int)$data_in[5]){
+  if(mysqli_num_rows($chanRes) <= (int)$data_in[5]){
     $chanInfo = \aqctrl\channel_add($data_in, $mysqli, $row['id'], mysqli_num_rows($chanRes));
   } else {
     mysqli_data_seek($chanRes, $data_in[5]);
@@ -176,8 +182,9 @@ function host_process($data_in, $data_out, $mysqli, $row)
   if (empty($mQuery)) {
     if ($debug_mode) echo "No channel data provided.\n";
   }
-  elseif(!mysqli_multi_query($mysqli, $mQuery))
+  elseif(!mysqli_multi_query($mysqli, $mQuery)) {
     if ($debug_mode) echo "multiquery: " . $mQuery . " failed.";
+  }
 
   //Flush the results.
   while (mysqli_next_result($mysqli)) {;};
@@ -199,10 +206,11 @@ function host_add($data_in, $mysqli)
     . mysqli_real_escape_string($mysqli, $data_in[1]) . "',
     0, FROM_UNIXTIME(" . time() . "), 60, 60, 600)";
 
-  if(!mysqli_query($mysqli, $sqlQuery))
+  if(!mysqli_query($mysqli, $sqlQuery)) {
     if ($debug_mode) echo "Error inserting host: " . mysqli_error($mysqli);
-  else
+  } else {
     if ($debug_mode) echo "Successfully added host";
+  }
 }
 
 
@@ -216,7 +224,7 @@ function channel_add($data_in, $mysqli, $hostId, $numRows)
 
   //We need to keep the channels for this host in order, so if this channel skips numbers, create intermediate ones.
   if($numRows < $data_in[4]) {
-    for ($i=$numRows, $i<$data_in[4], $i++) {
+    for ($i=$numRows; $i<$data_in[4]; $i++) {
       //Make a channel placeholder.
       $mQuery .= "INSERT INTO channel (lastPing, host)
         VALUES(FROM_LINUXTIME(0),$hostID); ";
@@ -231,7 +239,7 @@ function channel_add($data_in, $mysqli, $hostId, $numRows)
     . (float)$data_in[9] . ", " . (float)$data_in[10] . ", '"
     . mysqli_real_escape_string($mysqli, $data_in[11]) . "', '" 
     . mysqli_real_escape_string($mysqli, $data_in[12]) . "', FROM_LINUXTIME("
-    . (int)$data_in[2] . "), " $hostId . "); ";
+    . (int)$data_in[2] . "), " . $hostId . "); ";
     
   // Do the query
   if (empty($mQuery)) {
@@ -245,8 +253,8 @@ function channel_add($data_in, $mysqli, $hostId, $numRows)
   //Flush the results
   do {
     $chanId = mysqli_insert_id($mysqli);
-    mysqli_next_result($mysqli)
-  } while (mysqli_more_results($mysqli))
+    mysqli_next_result($mysqli);
+  } while (mysqli_more_results($mysqli));
 
   // Return
   return [
@@ -267,14 +275,14 @@ function chan_vals($chanId, $chanValLim)
 
   $now = time();
 
-  for($i=0,$i<$chanValLim,$i++) {
+  for($i=0;$i<$chanValLim;$i++) {
     $t = $now + $i;
     $retInfo .= "$t,";
   }
 
   $retInfo = '"time",';
 
-  for($i=0,$i<$chanValLim,$i++) {
+  for($i=0;$i<$chanValLim;$i++) {
     $v = mt_rand() / mt_getrandmax();
     $retInfo .= "$v,";
   }

@@ -346,6 +346,8 @@ void rxPost(WiFiClient client, int i) {
 
   uint8_t ring[] = "000000";
 
+  // Sleep for 0.1 sec.
+  delay(100);
   
   while(client.available()){
     uint8_t c = client.read();
