@@ -129,14 +129,14 @@ function db_create()
     // Channel
     $sql = "CREATE TABLE channel (
         id INT(6) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-        name VARCHAR(30) NOT NULL,
-        type VARCHAR(30) NOT NULL,
-        variable INT(1) UNSIGNED NOT NULL,
-        active INT(1) UNSIGNED NOT NULL,
-        max FLOAT(10,4) UNSIGNED NOT NULL,
-        min FLOAT(10,4) UNSIGNED NOT NULL,
-        color CHAR(6) NOT NULL,
-        units VARCHAR(30) NOT NULL,
+        name VARCHAR(30),
+        type VARCHAR(30),
+        variable INT(1) UNSIGNED,
+        active INT(1) UNSIGNED,
+        max FLOAT(10,4) UNSIGNED,
+        min FLOAT(10,4) UNSIGNED,
+        color CHAR(6),
+        units VARCHAR(30),
         lastPing DATETIME NOT NULL,
         host INT(6) UNSIGNED,
         FOREIGN KEY(host)
