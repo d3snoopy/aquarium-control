@@ -64,18 +64,17 @@ int date, # Linux time status, host will check to make sure this is greater than
 int nextPing, # Server wish next time the controller should check in (Note: host may check in again earlier than this)
 int inInterval, #Internal in seconds to perform reads
 int outInterval, #Interval in seconds to output controls (Note: linear interpolate between data points)
-"time", #Flag that we're giving timestamps for channel 1 - make sure to include the double quotes.
-int time1,
+int time1, #Beginning of timestamps of data to pass to the host.
 int time2,
 ...
 int timen,
-"data", #Flag that we're now giving values to pair to the timestamps.
+; #Flag that we're now giving values to pair to the timestamps. Note: we need both the semicolon and the comma
 float data1,
 float data2,
 ....
 float datan,
-"HMAC",
-HMAC # HMAC of the data: from the first character of the line to the "," immediately before "HMAC".
+; #Flag that we're moving into the HMAC
+HMAC # HMAC of the data: from the first character of the line to the ";" immediately before the HMAC.
 
 
 Note: only date is returned if the incoming message was validated (known host, good HMAC, newer time)

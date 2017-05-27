@@ -100,7 +100,7 @@ Adafruit_TSL2591 tsl = Adafruit_TSL2591(2591);
 
 // Initialize our time variables to track current linux time.
 unsigned long Ltime = 0;
-unsigned long Toffset;
+unsigned long Toffset = 0;
 unsigned long nextPing = 5;
 unsigned long nextRead = 10;
 unsigned long nextWrite = 10;
@@ -200,7 +200,7 @@ void post() {
   }
 
   // Send and receive for each channel
-  for(int i=0;i<numChan; i++) {
+  for(int i=0;i<numChan;i++) {
     // Send and receive.
     sendPost(client, i);
     rxPost(client, i);
@@ -332,122 +332,230 @@ void sendPost(WiFiClient client, int i) {
 }
 
 
-
 void rxPost(WiFiClient client, int i) {
   // Read all the lines of the reply from server.
   Serial.println("\r\nServer Response:");
 
-  //uint8_t hash[65];
+  //Counter to track count.
   int count = 0;
-  uint8_t jsonData[500];
+  int dataCount = 0;
+  int section = 0;
+  char lastByte;
 
   // Init our buffers.
   Sha256.initHmac(key,20);
+  unsigned long times[maxVals];
+  float data[maxVals];
+  unsigned long newDate;
+  unsigned long newPing;
+  unsigned long newIn;
+  unsigned long newOut;
 
-  uint8_t ring[] = "000000";
+  char reads[65];
 
-  // Sleep for 0.1 sec.
-  delay(100);
+  // Sleep for 0.5 sec.
+  delay(500);
   
   while(client.available()){
-    uint8_t c = client.read();
-    Serial.write(c);
+    char c = client.read();
+
+    switch (section) {
+    case 0:
+      {
+      Serial.write(c);
+      // We have not reached the data yet.
+      if(lastByte == '\n' && c == '\r'){
+        // We have found an empty line
+        if(count > 0) {
+          Serial.println("Found end of header section");
+          // We're ready to flag that we're in data.
+          section++;
+          count = 0;
+        } else {
+          count++;
+        }
+      }
+      lastByte = c;
+      }
+      break;
+
+    case 1:
+      {
+      // We are looking at the initial data
+
+      // Print to Hash if not a newline or carriage feed
+      if (c != '\r' && c != '\n') {
+        Sha256.write(c);
+      }
+
+      if (c == ','){
+        // Reached the end of our data point.
+        reads[count] = '\0';
+        Serial.print("value: ");
+        Serial.print(reads);
+        Serial.print(", ");
+        
+        switch (dataCount) {
+          case 0:
+            {
+            //Date data
+            newDate = atol(reads);
+            Serial.println(newDate);
+            dataCount++;
+            count = 0;
+            }
+            break;
+
+          case 1:
+            {
+            //nextPing data
+            newPing = atol(reads);
+            Serial.println(newPing);
+            dataCount++;
+            count = 0;
+            }
+            break;
+
+          case 2:
+            {
+            //inInterval data
+            newIn = atol(reads);
+            Serial.println(newIn);
+            dataCount++;
+            count = 0;
+            }
+            break;
+
+          case 3:
+            {
+            //outInterval data
+            reads[count] = '\0';
+            newOut = atol(reads);
+            Serial.println(newOut);
+            section++;
+            count = 0;
+            dataCount = 0;
+            }
+            break;
+        }
+      } else {
+        //Skip newlines and carriage feeds
+        if (c != '\r' && c != '\n') {
+        //Update our reads.
+        reads[count] = c;
+        count++;
+        }
+      }
+      }
+      break;
+
+    case 2:
+      {
+      // Time data
+
+      //Print into our hash calculation
+      Sha256.write(c);
+      Serial.write(c);
+
+      //Test for transition to data
+      if (c == ';') {
+        section++;
+        count = 0;
+        dataCount = 0;
+      } else {
+        if (c == ','){
+          //Read the data in
+          reads[count] = '\0';
+          times[dataCount] = atol(reads);
+          dataCount++;
+          count = 0;
+        } else {
+          //Update the reads.
+          reads[count] = c;
+          count++;
+        }
+      }
+      }
+      break;
+
+    case 3:
+      {
+      // Data
+
+      //Print into our hash calculation
+      Sha256.write(c);
+      Serial.write(c);
+
+      //Test for transition to data
+      if (c == ';') {
+        section++;
+        count = 0;
+        dataCount = 0;
+      } else {
+        if (c == ','){
+          //Read the data in
+          reads[count] = '\0';
+          data[dataCount] = atof(reads);
+          dataCount++;
+          count = 0;
+        } else {
+          //Update the reads.
+          reads[count] = c;
+          count++;
+        }
+      }
+      }
+      break;
+
+    case 4:
+      {
+      //HMAC
+      if (c != ';') {
+        reads[count] = c;
+        count++;
+      }
+      }
+      break;
+        
+    }
   }
 
-  nextPing = Ltime + 30;
+  reads[count] = '\0';
 
-  return;
+  //Process our local hash
+  uint8_t* hash = Sha256.resultHmac();
 
-    //We're counting empty lines
-    //after the first: our debug line
-    //after the second: our HMAC
-    //after the third: the JSON data.
-
-    //switch (count) {
-      //case 0:
-        //if(lastByte == '\n' && c == '\r'){
-          //Increase our count
-        //  count++;
-      //  }
-      //  break;
-     // case 1:
-     //   if(lastByte == '\n' && c == '\r'){
-          //Increase our count
-      //    count++;
-      //  }
-     //   break;
-     // case 2:
-        //We are now reading the HMAC
-     //   if(c != '\r' && c != '\n'){
-          //Byte we want to keep
-          //hash[i] = c;
-      //    i++;
-     //   } else {
-      //    if(lastByte == '\n' && c == '\r'){
-            //Increase our count
-       //     count++;
-            //Read one more byte.
-      //      c = client.read();
-       //     Serial.write(c);
-      //      i = 0;
-     //     }
-    //    }
-    //    break;
-   //   case 3:
-        //We are reading the JSON
-        //Sha256.write(c);
-   //     jsonData[i] = c;
-   //     i++;
-  //      break;
-  //  }
-  //  lastByte = c;
- // }
-
-  //Test if our hashes match
-  //uint8_t* myHash = Sha256.resultHmac();
-
-  //if(myHash == hash){
-  //  Serial.println("hashes matched!");
-  //} else {
-  //  Serial.println("hashes did not match");
-  //}
-
+  char localHash[65];
   
-  //for (int i=0; i<32; i++) {
-  //  Serial.print("0123456789abcdef"[hash[i]>>4]);
-  //  Serial.print("0123456789abcdef"[hash[i]&0xf]);
-  //}
+  for (int j=0; j<32; j++) {
+    localHash[j*2] = ("0123456789abcdef"[hash[j]>>4]);
+    localHash[j*2+1] = ("0123456789abcdef"[hash[j]&0xf]);
+  }
 
-  //Serial.println("...");
+  localHash[64] = '\0';
 
-  //for (int i=0; i<32; i++) {
-  //  Serial.print("0123456789abcdef"[myHash[i]>>4]);
-  //  Serial.print("0123456789abcdef"[myHash[i]&0xf]);
-  //}
+  Serial.println("Hashes:");
 
-  //Serial.println("...");
+  Serial.println(reads);
+  Serial.println(localHash);
 
-  //for (int i=0; i<64; i++) {
-  //  Serial.write(myHash[i]);
-  //}
+  if(!strcmp(reads, localHash)) {
+    Serial.println("Hashes matched");
+    Toffset = newDate - millis()/1000;
+    nextPing = newPing;
+    inInterval = newIn;
+    outInterval = newOut;
+    if (!chanIn[i]) {
+      memcpy(timeStamps[i], times, sizeof(times[0])*maxVals);
+      memcpy(chanVals[i], data, sizeof(data[0])*maxVals);
+    }
+  } else {
+    Serial.println("Hash Mismatch");
+    nextPing = Ltime + 60;
+    Toffset = 0;
+  }
 
-  //Parse the JSON
-  //JsonObject& root = jsonBuffer.parseObject(jsonData);
-
-  //Toffset = atol(root["date"]) - millis()/1000;
-  //nextPing = root["nextPing"];
-  //inInterval = root["inInterval"];
-  //outInterval = root["outInterval"];
-
-  //for (int i = 1; i < numChan; i++){
-  //  if (chanReg[i] == maxVals) {
-  //    chanReg[i] = 0;
-  //    chanRot[i] = false;
-  //  }
-  //}
-
-  //Also, handle inserting data.
-  //TODO
+  chanReg[i] = 0;
   
 }
 
@@ -464,8 +572,13 @@ void setup() {
 
   delay(1000);
 
+  // Initiate Ltime and Toffset
+  Ltime = 0;
+  Toffset = 0;
+
   // Bootstrap our info
   post();
+
 }
 
 
@@ -475,6 +588,9 @@ void loop() {
     delay(1);
     startWIFI();
   }
+
+  //update our time.
+  Ltime = millis()/1000 + Toffset;
   
   if (Ltime >= nextRead) {
     readChannels();
@@ -488,11 +604,12 @@ void loop() {
 
   //Test our JSON gen
   if (Ltime >= nextPing) {
+    Serial.print("Ping time: ");
+    Serial.print(Ltime);
+    Serial.print(" NextPing: ");
+    Serial.println(nextPing);
     post();
   }
-
-  //update our time.
-  Ltime = millis()/1000 + Toffset;
 
   boolean full = false;
   //Test our chanReg for maxing out size; if so, trigger a ping.  Hopefully this never has to trigger.

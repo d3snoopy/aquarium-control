@@ -44,7 +44,7 @@ $numHosts = mysqli_num_rows($knownHosts);
 $hostFound = false;
 
 // Start our response data
-$data_out = (string)time();
+$data_out = sprintf("%010d", time()) ;
 $data_out .= ",";
 
 for($i=1; $i <= $numHosts; $i++) {
@@ -62,12 +62,15 @@ for($i=1; $i <= $numHosts; $i++) {
           " . (int)$data_in[2] . ") WHERE id = '"
           . $row['id'] . "'")) {
             if ($debug_mode) echo "Error updating ping date: " . mysqli_error($mysqli);
+            $data_out .= time() + 600;
+            $data_out .= ',60,60,;';
       }
 
       if(!$row['auth']) {
          mysqli_close($mysqli);
          if ($debug_mode) echo "Known, non-validated host";
-
+         $data_out .= time() + 600;
+         $data_out .= ',60,60,;';
       } else {
         // We've also validated this host.
         // Check the hash.
@@ -81,26 +84,33 @@ for($i=1; $i <= $numHosts; $i++) {
         } else {
           // Hash failed
           if ($debug_mode) echo "HMAC failed";
-                
+          $data_out .= time() + 600;
+          $data_out .= ',60,60,;';        
         }
       }
 
     } else {
       if ($debug_mode) echo "Check your date";
+      $data_out .= time() + 600;
+      $data_out .= ',60,60,;';
     }
   }
 }
 
 // Test to see if we found this host.
-if(!$hostFound) {
+if(!$hostFound && array_key_exists('host', $_POST)) {
   \aqctrl\host_add($data_in, $mysqli);
   $row['auth'] = 0;
+  $data_out .= time() + 600;
+  $data_out .= ',60,60,;';
 }
+
+$data_out .= ';';
 
 // Encode our JSON, make HMAC, echo our response.
 $HMAC = hash_HMAC('sha256', $data_out, $row['auth']);
 
-$data_out .= '"HMAC",' . $HMAC;
+$data_out .= $HMAC;
 
 echo "\r\n\r\n";
 echo $data_out;
@@ -127,7 +137,7 @@ function host_process($data_in, $data_out, $mysqli, $row)
     return;
   }
 
-  // Test for how many channelse we have, if we don't have enough call channels_add.
+  // Test for how many channels we have, if we don't have enough call channels_add.
   if(mysqli_num_rows($chanRes) <= (int)$data_in[5]){
     $chanInfo = \aqctrl\channel_add($data_in, $mysqli, $row['id'], mysqli_num_rows($chanRes));
   } else {
@@ -149,7 +159,6 @@ function host_process($data_in, $data_out, $mysqli, $row)
   $data_out .= time() + min($row['pingInterval'], $chanValLim*$row['inInterval']) . ",";
   $data_out .= $row['inInterval'] . ",";
   $data_out .= $row['outInterval'] . ",";
-  $data_out .= '"time",';
 
   // Use the channel in our message
   $lastPing = $chanInfo['UNIX_TIMESTAMP(lastPing)'];
@@ -174,7 +183,7 @@ function host_process($data_in, $data_out, $mysqli, $row)
     $data_out .= \aqctrl\chan_vals($chanInfo, $chanValLim);
   } else {
     //Just construct the "data" portion of the return without populating with data.
-    $data_out .= '"data",';
+    $data_out .= ';';
 
   }
 
@@ -280,7 +289,7 @@ function chan_vals($chanId, $chanValLim)
     $retInfo .= "$t,";
   }
 
-  $retInfo = '"time",';
+  $retInfo = ';';
 
   for($i=0;$i<$chanValLim;$i++) {
     $v = mt_rand() / mt_getrandmax();
