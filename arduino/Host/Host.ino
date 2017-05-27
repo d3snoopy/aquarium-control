@@ -20,7 +20,7 @@ const char hostName[] = "Light Sensor 1"; //Human Readable name for this host.
 
 const int numChan = 2; //Number of hardware channels this host handles.
 const boolean chanIn[] = {true, false}; //Flag whether we read or write to channel.  If we read, true; if we write: false.
-const unsigned int maxVals = 1000; //Max number of readings to hold in memory.
+const unsigned int maxVals = 100; //Max number of readings to hold in memory reduce this if you get crashes.
 
 // Info about each channel
 const char chanName1[] = "Light Sensor";
@@ -199,6 +199,7 @@ void post() {
     return;
   }
 
+  ////TODO: do an i=1 test to make sure that the host code handles out-of-order channels properly.
   // Send and receive for each channel
   for(int i=0;i<numChan;i++) {
     // Send and receive.
@@ -235,8 +236,15 @@ void sendPost(WiFiClient client, int i) {
   // Fixed numbers: 13 commas in "host" + 5 chars for "host=" + 6 chars for "&time=" +
   // 6 chars for "&data=" + 6 chars for "&HMAC=" + 64 chars for HMAC + 
   // 5x10 = 50 int characters + 2*13 = 26 float characters = 176
+  int dataLen;
+  if (chanIn[i]) {
+    dataLen = (chanReg[i])*25;
+  } else {
+    dataLen = 0;
+  }
+  
   client.print(176+strlen(hostID)+strlen(hostName)+strlen(chanNames[i])+strlen(chanTypes[i])
-    +strlen(chanColors[i])+strlen(chanUnits[i])+((chanReg[i])*25));
+    +strlen(chanColors[i])+strlen(chanUnits[i])+dataLen);
     
   Sha256.initHmac(key,20);
   
@@ -312,12 +320,14 @@ void sendPost(WiFiClient client, int i) {
   //Print the values
   client.print("&data=");
 
-  for(int j=0;j<chanReg[i];j++){
-    dtostrf(chanVals[i][j],13,3, buffer);
-    client.print(buffer);
-    Sha256.print(buffer);
-    client.print(",");
-    Sha256.print(","); 
+  if(chanIn[i]) {
+    for(int j=0;j<chanReg[i];j++){
+      dtostrf(chanVals[i][j],13,3, buffer);
+      client.print(buffer);
+      Sha256.print(buffer);
+      client.print(",");
+      Sha256.print(","); 
+    }
   }
 
   //Print the HMAC
@@ -353,8 +363,13 @@ void rxPost(WiFiClient client, int i) {
 
   char reads[65];
 
-  // Sleep for 0.5 sec.
-  delay(500);
+  // Wait for either a response or timeout.
+  while (!client.available()) {
+    if (!client.connected()) {
+      Serial.println(">>>Server Timeout!");
+      return;
+    }
+  }
   
   while(client.available()){
     char c = client.read();
@@ -367,7 +382,6 @@ void rxPost(WiFiClient client, int i) {
       if(lastByte == '\n' && c == '\r'){
         // We have found an empty line
         if(count > 0) {
-          Serial.println("Found end of header section");
           // We're ready to flag that we're in data.
           section++;
           count = 0;
@@ -391,16 +405,12 @@ void rxPost(WiFiClient client, int i) {
       if (c == ','){
         // Reached the end of our data point.
         reads[count] = '\0';
-        Serial.print("value: ");
-        Serial.print(reads);
-        Serial.print(", ");
         
         switch (dataCount) {
           case 0:
             {
             //Date data
             newDate = atol(reads);
-            Serial.println(newDate);
             dataCount++;
             count = 0;
             }
@@ -410,7 +420,6 @@ void rxPost(WiFiClient client, int i) {
             {
             //nextPing data
             newPing = atol(reads);
-            Serial.println(newPing);
             dataCount++;
             count = 0;
             }
@@ -420,7 +429,6 @@ void rxPost(WiFiClient client, int i) {
             {
             //inInterval data
             newIn = atol(reads);
-            Serial.println(newIn);
             dataCount++;
             count = 0;
             }
@@ -431,7 +439,6 @@ void rxPost(WiFiClient client, int i) {
             //outInterval data
             reads[count] = '\0';
             newOut = atol(reads);
-            Serial.println(newOut);
             section++;
             count = 0;
             dataCount = 0;
@@ -455,7 +462,6 @@ void rxPost(WiFiClient client, int i) {
 
       //Print into our hash calculation
       Sha256.write(c);
-      Serial.write(c);
 
       //Test for transition to data
       if (c == ';') {
@@ -467,6 +473,10 @@ void rxPost(WiFiClient client, int i) {
           //Read the data in
           reads[count] = '\0';
           times[dataCount] = atol(reads);
+          //Serial.print("Time point");
+          //Serial.print(dataCount);
+          //Serial.print(": ");
+          //Serial.println(times[dataCount]);
           dataCount++;
           count = 0;
         } else {
@@ -484,7 +494,6 @@ void rxPost(WiFiClient client, int i) {
 
       //Print into our hash calculation
       Sha256.write(c);
-      Serial.write(c);
 
       //Test for transition to data
       if (c == ';') {
@@ -496,6 +505,10 @@ void rxPost(WiFiClient client, int i) {
           //Read the data in
           reads[count] = '\0';
           data[dataCount] = atof(reads);
+          //Serial.print("Data point");
+          //Serial.print(dataCount);
+          //Serial.print(": ");
+          //Serial.println(data[dataCount], 5);
           dataCount++;
           count = 0;
         } else {
@@ -518,6 +531,8 @@ void rxPost(WiFiClient client, int i) {
       break;
         
     }
+    //Insert a slight delay - we were getting responses fragmented across requests.
+    delay(1);
   }
 
   reads[count] = '\0';
@@ -534,6 +549,7 @@ void rxPost(WiFiClient client, int i) {
 
   localHash[64] = '\0';
 
+  Serial.println(" ");
   Serial.println("Hashes:");
 
   Serial.println(reads);
@@ -546,17 +562,21 @@ void rxPost(WiFiClient client, int i) {
     inInterval = newIn;
     outInterval = newOut;
     if (!chanIn[i]) {
-      memcpy(timeStamps[i], times, sizeof(times[0])*maxVals);
-      memcpy(chanVals[i], data, sizeof(data[0])*maxVals);
+      memcpy(timeStamps[i], times, sizeof(times[0])*dataCount);
+      memcpy(chanVals[i], data, sizeof(data[0])*dataCount);
     }
   } else {
     Serial.println("Hash Mismatch");
-    nextPing = Ltime + 60;
-    Toffset = 0;
+    nextPing = nextPing + 300;
   }
 
   chanReg[i] = 0;
-  
+
+  Serial.print("Ping time: ");
+  Serial.print(millis()/1000 + Toffset);
+  Serial.print(" NextPing: ");
+  Serial.println(nextPing);
+   
 }
 
 
@@ -577,6 +597,12 @@ void setup() {
   Toffset = 0;
 
   // Bootstrap our info
+  post();
+
+  //update our time.
+  Ltime = millis()/1000 + Toffset;
+  
+  // Run a second time to make sure we init our channels.
   post();
 
 }
@@ -604,10 +630,6 @@ void loop() {
 
   //Test our JSON gen
   if (Ltime >= nextPing) {
-    Serial.print("Ping time: ");
-    Serial.print(Ltime);
-    Serial.print(" NextPing: ");
-    Serial.println(nextPing);
     post();
   }
 

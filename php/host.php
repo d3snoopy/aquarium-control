@@ -44,7 +44,7 @@ $numHosts = mysqli_num_rows($knownHosts);
 $hostFound = false;
 
 // Start our response data
-$data_out = sprintf("%010d", time()) ;
+$data_out =  (string)time() ;
 $data_out .= ",";
 
 for($i=1; $i <= $numHosts; $i++) {
@@ -129,7 +129,7 @@ function host_process($data_in, $data_out, $mysqli, $row)
   global $debug_mode;
 
   // TODO: Update what we get based on our calculation needs
-  $chanRes = mysqli_query($mysqli, "SELECT id,variable,active,max,min,UNIX_TIMESTAMP(lastPing) FROM channel
+  $chanRes = mysqli_query($mysqli, "SELECT id,name,variable,active,max,min,UNIX_TIMESTAMP(lastPing) FROM channel
     WHERE host = " . $row['id']);
 
   if(!$chanRes) {
@@ -138,11 +138,11 @@ function host_process($data_in, $data_out, $mysqli, $row)
   }
 
   // Test for how many channels we have, if we don't have enough call channels_add.
-  if(mysqli_num_rows($chanRes) <= (int)$data_in[5]){
+  if(mysqli_num_rows($chanRes) <= (int)$data_in[4]){
     $chanInfo = \aqctrl\channel_add($data_in, $mysqli, $row['id'], mysqli_num_rows($chanRes));
   } else {
-    mysqli_data_seek($chanRes, $data_in[5]);
-    $chanInfo = mysqli_fetch_assoc($mysqli);
+    mysqli_data_seek($chanRes, (int)$data_in[4]);
+    $chanInfo = mysqli_fetch_assoc($chanRes);
 
     // Test for NULLs in out channel info, if so we added this channel before without details about it.
     if(is_null($chanInfo['name']))
@@ -213,7 +213,7 @@ function host_add($data_in, $mysqli)
     VALUES ('"
     . mysqli_real_escape_string($mysqli, $data_in[0]) . "', '"
     . mysqli_real_escape_string($mysqli, $data_in[1]) . "',
-    0, FROM_UNIXTIME(" . time() . "), 60, 60, 600)";
+    0, FROM_UNIXTIME(" . time() . "), 60, 60, 300)";
 
   if(!mysqli_query($mysqli, $sqlQuery)) {
     if ($debug_mode) echo "Error inserting host: " . mysqli_error($mysqli);
@@ -236,7 +236,7 @@ function channel_add($data_in, $mysqli, $hostId, $numRows)
     for ($i=$numRows; $i<$data_in[4]; $i++) {
       //Make a channel placeholder.
       $mQuery .= "INSERT INTO channel (lastPing, host)
-        VALUES(FROM_LINUXTIME(0),$hostID); ";
+        VALUES(FROM_UNIXTIME(0),$hostId); ";
     }
   }
 
@@ -247,7 +247,7 @@ function channel_add($data_in, $mysqli, $hostId, $numRows)
     . (int)$data_in[7] . ", " . (int)$data_in[8] . ", " 
     . (float)$data_in[9] . ", " . (float)$data_in[10] . ", '"
     . mysqli_real_escape_string($mysqli, $data_in[11]) . "', '" 
-    . mysqli_real_escape_string($mysqli, $data_in[12]) . "', FROM_LINUXTIME("
+    . mysqli_real_escape_string($mysqli, $data_in[12]) . "', FROM_UNIXTIME("
     . (int)$data_in[2] . "), " . $hostId . "); ";
     
   // Do the query
@@ -268,10 +268,12 @@ function channel_add($data_in, $mysqli, $hostId, $numRows)
   // Return
   return [
     "id" => $chanId,
+    "name" => mysqli_real_escape_string($mysqli, $data_in[5]),
     "variable" => (int)$data_in[7],
     "active" => (int)$data_in[8],
     "max" => (float)$data_in[9],
-    "min" => (float)$data_in[10]];
+    "min" => (float)$data_in[10],
+    "UNIX_TIMESTAMP(lastPing)" => time()-1];
 }
 
 
@@ -289,7 +291,7 @@ function chan_vals($chanId, $chanValLim)
     $retInfo .= "$t,";
   }
 
-  $retInfo = ';';
+  $retInfo .= ';';
 
   for($i=0;$i<$chanValLim;$i++) {
     $v = mt_rand() / mt_getrandmax();
