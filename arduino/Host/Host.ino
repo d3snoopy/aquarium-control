@@ -1,5 +1,5 @@
 #include <ESP8266WiFi.h>
-#include <sha256.h>
+#include "sha256.h"
 #include <Wire.h>
 #include "Adafruit_TSL2591.h"
 
@@ -156,7 +156,7 @@ void readChannels() {
   Serial.print("Lux Reading: ");
   Serial.println(reading);
 
-  if(!isnan(reading)) {
+  if(!isnan(reading) || reading >= 0) {
     timeStamps[0][chanReg[0]] = Ltime;
     chanVals[0][chanReg[0]] = reading;
     chanReg[0]++;
