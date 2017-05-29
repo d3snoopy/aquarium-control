@@ -1,7 +1,5 @@
-//#include <PipedStream.h>
 #include <ESP8266WiFi.h>
 #include <sha256.h>
-//#include <ArduinoJson.h>
 #include <Wire.h>
 #include "Adafruit_TSL2591.h"
 
@@ -153,14 +151,16 @@ void readChannels() {
   uint16_t ir, full;
   ir = lum >> 16;
   full = lum & 0xFFFF;
-
-  timeStamps[0][chanReg[0]] = Ltime;
-  chanVals[0][chanReg[0]] = tsl.calculateLux(full, ir);
+  float reading = tsl.calculateLux(full, ir);
 
   Serial.print("Lux Reading: ");
-  Serial.println(chanVals[0][chanReg[0]]);
-  
-  chanReg[0]++;
+  Serial.println(reading);
+
+  if(!isnan(reading)) {
+    timeStamps[0][chanReg[0]] = Ltime;
+    chanVals[0][chanReg[0]] = reading;
+    chanReg[0]++;
+  };
   
   // Do additional channels here.
   // In this case, act like channel 2 is an output, so ignore it here
@@ -479,10 +479,6 @@ void rxPost(WiFiClient client, int i) {
           //Read the data in
           reads[count] = '\0';
           times[dataCount] = atol(reads);
-          //Serial.print("Time point");
-          //Serial.print(dataCount);
-          //Serial.print(": ");
-          //Serial.println(times[dataCount]);
           dataCount++;
           count = 0;
         } else {
@@ -511,10 +507,6 @@ void rxPost(WiFiClient client, int i) {
           //Read the data in
           reads[count] = '\0';
           data[dataCount] = atof(reads);
-          //Serial.print("Data point");
-          //Serial.print(dataCount);
-          //Serial.print(": ");
-          //Serial.println(data[dataCount], 5);
           dataCount++;
           count = 0;
         } else {
