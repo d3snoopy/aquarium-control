@@ -156,8 +156,12 @@ void readChannels() {
 
   timeStamps[0][chanReg[0]] = Ltime;
   chanVals[0][chanReg[0]] = tsl.calculateLux(full, ir);
-  chanReg[0]++;
 
+  Serial.print("Lux Reading: ");
+  Serial.println(chanVals[0][chanReg[0]]);
+  
+  chanReg[0]++;
+  
   // Do additional channels here.
   // In this case, act like channel 2 is an output, so ignore it here
 }
@@ -187,7 +191,7 @@ void startWIFI() {
 
 
 // Function to POST to the server
-void post() {
+void postData() {
   WiFiClient client;
 
   Serial.print("connecting to ");
@@ -310,11 +314,13 @@ void sendPost(WiFiClient client, int i) {
   //Print the time data
   client.print("&time=");
 
-  for(int j=0;j<chanReg[i];j++){
-    client.printf("%010d", timeStamps[i][j]);
-    Sha256.printf("%010d", timeStamps[i][j]);
-    client.print(",");
-    Sha256.print(","); 
+  if(chanIn[i]) {
+    for(int j=0;j<chanReg[i];j++){
+      client.printf("%010d", timeStamps[i][j]);
+      Sha256.printf("%010d", timeStamps[i][j]);
+      client.print(",");
+      Sha256.print(",");
+    }
   }
 
   //Print the values
@@ -567,16 +573,20 @@ void rxPost(WiFiClient client, int i) {
     }
   } else {
     Serial.println("Hash Mismatch");
-    nextPing = nextPing + 300;
+    nextPing = Ltime + 300;
   }
 
   chanReg[i] = 0;
 
   Serial.print("Ping time: ");
-  Serial.print(millis()/1000 + Toffset);
+  Serial.print(Ltime);
   Serial.print(" NextPing: ");
   Serial.println(nextPing);
-   
+  ///TODO: check the read interval.
+  Serial.print("newIn: ");
+  Serial.println(newIn);
+  Serial.print("inInterval: ");
+  Serial.println(inInterval);
 }
 
 
@@ -597,13 +607,13 @@ void setup() {
   Toffset = 0;
 
   // Bootstrap our info
-  post();
+  postData();
 
   //update our time.
   Ltime = millis()/1000 + Toffset;
   
   // Run a second time to make sure we init our channels.
-  post();
+  postData();
 
 }
 
@@ -625,12 +635,12 @@ void loop() {
 
   if (Ltime >= nextWrite) {
     writeChannels();
-    nextRead = Ltime + outInterval;
+    nextWrite = Ltime + outInterval;
   }
 
   //Test our JSON gen
   if (Ltime >= nextPing) {
-    post();
+    postData();
   }
 
   boolean full = false;
@@ -642,7 +652,7 @@ void loop() {
   }
 
   if (full){
-    post();
+    postData();
   }
 }
 
