@@ -1,3 +1,21 @@
+//Copyright 2017 Stuart Asp: d3snoopy AT gmail
+
+//This file is part of Aqctrl.
+
+//Aqctrl is free software: you can redistribute it and/or modify
+//it under the terms of the GNU General Public License as published by
+//the Free Software Foundation, either version 3 of the License, or
+//(at your option) any later version.
+
+//Aqctrl is distributed in the hope that it will be useful,
+//but WITHOUT ANY WARRANTY; without even the implied warranty of
+//MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//GNU General Public License for more details.
+
+//You should have received a copy of the GNU General Public License
+//along with Aqctrl.  If not, see <http://www.gnu.org/licenses/>.
+
+
 #include <ESP8266WiFi.h>
 #include "sha256.h"
 #include <Wire.h>
@@ -125,8 +143,8 @@ void startChannels() {
   if (tsl.begin()) 
     {
       Serial.println("Found a TSL2591 sensor");
-      tsl.setGain(TSL2591_GAIN_LOW); // _GAIN_MED or _GAIN_HIGH or _GAINMAX
-      tsl.setTiming(TSL2591_INTEGRATIONTIME_100MS); //200MS, 300MS, ... 600MS
+      tsl.setGain(TSL2591_GAIN_LOW); // _GAIN_LOW or _GAIN_MED or _GAIN_HIGH or _GAINMAX
+      tsl.setTiming(TSL2591_INTEGRATIONTIME_100MS); //100MS, 200MS, 300MS, ... 600MS
       
     } 
     else 
