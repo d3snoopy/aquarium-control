@@ -191,10 +191,10 @@ void readChannels() {
   sensors.requestTemperatures();
 
   timeStamps[1][chanReg[1]] = Ltime;
-  chanVals[0][chanReg[1]] = sensors.getTempFByIndex(0);
+  chanVals[1][chanReg[1]] = sensors.getTempFByIndex(0);
 
   Serial.print("Temperature: ");
-  Serial.println(chanVals[0][chanReg[1]]);
+  Serial.println(chanVals[1][chanReg[1]]);
   
   chanReg[1]++;
 
