@@ -30,11 +30,11 @@ along with Aqctrl.  If not, see <http://www.gnu.org/licenses/>.
 <body>
     <div class="linkbar">
         <ul>
-            <li><a href="/">Home</a></li>
-            <li><a href="/status.php">Status</a></li>
-            <li><a href="/configure.php">Configure</a></li>
-            <li><a href="/setup.php">Setup</a></li>
-            <li><a href="/help.php">Help</a></li>
+            <li><a href="index.php">Home</a></li>
+            <li><a href="status.php">Status</a></li>
+            <li><a href="configure.php">Configure</a></li>
+            <li><a href="setup.php">Setup</a></li>
+            <li><a href="help.php">Help</a></li>
         </ul>
     </div>
 

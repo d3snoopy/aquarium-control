@@ -20,6 +20,8 @@
 #include "sha256.h"
 #include <Wire.h>
 #include "Adafruit_TSL2591.h"
+#include <OneWire.h>
+#include <DallasTemperature.h>
 
 
 // Info about connecting: our wireless access point, server hostname
@@ -32,10 +34,10 @@ const int httpPort = 80;
 // Info about this hardware host
 const char hostID[] = "5824926006ca4c6fa3f8"; //Unique ID of the host, random 20 characters
 const uint8_t key[] = "9eafc21877e34241b206"; //Secret key to validate messages, 20 characters
-const char hostName[] = "Light Sensor 1"; //Human Readable name for this host.
+const char hostName[] = "Sensors 1"; //Human Readable name for this host.
 
 const int numChan = 2; //Number of hardware channels this host handles.
-const boolean chanIn[] = {true, false}; //Flag whether we read or write to channel.  If we read, true; if we write: false.
+const boolean chanIn[] = {true, true}; //Flag whether we read or write to channel.  If we read, true; if we write: false.
 const unsigned int maxVals = 100; //Max number of readings to hold in memory reduce this if you get crashes.
 
 // Info about each channel
@@ -48,14 +50,14 @@ const float chanMin1 = 0; //Same note.
 const char chanColor1[] = "FFFFFF";
 const char chanUnits1[] = "Lux";
 
-const char chanName2[] = "Dummy";
-const char chanType2[] = "fake";
+const char chanName2[] = "Temperature";
+const char chanType2[] = "temp";
 const int chanVar2 = 1;
 const int chanActive2 = 1;
 const float chanMax2 = 1; //Applicable to outputs, not inputs.
 const float chanMin2 = 0; //Same note.
 const char chanColor2[] = "000000";
-const char chanUnits2[] = "fakes";
+const char chanUnits2[] = "F";
 
 // Repeat for subsequent channels I.E.:
 //const char chanName3[] = "wooo";
@@ -113,6 +115,8 @@ const char * chanUnits[] =
 
 // Also, setup our hardware needs
 Adafruit_TSL2591 tsl = Adafruit_TSL2591(2591);
+OneWire oneWire(0);
+DallasTemperature sensors(&oneWire);
 
 // Initialize our time variables to track current linux time.
 unsigned long Ltime = 0;
@@ -151,6 +155,9 @@ void startChannels() {
     {
       Serial.println("No lux sensor found ... check your wiring?");
     }
+
+  // Channel 2: Temperature
+  sensors.begin();
 }
 
 
@@ -179,9 +186,23 @@ void readChannels() {
     chanVals[0][chanReg[0]] = reading;
     chanReg[0]++;
   };
+
+  // Channel2: Measure temperature
+  sensors.requestTemperatures();
+
+  timeStamps[1][chanReg[1]] = Ltime;
+  chanVals[0][chanReg[1]] = sensors.getTempFByIndex(0);
+
+  Serial.print("Temperature: ");
+  Serial.println(chanVals[0][chanReg[1]]);
+  
+  chanReg[1]++;
+
+
   
   // Do additional channels here.
-  // In this case, act like channel 2 is an output, so ignore it here
+  
+  
 }
 
 
