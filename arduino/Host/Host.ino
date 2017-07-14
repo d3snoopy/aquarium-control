@@ -36,8 +36,10 @@ const char hostID[] = "5824926006ca4c6fa3f8"; //Unique ID of the host, random 20
 const uint8_t key[] = "9eafc21877e34241b206"; //Secret key to validate messages, 20 characters
 const char hostName[] = "Sensors 1"; //Human Readable name for this host.
 
-const int numChan = 2; //Number of hardware channels this host handles.
-const boolean chanIn[] = {true, true}; //Flag whether we read or write to channel.  If we read, true; if we write: false.
+const int numChan = 3; //Number of hardware channels this host handles.
+const boolean chanIn[] = {true, true, true}; //Flag whether we read or write to channel.  If we read, true; if we write: false.
+unsigned int chanReg[] = {0, 0, 0}; //Register tracker to log which value applies next
+boolean chanRot[] = {false, false, false}; //Register tracker - detect if we're overwriting data.
 const unsigned int maxVals = 100; //Max number of readings to hold in memory reduce this if you get crashes.
 
 // Info about each channel
@@ -50,7 +52,7 @@ const float chanMin1 = 0; //Same note.
 const char chanColor1[] = "FFFFFF";
 const char chanUnits1[] = "Lux";
 
-const char chanName2[] = "Temperature";
+const char chanName2[] = "Ambient Temp";
 const char chanType2[] = "temp";
 const int chanVar2 = 1;
 const int chanActive2 = 1;
@@ -58,6 +60,15 @@ const float chanMax2 = 1; //Applicable to outputs, not inputs.
 const float chanMin2 = 0; //Same note.
 const char chanColor2[] = "000000";
 const char chanUnits2[] = "F";
+
+const char chanName3[] = "Water Temp";
+const char chanType3[] = "temp";
+const int chanVar3 = 1;
+const int chanActive3 = 1;
+const float chanMax3 = 1; //Applicable to outputs, not inputs.
+const float chanMin3 = 0; //Same note.
+const char chanColor3[] = "000000";
+const char chanUnits3[] = "F";
 
 // Repeat for subsequent channels I.E.:
 //const char chanName3[] = "wooo";
@@ -68,49 +79,57 @@ const char chanUnits2[] = "F";
 const char * chanNames[] =
 {
   chanName1,
-  chanName2
+  chanName2,
+  chanName3
 };
 
 const char * chanTypes[] =
 {
   chanType1,
-  chanType2
+  chanType2,
+  chanType3
 };
 
 const int chanVars[] = 
 {
   chanVar1,
-  chanVar2
+  chanVar2,
+  chanVar3
 };
 
 const int chanActives[] = 
 {
   chanActive1,
-  chanActive2
+  chanActive2,
+  chanActive3
 };
 
 const float chanMaxs[] = 
 {
   chanMax1,
-  chanMax2
+  chanMax2,
+  chanMax3
 };
 
 const float chanMins[] = 
 {
   chanMin1,
-  chanMin2
+  chanMin2,
+  chanMin3
 };
 
 const char * chanColors[] = 
 {
   chanColor1,
-  chanColor2
+  chanColor2,
+  chanColor3
 };
 
 const char * chanUnits[] = 
 {
   chanUnits1,
-  chanUnits2
+  chanUnits2,
+  chanUnits3
 };
 
 // Also, setup our hardware needs
@@ -134,11 +153,6 @@ unsigned long outInterval = 60;
 // Data arrays.
 unsigned long timeStamps[numChan][maxVals];
 float chanVals[numChan][maxVals];
-
-unsigned int chanReg[] = {0, 0}; //Register tracker to log which value applies next
-boolean chanRot[] = {false, false}; //Register tracker - detect if we're overwriting data.
-
-
 
 
 // Function to start the hardware
@@ -191,14 +205,21 @@ void readChannels() {
   sensors.requestTemperatures();
 
   timeStamps[1][chanReg[1]] = Ltime;
-  chanVals[1][chanReg[1]] = sensors.getTempFByIndex(0);
+  chanVals[1][chanReg[1]] = sensors.getTempFByIndex(1);
 
-  Serial.print("Temperature: ");
+  Serial.print("Ambient Temperature: ");
   Serial.println(chanVals[1][chanReg[1]]);
   
   chanReg[1]++;
 
+  // Channel3: Measure temperature
+  timeStamps[2][chanReg[2]] = Ltime;
+  chanVals[2][chanReg[2]] = sensors.getTempFByIndex(0);
 
+  Serial.print("Water Temperature: ");
+  Serial.println(chanVals[2][chanReg[2]]);
+  
+  chanReg[2]++;
   
   // Do additional channels here.
   

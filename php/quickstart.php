@@ -56,14 +56,20 @@ switch ($stepNum) {
 
     case 1:
         $stepTitle = "Setup";
-        $stepForm = "\aqctrl\setupForm";
-        $stepRtn = "\aqctrl\setupRtn";
+        $stepForm = '\aqctrl\setupForm';
+        $stepRtn = '\aqctrl\setupRtn';
         $stepIncl = 'setupFn.php';
         break;
     case 2:
+        $stepTitle = "Edit Functions";
+        $stepForm = '\aqctrl\functionForm';
+        $stepRtn = '\aqctrl\functionRtn';
+        $stepIncl = 'functionFn.php';
+        break;
+    case 3:
         $stepTitle = "Configure";
-        $stepForm = "\aqctrl\configForm";
-        $stepRtn = "\aqctrl\configRtn";
+        $stepForm = '\aqctrl\configForm';
+        $stepRtn = '\aqctrl\configRtn';
         $stepIncl = 'configFn.php';
         break;
 }

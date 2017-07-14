@@ -32,7 +32,7 @@ setupRtn - function to handle the return a POST of SetupForm
 
 namespace aqctrl;
 
-// Db functions
+
 
 function setupForm($mysqli, $debug_mode)
 {
@@ -66,7 +66,7 @@ function setupForm($mysqli, $debug_mode)
             <th>Read Interval (sec)</th>
             <th>Write Interval (sec)</th>
             <th>Ping Interval (sec)</th>
-          <tr>
+          </tr>
         <?php
 
         for($i=1; $i <= $numHosts; $i++) {

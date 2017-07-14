@@ -33,24 +33,25 @@ configRtn - function to handle the return a POST of SetupForm
 
 namespace aqctrl;
 
-// Db functions
 
-function configForm($mysqli, $nextUrl)
+
+function configForm($mysqli, $debug_mode)
 {
 
-    // Show the form
-    echo "<h2>Configuration</h2>";
+  // Show the form
+  echo "<h2>Sources</h2>";
 
-    // Iterate through each host found
-    $res = mysqli_query($mysqli, "SELECT ALL FROM host");
+  // Grab queries first.
+  $src_res = mysqli_query($mysqli, "SELECT id,name,profile FROM source");
+  $chan_res = mysqli_query($mysqli, "SELECT id,name,type,variable,active,max,
+    min,color,units,lastping,host FROM channel");
+  $CS_res = mysqli_query($mysqli, "SELECT id,scale,channel,source FROM cs ORDER BY source, channel");
+  $prof_res = mysqli_query($mysqli, "SELECT id,name,type,start,stop,scheduler FROM profile");
+  $react_res = mysqli_query($mysqli, "");
+
 
     if(!$res) {
-        echo "<p>No Hosts Configured.</p>";
-        $host= gethostname();
-        $ip = gethostbyname($host);
-        echo "<p>Configure your hosts to point to ";
-        echo $ip;
-        echo " and turn them on now.<br><br><br><br></p>";
+        echo "<p>No Sources Configured.</p>";
         
     } else {
 

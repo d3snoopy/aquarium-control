@@ -38,7 +38,7 @@ set_include_path("model");
 
 // Pull in the models - general model and hostFn
 include 'model.php';
-include 'hostFn.php';
+//include 'hostFn.php';
 
 // Find out if we're in debug mode.
 $debug_mode = \aqctrl\debug_status();
