@@ -145,7 +145,8 @@ function db_create()
     lastPing DATETIME NOT NULL,
     inInterval INT(6) UNSIGNED,
     outInterval INT(6) UNSIGNED,
-    pingInterval INT(6) UNSIGNED
+    pingInterval INT(6) UNSIGNED,
+    status VARCHAR(50) NOT NULL
     );";
 
   // Channel

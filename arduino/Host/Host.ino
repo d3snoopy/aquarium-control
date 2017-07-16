@@ -269,6 +269,8 @@ void postData() {
     // Send and receive.
     sendPost(client, i);
     rxPost(client, i);
+    // Pause 100ms.
+    delay(100);
   }
 
   // Close the connection.
@@ -616,6 +618,7 @@ void rxPost(WiFiClient client, int i) {
   if(!strcmp(reads, localHash)) {
     Serial.println("Hashes matched");
     Toffset = newDate - millis()/1000;
+    Ltime = millis()/1000 + Toffset;
     nextPing = newPing;
     inInterval = newIn;
     outInterval = newOut;
@@ -625,7 +628,7 @@ void rxPost(WiFiClient client, int i) {
     }
   } else {
     Serial.println("Hash Mismatch");
-    nextPing = Ltime + 300;
+    nextPing = Ltime + 120;
   }
 
   chanReg[i] = 0;

@@ -56,68 +56,81 @@ if(!$mysqli) {
 $data_in = explode(",", $_POST['host']);
 
 // Decide whether we know about this host yet.
-$knownHosts = mysqli_query($mysqli, "SELECT id,ident,auth,UNIX_TIMESTAMP(lastPing),inInterval,outInterval,pingInterval FROM host");
+$hostIdent = mysqli_real_escape_string($mysqli, $data_in[0]);
 
-$numHosts = mysqli_num_rows($knownHosts);
-
-$hostFound = false;
+$hostRet = mysqli_query($mysqli, "SELECT id,ident,auth,UNIX_TIMESTAMP(lastPing),inInterval,outInterval,pingInterval FROM host WHERE ident = '$hostIdent'");
+$hostFound = (boolean)mysqli_num_rows($hostRet);
 
 // Start our response data
-$data_out =  (string)time() ;
+$data_out =  (string)time();
 $data_out .= ",";
 
-for($i=1; $i <= $numHosts; $i++) {
-  $row = mysqli_fetch_array($knownHosts);
-  if($row['ident'] == $data_in[0]) {
-    // We've seen this host before.
-    $hostFound = true;
+if($hostFound) {
+  // We've seen this host before.
+  $row = mysqli_fetch_assoc($hostRet);
 
-    // Check date against lastping, make sure we're not seeing a replay.
-    $lastPing = $row["UNIX_TIMESTAMP(lastPing)"];
-    // Update lastping if this is really a new ping.
+  // Check date against lastping, make sure we're not seeing a replay.
+  $lastPing = $row["UNIX_TIMESTAMP(lastPing)"];
+  // Update lastping if this is really a new ping.
 
-    if((int)$data_in[2] >= (int)$lastPing) {
-      if(!mysqli_query($mysqli, "UPDATE host SET lastPing = FROM_UNIXTIME(
-          " . (int)$data_in[2] . ") WHERE id = '"
-          . $row['id'] . "'")) {
-            if ($debug_mode) echo "Error updating ping date: " . mysqli_error($mysqli);
-            $data_out .= time() + 600;
-            $data_out .= ',60,60,;';
-      }
-
-      if(!$row['auth']) {
-         mysqli_close($mysqli);
-         if ($debug_mode) echo "Known, non-validated host";
-         $data_out .= time() + 600;
-         $data_out .= ',60,60,;';
-      } else {
-        // We've also validated this host.
-        // Check the hash.
-        $hash_expected = hash_HMAC('sha256', $_POST['host'] . $_POST['time'] . $_POST['data'], $row['auth']);
-
-        if(md5($_POST['HMAC']) === md5($hash_expected)) {
-          // We have a valid message.
-
-          $data_out = \aqctrl\host_process($data_in, $data_out, $mysqli, $row);
-
-        } else {
-          // Hash failed
-          if ($debug_mode) echo "HMAC failed";
-          $data_out .= time() + 600;
-          $data_out .= ',60,60,;';        
-        }
-      }
-
-    } else {
-      if ($debug_mode) echo "Check your date";
-      $data_out .= time() + 600;
-      $data_out .= ',60,60,;';
+  if((int)$data_in[2] >= (int)$lastPing) {
+    if(!mysqli_query($mysqli, "UPDATE host SET lastPing = FROM_UNIXTIME(
+      " . (int)$data_in[2] . ") WHERE id = "
+      . $row['id'])) {
+        if ($debug_mode) echo "Error updating ping: " . mysqli_error($mysqli);
+        $data_out .= time() + 600;
+        $data_out .= ',60,60,;';
     }
+
+    if(!$row['auth']) {
+       mysqli_close($mysqli);
+       if ($debug_mode) echo "Known, non-validated host";
+       $data_out .= time() + 600;
+       $data_out .= ',60,60,;';
+       mysqli_query($mysqli, "UPDATE host SET status =
+         'Not Validated' WHERE id = " . $row['id']);
+    } else {
+      // We've also validated this host.
+      // Check the hash.
+      $hash_expected = hash_HMAC('sha256', $_POST['host'] . $_POST['time'] . $_POST['data'], $row['auth']);
+
+      if(md5($_POST['HMAC']) === md5($hash_expected)) {
+        // We have a valid message.
+
+        $data_out = \aqctrl\host_process($data_in, $data_out, $mysqli, $row);
+        mysqli_query($mysqli, "UPDATE host SET status =
+          'Success' WHERE id = " . $row['id']);
+
+      } else {
+        // Hash failed
+        if ($debug_mode) echo "HMAC failed";
+        $data_out .= time() + 600;
+        $data_out .= ',60,60,;';
+        mysqli_query($mysqli, "UPDATE host SET status =
+          'Bad Key' WHERE id = " . $row['id']);
+      }
+    }
+
+  } else {
+    if ($debug_mode) echo "Check your date";
+    $data_out .= time() + 600;
+    $data_out .= ',60,60,;';
+    mysqli_query($mysqli, "UPDATE host SET status =
+      'Bad Date (Host not accepting key)' WHERE id = " . $row['id']);
   }
+
+  //Add the HMAC
+  $data_out .= ";";
+  $HMAC = hash_HMAC('sha256', $data_out, $row['auth']);
+
+  $data_out .= $HMAC;
+
+  echo "\r\n\r\n";
+  echo $data_out;
 }
 
 // Test to see if we found this host.
-if(!$hostFound && array_key_exists('host', $_POST)) {
+if(!$hostFound && isset($_POST['host'])) {
   \aqctrl\host_add($data_in, $mysqli);
   $row['auth'] = 0;
   $data_out .= time() + 600;
@@ -125,14 +138,6 @@ if(!$hostFound && array_key_exists('host', $_POST)) {
 }
 
 $data_out .= ';';
-
-// Encode our JSON, make HMAC, echo our response.
-$HMAC = hash_HMAC('sha256', $data_out, $row['auth']);
-
-$data_out .= $HMAC;
-
-echo "\r\n\r\n";
-echo $data_out;
 
 // Disconnect and return
 mysqli_close($mysqli);
@@ -147,7 +152,6 @@ function host_process($data_in, $data_out, $mysqli, $row)
   // Get the channel dB objects that match to our host.
   global $debug_mode;
 
-  // TODO: Update what we get based on our calculation needs
   $chanRes = mysqli_query($mysqli, "SELECT id,name,variable,active,max,min,UNIX_TIMESTAMP(lastPing) FROM channel
     WHERE host = " . $row['id']);
 
@@ -228,11 +232,11 @@ function host_add($data_in, $mysqli)
   global $debug_mode;
 
   //Add the host
-  $sqlQuery = "INSERT INTO host (ident, name, auth, lastPing, inInterval, outInterval, pingInterval)
-    VALUES ('"
+  $sqlQuery = "INSERT INTO host (ident, name, auth, lastPing, inInterval, outInterval,
+    pingInterval, status) VALUES ('"
     . mysqli_real_escape_string($mysqli, $data_in[0]) . "', '"
     . mysqli_real_escape_string($mysqli, $data_in[1]) . "',
-    0, FROM_UNIXTIME(" . time() . "), 60, 60, 300)";
+    0, FROM_UNIXTIME(" . time() . "), 60, 60, 300, 'New Host')";
 
   if(!mysqli_query($mysqli, $sqlQuery)) {
     if ($debug_mode) echo "Error inserting host: " . mysqli_error($mysqli);
@@ -296,7 +300,7 @@ function channel_add($data_in, $mysqli, $hostId, $numRows)
 }
 
 
-function chan_vals($chanId, $chanValLim)
+function chan_vals($chanInfo, $chanValLim)
 {
   //Function to create the return for a host
   global $debug_mode;

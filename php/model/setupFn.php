@@ -40,120 +40,120 @@ namespace aqctrl;
 function setupForm($mysqli, $debug_mode)
 {
 
-    // Show the form
-    echo "<h2>Hardware Hosts</h2>";
+  // Show the form
+  echo "<h2>Hardware Hosts</h2>\n";
 
-    // Iterate through each host found
-    $knownHosts = mysqli_query($mysqli, "SELECT id,ident,name,auth,UNIX_TIMESTAMP(lastPing),inInterval,outInterval,pingInterval FROM host");
+  // Iterate through each host found
+  $knownHosts = mysqli_query($mysqli, "SELECT id,ident,name,auth,UNIX_TIMESTAMP(lastPing),inInterval,outInterval,pingInterval,status FROM host");
 
-    $numHosts = mysqli_num_rows($knownHosts);
+  $numHosts = mysqli_num_rows($knownHosts);
 
-    if(!$numHosts) {
-        echo "<p>No Hosts Configured.</p>";
-        $host= gethostname();
-        $ip = gethostbyname($host);
-        echo "<p>Configure your hosts to point to ";
-        echo $ip;
-        echo " and turn them on now then ";
+  if(!$numHosts) {
+    echo "<p>No Hosts Configured.</p>\n";
+    $host= gethostname();
+    $ip = gethostbyname($host);
+    echo "<p>Configure your hosts to point to ";
+    echo $ip;
+    echo " and turn them on now then \n";
 
-        echo "<a href=".">refresh</a> the page.</p>";
+    echo "<a href=".">refresh</a>\n the page.\n</p>\n";
         
-    } else {
-        ?>
-        <table>
-          <tr>
-            <th>Name</th>
-            <th>ID</th>
-            <th>Key</th>
-            <th>Last Ping</th>
-            <th>Read Interval (sec)</th>
-            <th>Write Interval (sec)</th>
-            <th>Ping Interval (sec)</th>
-          </tr>
-        <?php
+  } else {
+    ?>
+<table>
+<tr>
+<th>Name</th>
+<th>ID</th>
+<th>Key</th>
+<th>Last Ping</th>
+<th>Last Status</th>
+<th>Read Interval (sec)</th>
+<th>Write Interval (sec)</th>
+<th>Ping Interval (sec)</th>
+</tr>
+    <?php
 
-        for($i=1; $i <= $numHosts; $i++) {
-            $row = mysqli_fetch_array($knownHosts);
+    for($i=0; $i < $numHosts; $i++) {
+      $row = mysqli_fetch_array($knownHosts);
         
-            echo "<tr>";
-            echo "<td>" . $row["name"] . "</td>";
-            echo "<td>" . $row["ident"] . "</td>";
-            echo "<td><input type='text' name='auth" . $i . "' value='" . $row["auth"] . "'></td>";
-            echo "<td>" . time_elapsed_string($row["UNIX_TIMESTAMP(lastPing)"]) . " ago</td>";
-            echo "<td><input type='text' name='inInt" . $i . "' value='" . $row["inInterval"] . "'></td>";
-            echo "<td><input type='text' name='outInt" . $i . "' value='" . $row["outInterval"] . "'></td>";
-            echo "<td><input type='text' name='pingInt" . $i . "' value='" . $row["pingInterval"] . "'></td>";
-            echo "</tr>";
+      echo "<tr>\n";
+      echo "<td>" . $row["name"] . "</td>\n";
+      echo "<td>" . $row["ident"] . "</td>\n";
+      echo "<td><input type='text' name='auth" . $i . "' value='" . $row["auth"] . "'></td>\n";
+      echo "<td>" . time_elapsed_string($row["UNIX_TIMESTAMP(lastPing)"], $row["pingInterval"]) .
+        "</td>\n";
+      echo "<td>" . $row["status"] . "</td>\n";
+      echo "<td><input type='number' min='1' name='inInt" . $i . "' value='" . $row["inInterval"] . "'></td>\n";
+      echo "<td><input type='number' min='1' name='outInt" . $i . "' value='" . $row["outInterval"] . "'></td>\n";
+      echo "<td><input type='number' min='1' name='pingInt" . $i . "' value='" . $row["pingInterval"] . "'></td>\n";
+      echo "</tr>\n";
+      echo "<input type='hidden' name='Id$i' value=" . $row["id"] . ">\n";
 
-        }
-
-    echo "</table>";
     }
+
+  echo "</table>";
+    
+  //Add some csrf/replay protection.
+  echo \aqctrl\token_insert($mysqli, $debug_mode);
+  }
 }
 
 
 function setupRtn($mysqli, $debug_mode)
 {
-    // Handle our form
+  // Handle our form
 
-    $i = 1;
-    $mQuery = "";
+  // Check the token
+  if(!\aqctrl\token_check($mysqli, $debug_mode)) {
+    //We don't have a good token
+    if ($debug_mode) echo "<p>Error: token not accepted</p>\n";
+    return;
+  }
 
-    while (true) {
-        // Iterate through all of the auth fields given.
-        $keyName = "auth" . $i;
+  // Prepare our statement to update hosts
+  $stmt = $mysqli->prepare("UPDATE host SET auth = ?, inInterval = ?, outInterval = ?,
+    pingInterval = ? WHERE id = ?");
 
-        if(array_key_exists($keyName, $_POST)) {
-            $mQuery .= "UPDATE host SET auth = '" . mysqli_real_escape_string($mysqli, $_POST["$keyName"])
-              .  "' WHERE id = $i;";
+  $stmt-> bind_param("siiii", $authStr, $inInt, $outInt, $pingInt, $hostID);
 
-            $keyName = "inInt" . $i;
-            $mQuery .= "UPDATE host SET inInterval = '" . mysqli_real_escape_string($mysqli, $_POST["$keyName"])
-              .  "' WHERE id = $i;";
+  for ($i=0; isset($_POST["Id$i"]); $i++) {
+    // Update the values
+    $authStr = $_POST["auth$i"];
+    $inInt = $_POST["inInt$i"];
+    $outInt = $_POST["outInt$i"];
+    $pingInt = $_POST["pingInt$i"];
+    $hostID = $_POST["Id$i"];
 
-            $keyName = "outInt" . $i;
-            $mQuery .= "UPDATE host SET outInterval = '" . mysqli_real_escape_string($mysqli, $_POST["$keyName"])
-              .  "' WHERE id = $i;";
-
-            $keyName = "pingInt" . $i;
-            $mQuery .= "UPDATE host SET pingInterval = '" . mysqli_real_escape_string($mysqli, $_POST["$keyName"])
-              .  "' WHERE id = $i;";
-
-        } else {
-            break;
-        }
-        $i += 1;
-    }
-    
-    // Do the updates
-    if (!mysqli_multi_query($mysqli, $mQuery)) {
-        if ($debug_mode) echo "multiquery: " . $mQuery . " failed.";
-        //Flush the results.
-        while (mysqli_next_result($mysqli)) {;};
-        return;
+    if(!$stmt->execute() && $debug_mode) {
+      echo "Execute failed: (" . $stmt->errno . ") " . $stmt->error;
     }
 
-    while (mysqli_next_result($mysqli)) {;};
+  }
 }
 
 
+function time_elapsed_string($tm, $pInt) {
+  $cur_tm = time();
+  $dif = $cur_tm - $tm;
 
-function time_elapsed_string($tm, $rcs = 0) {
-    //TODO: Color code our return, too.
-    $cur_tm = time();
-    $dif = $cur_tm - $tm;
+  if($dif > 4*$pInt) {
+    $x = "<p style='color:red'>";
+  } elseif($dif > $pInt) {
+    $x = "<p style='color:yellow'>";
+  } else {
+    $x = "<p style='color:green'>";
+  }
 
-    $pds = array('second','minute','hour','day','week','month','year','decade');
-    $lngh = array(1,60,3600,86400,604800,2630880,31570560,315705600);
+  $pds = array('second','minute','hour','day','week','month','year','decade');
+  $lngh = array(1,60,3600,86400,604800,2630880,31570560,315705600);
 
-    for($v = sizeof($lngh)-1; ($v >= 0)&&(($no = $dif/$lngh[$v])<=1); $v--); if($v < 0) $v = 0; $_tm = $cur_tm-($dif%$lngh[$v]);
-    $no = floor($no);
-    if($no <> 1)
-        $pds[$v] .='s';
-    $x = sprintf("%d %s ",$no,$pds[$v]);
-    if(($rcs == 1)&&($v >= 1)&&(($cur_tm-$_tm) > 0))
-        $x .= time_ago($_tm);
-    return $x;
+  for($v = sizeof($lngh)-1; ($v >= 0)&&(($no = $dif/$lngh[$v])<=1); $v--); if($v < 0) $v = 0; $_tm = $cur_tm-($dif%$lngh[$v]);
+  $no = floor($no);
+  if($no <> 1)
+    $pds[$v] .='s';
+  $x .= sprintf("%d %s ",$no,$pds[$v]);
+  $x .= " ago</p>";
+  return $x;
 }
 
 
