@@ -30,6 +30,9 @@ setupRtn - function to handle the return a POST of SetupForm
 
 */
 
+// TODO: Color-code the "last ping" & make it a delta, not a date.
+// TODO: Convert to prepared statements
+
 namespace aqctrl;
 
 
@@ -89,7 +92,7 @@ function setupForm($mysqli, $debug_mode)
 }
 
 
-function setupRtn($mysqli, $postRet, $debug_mode)
+function setupRtn($mysqli, $debug_mode)
 {
     // Handle our form
 

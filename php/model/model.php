@@ -252,6 +252,13 @@ function db_create()
     step INT(1) UNSIGNED NOT NULL
     );";
 
+  //Token Tracker
+  $mQuery .= "CREATE TABLE token (
+    id INT(6) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    t VARCHAR(32) NOT NULL,
+    date DATETIME NOT NULL
+    );";
+
   //Do the mQuery
 
   if(!mysqli_multi_query($mysqli, $mQuery)) {
@@ -267,7 +274,7 @@ function db_create()
     VALUES (1, 1)";
 
   if(!mysqli_query($mysqli, $sql)) {
-    if (debug_mode) echo "Error initiating quickstart count " . mysqli_error($mysqli) . "<br>";
+    if ($debug_mode) echo "Error initiating quickstart count " . mysqli_error($mysqli) . "<br>";
   }
 
   include 'functionFn.php';
@@ -279,3 +286,65 @@ function db_create()
 
 }
 
+
+function token_insert($mysqli, $debug_mode)
+{
+  //Function to add a token to the dB.  This is used to add a little bit of protection.
+  $token = bin2hex(random_bytes(16));
+
+  //Remove any token that are more than 10 monutes old.
+  $nowTime = time();
+  $expTime = $nowTime-600;
+  $sql = "DELETE FROM token WHERE date < FROM_UNIXTIME($expTime)";
+
+  if(!mysqli_query($mysqli, $sql)) {
+    if ($debug_mode) echo "Error dropping old tokens " . mysqli_error($mysqli) . "<br>";
+  }
+
+  $sql = "INSERT INTO token (t, date)
+    VALUES ('$token', FROM_UNIXTIME($nowTime))";
+
+  if(!mysqli_query($mysqli, $sql)) {
+    if ($debug_mode) echo "Error adding new token " . mysqli_error($mysqli) . "<br>";
+  }
+
+  return "<input type='hidden' name='token' value='$token'>\n";
+}
+
+
+function token_check($mysqli, $debug_mode)
+{
+  //Function to check and see if we have a valid token.
+
+  //Drop tokens that are more than 10 minutes old.
+  $expTime = time()-600;
+  $sql = "DELETE FROM token WHERE date < FROM_UNIXTIME($expTime)";
+
+  if(!mysqli_query($mysqli, $sql)) {
+    if ($debug_mode) echo "Error dropping old tokens " . mysqli_error($mysqli) . "<br>";
+  }
+
+  //Check to see if the token exists.
+  if (!array_key_exists("token", $_POST)) return false;
+
+  //The key exists, Prepare a query.
+  $qString = mysqli_real_escape_string($mysqli, $_POST['token']);
+
+  $sql = "SELECT id FROM token WHERE t = '$qString'";
+
+  $res = mysqli_query($mysqli, $sql);
+
+  if (!$res) {
+    if ($debug_mode) echo "Error getting token " . mysqli_error($mysqli) . "<br>";
+  }
+
+  //Drop the token (whether it exists or not...)
+  $sql = "DELETE FROM token WHERE t = '$qString'";
+
+  if(!mysqli_query($mysqli, $sql)) {
+    if ($debug_mode) echo "Error dropping token: " . mysqli_error($mysqli) . "<br>";
+  }
+
+  return (bool)mysqli_num_rows($res);
+  
+}
