@@ -99,24 +99,23 @@ function functionForm($mysqli, $debug_mode)
         $myData->setAxisPosition(1,AXIS_POSITION_LEFT);
 
         $myData->setScatterSerie("Labels","Data",0);
-        $myData->setScatterSerieColor(0,array("R"=>0,"G"=>0,"B"=>0));
+        $myData->setScatterSerieColor(0,array("R"=>102,"G"=>140,"B"=>255));
 
         $myPicture = new \pImage(400,200,$myData);
 
         $myPicture->Antialias = FALSE;
 
-        $myPicture->drawRectangle(0,0,399,199,array("R"=>0,"G"=>0,"B"=>0));
+        $myPicture->drawFilledRectangle(0,0,399,199,array("R"=>9,"G"=>9,"B"=>9));
         /* Write the chart title */ 
-        $myPicture->setFontProperties(array("FontName"=>"chart/fonts/Forgotte.ttf","FontSize"=>11));
-        $myPicture->drawText(10,30,$fnRow["name"],array("FontSize"=>20,"Align"=>TEXT_ALIGN_BOTTOMLEFT));
+        $myPicture->drawText(10,30,$fnRow["name"],array("FontSize"=>20,"Align"=>TEXT_ALIGN_BOTTOMLEFT,"R"=>102,"G"=>140,"B"=>255,"FontName"=>"chart/fonts/Forgotte.ttf"));
 
         /* Set the default font */
-        $myPicture->setFontProperties(array("FontName"=>"chart/fonts/pf_arma_five.ttf","FontSize"=>6));
+        $myPicture->setFontProperties(array("R"=>102,"G"=>140,"B"=>255,"FontName"=>"chart/fonts/Forgotte.ttf","FontSize"=>12));
 
         $myPicture->setGraphArea(40,40,390,150);
 
         $myScatter = new \pScatter($myPicture, $myData);
-        $myScatter->drawScatterScale();
+        $myScatter->drawScatterScale(array("AxisR"=>90,"AxisG"=>90,"AxisB"=>90));
 
         $myPicture->Antialias = TRUE;
 

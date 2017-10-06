@@ -107,6 +107,11 @@ function srcConfigForm($mysqli, $debug_mode)
   $knownCPS = mysqli_query($mysqli, "SELECT id, scale, channel, profile, source FROM cps ORDER BY source, profile, channel");
   $knownSched = mysqli_query($mysqli, "SELECT id, name, type, profile FROM scheduler");
 
+  // Warn if we don't know about any channels
+  if(!mysqli_num_rows($knownChan)) echo "<p>Warning: no channels found.</p>\n
+    <p>Channels are created to connecting hardware hosts via the setup page, you can't manually create channels.</p>\n
+    <p>You won't be able to configure anything until the hardware hosts connect and inform the system about their channels.</p>\n";
+
   // Cycle through all of our sources
   echo "<table>\n";
 
@@ -118,11 +123,32 @@ function srcConfigForm($mysqli, $debug_mode)
     $srcRow = mysqli_fetch_array($knownSrc);
 
     echo "<tr>\n";
-    echo "<td>\n";
-  //TODO
+    echo "<h3>" . $srcRow["name"] . "</h3>\n";
 
+    //Get through any preceeding CPSes that don't map to this source.
+    while ($CPSRow["source"] != $srcRow["id"]) {
+      $CPSRow = mysqli_fetch_array($knownCPS);
 
+      //Catch reaching the end of our rows
+      if(!$CPSRow) {
+        //We reached the end of our rows with no matches
+        echo "No channels associated with this source\n";
+        break;
+      }
+    }
 
+    //We're up to the CPSes for this source.
+    while ($CPSRow["source"] == $srcRow["id"]) {
+      //TODO Do stuff with the data
+      //First, make an overall plot
+      //Then, plot out the effect of each profile
+      //Add an edit button
+      //Catch for edit and make stuff configurable
+    }
+
+    //TODO reset the CPS pointer to row 1
+    //TODO reset our counters as necessary
+    echo "</tr>\n";
   }
 
   echo "</table>\n";

@@ -32,7 +32,9 @@ $mysqli = \aqctrl\db_connect();
 $debug_mode = \aqctrl\debug_status();
 
 // Test to see if we should reset the db
-if(($_SERVER['REQUEST_METHOD'] == "POST" && isset($_POST['okay']) && isset($_POST['reset'])) || !$mysqli) {
+if(($_SERVER['REQUEST_METHOD'] == "POST" && isset($_POST['okay']) && isset($_POST['reset']) &&
+   \aqctrl\token_check($mysqli, $debug_mode)) || !$mysqli) {
+
   //Reset the db
   \aqctrl\db_create();
   header("Location: quickstart.php");
@@ -54,19 +56,19 @@ $stepNum = mysqli_fetch_row($res)[0];
 switch ($stepNum) {
 
   case 1:
-    $stepTitle = "Setup";
+    $stepTitle = "Setup Connected Hardware";
     $stepForm = '\aqctrl\setupForm';
     $stepRtn = '\aqctrl\setupRtn';
     $stepIncl = 'setupFn.php';
     break;
   case 2:
-    $stepTitle = "Edit Functions";
+    $stepTitle = "Edit Controlling Functions";
     $stepForm = '\aqctrl\functionForm';
     $stepRtn = '\aqctrl\functionRtn';
     $stepIncl = 'functionFn.php';
     break;
   case 3:
-    $stepTitle = "Configure";
+    $stepTitle = "Configure Channel Control";
     $stepForm = '\aqctrl\configForm';
     $stepRtn = '\aqctrl\configRtn';
     $stepIncl = 'configFn.php';
