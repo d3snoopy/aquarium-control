@@ -22,9 +22,9 @@ along with Aqctrl.  If not, see <http://www.gnu.org/licenses/>.
 ?>
 
 
-    </div>
+</div>
 
-    <div id="newHosts" class="footer"></div>
+<div id="newHosts" class="footer"></div>
 
 <script language="javascript" type="text/javascript">
 $(function worker() {
@@ -35,10 +35,9 @@ $(function worker() {
     }
   });
   
-  $("#newHosts").load('test/ajaxtest.php');
+  $("#newHosts").load('template/newHost.php');
 });
 </script>
-
 
 </body>
 </html>

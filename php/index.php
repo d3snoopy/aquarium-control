@@ -42,7 +42,7 @@ if(!$mysqli) {
 
 //Test to see if we made it through the quickstart
 // Number of quickstart steps plus one
-$numQuickstart = 3; //Make sure to update this appropriately
+$numQuickstart = 4; //Make sure to update this appropriately
 
 $res = mysqli_query($mysqli, "SELECT step FROM quickstart WHERE id = 1");
 
