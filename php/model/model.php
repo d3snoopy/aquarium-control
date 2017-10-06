@@ -172,7 +172,8 @@ function db_create()
   $mQuery .= "CREATE TABLE source (
     id INT(6) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(30),
-    scale INT(6) UNSIGNED
+    scale INT(6) UNSIGNED,
+    type VARCHAR(30)
     );";
 
   //Function

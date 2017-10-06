@@ -90,10 +90,6 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
       if ($debug_mode) echo "<p>Error adding quickstart count " . mysqli_error($mysqli) . "</p>";
     }
 
-    header("Location: quickstart.php");
-    mysqli_close($mysqli);
-    return;
-
   } elseif (isset($_POST['nextSave'])) {
     $newStep = $stepNum+1;
     $sql = "UPDATE quickstart
@@ -106,36 +102,27 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
 
     $procRtn = $stepRtn($mysqli, $debug_mode);
 
-    header("Location: quickstart.php");
-    mysqli_close($mysqli);
-    return;
-
   } elseif (isset($_POST['back'])) {
     $newStep = $stepNum-1;
-    if ($newStep == 0) {
-      header("Location: quickstart.php");
-      mysqli_close($mysqli);
-      return;
-    }
-    $sql = "UPDATE quickstart
+    if ($newStep != 0) {
+      $sql = "UPDATE quickstart
       SET step = $newStep
       WHERE id = 1";
-
-    if(!mysqli_query($mysqli, $sql)) {
-      if ($debug_mode) echo "<p>Error adding quickstart count " . mysqli_error($mysqli) . "</p>";
+  
+      if(!mysqli_query($mysqli, $sql)) {
+        if ($debug_mode) echo "<p>Error adding quickstart count " . mysqli_error($mysqli) . "</p>";
+      }
     }
-
-    header("Location: quickstart.php");
-    mysqli_close($mysqli);
-    return;
   } else {
     //Default to sending this on to the rtnfunction without the quickstart change.
     $procRtn = $stepRtn($mysqli, $debug_mode);
 
-    header("Location: quickstart.php");
-    mysqli_close($mysqli);
-    return;
   }
+
+  header("Location: quickstart.php?" . $procRtn);
+
+  mysqli_close($mysqli);
+  return;
 
 } else {
   $title = "Quickstart Step " . $stepNum . ": " . $stepTitle;

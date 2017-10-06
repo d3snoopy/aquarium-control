@@ -23,7 +23,7 @@ along with Aqctrl.  If not, see <http://www.gnu.org/licenses/>.
 configFn.php
 
 
-Functions to support the setup.php page.
+Functions to support the configure.php page.
 
 configForm - function to generate the form to fill out
 
@@ -33,47 +33,209 @@ configRtn - function to handle the return a POST of SetupForm
 
 namespace aqctrl;
 
+/* pChart library inclusions */
+include("chart/class/pData.class.php");
+include("chart/class/pDraw.class.php");
+include("chart/class/pImage.class.php");
+include("chart/class/pScatter.class.php");
 
 
 function configForm($mysqli, $debug_mode)
 {
 
   // Show the form
-  echo "<h2>Sources</h2>";
+  echo "<h2>Configure</h2>";
 
-  // Grab queries first.
-  $src_res = mysqli_query($mysqli, "SELECT id,name,profile FROM source");
-  $chan_res = mysqli_query($mysqli, "SELECT id,name,type,variable,active,max,
-    min,color,units,lastping,host FROM channel");
-  $CS_res = mysqli_query($mysqli, "SELECT id,scale,channel,source FROM cs ORDER BY source, channel");
-  $prof_res = mysqli_query($mysqli, "SELECT id,name,type,start,stop,scheduler FROM profile");
-  $react_res = mysqli_query($mysqli, "");
+  // Determine how to organize the data
+  // Organize either by source, channel, or profile
+  if ($_GET["mode"] == "channel") {
+    \aqctrl\chanConfigForm($mysqli, $debug_mode);
+  } elseif ($_GET["mode"] == "profile") {
+    \aqctrl\profConfigForm($mysqli, $debug_mode);
+  } else {
+    \aqctrl\srcConfigForm($mysqli, $debug_mode);
+  }
 
+  echo "<p>\n<input type='submit' name='new' value='Create New Source'>\n</p>\n";
 
-    if(!$res) {
-        echo "<p>No Sources Configured.</p>";
-        
-    } else {
-
-//        for i in res {
-//            echo "<h3>$TableName</h3>";
-            ?>
-            <table>
-            <tr>
-
-        
-            <?php
-
-//        }
-    }
+  //Add some csrf/replay protection
+  echo \aqctrl\token_insert($mysqli, $debug_mode);
 }
 
+
+function srcConfigForm($mysqli, $debug_mode)
+{
+  //Paint the page organizing by source
+  echo "<h3>\nSort By:\n";
+  echo "<table width='100%'>\n";
+  echo "<tr>\n";
+  echo "<td align='center'>\n";
+  echo "Source\n";
+  echo "</td>\n";
+  echo "<td align='center'>\n";
+  echo "<a href='" . $_SERVER["SCRIPT_NAME"] . "?mode=channel'>\n";
+  echo "Channel\n";
+  echo "</a>\n";
+  echo "</td>\n";
+  echo "<td align='center'>\n";
+  echo "<a href='" . $_SERVER["SCRIPT_NAME"] . "?mode=profile'>\n";
+  echo "Profile\n";
+  echo "</a>\n";
+  echo "</td>\n";
+  echo "</tr>\n";
+  echo "</table>\n";
+  echo "</h3>\n";
+
+  // Grab our existing data
+
+  // First get sources and see if we have any
+  $knownSrc = mysqli_query($mysqli, "SELECT id, name, scale, type FROM source ORDER BY type, id");
+
+  $numSrc = mysqli_num_rows($knownSrc);
+
+  if(!$numSrc) {
+    echo "<p>No Sources Configured.</p>\n";
+    return;
+  }
+
+  // If we got here, we do have at least one source
+  $knownFn = mysqli_query($mysqli, "SELECT id,name FROM function");
+  $knownPts = mysqli_query($mysqli, "SELECT id,value,timeAdj,timeType,timeSE,function FROM point ORDER BY function, timeSE, timeAdj");
+  $knownReact = mysqli_query($mysqli, "SELECT id, action, scale, channel, react FROM reaction");
+  $knownChan = mysqli_query($mysqli, "SELECT id, name, type, variable, active, max, min, color, units FROM channel");
+  $knownProf = mysqli_query($mysqli, "SELECT id, name, start, end, refresh, scale, reaction, function FROM profile");
+  $knownCPS = mysqli_query($mysqli, "SELECT id, scale, channel, profile, source FROM cps ORDER BY source, profile, channel");
+  $knownSched = mysqli_query($mysqli, "SELECT id, name, type, profile FROM scheduler");
+
+  // Cycle through all of our sources
+  echo "<table>\n";
+
+  // Pre-fetch our first CPS
+  $CPSRow = mysqli_fetch_array($knownCPS);
+
+  for($i=0; $i < $numSrc; $i++) {
+    
+    $srcRow = mysqli_fetch_array($knownSrc);
+
+    echo "<tr>\n";
+    echo "<td>\n";
+  //TODO
+
+
+
+  }
+
+  echo "</table>\n";
+  
+  
+
+}
+
+
+function chanConfigForm($mysqli, $debug_mode)
+{
+  //Paint the page organizing by source
+  echo "<h3>\nSort By:\n";
+  echo "<table width='100%'>\n";
+  echo "<tr>\n";
+  echo "<td align='center'>\n";
+  echo "<a href='" . $_SERVER["SCRIPT_NAME"] . "?mode=source'>\n";
+  echo "Source\n";
+  echo "</a>\n";
+  echo "</td>\n";
+  echo "<td align='center'>\n";
+  echo "Channel\n";
+  echo "</td>\n";
+  echo "<td align='center'>\n";
+  echo "<a href='" . $_SERVER["SCRIPT_NAME"] . "?mode=profile'>\n";
+  echo "Profile\n";
+  echo "</a>\n";
+  echo "</td align='center'>\n";
+  echo "</tr>\n";
+  echo "</table>\n";
+  echo "</h3>\n";
+
+
+  // Grab our existing data
+  $knownFn = mysqli_query($mysqli, "SELECT id,name FROM function");
+  $knownPts = mysqli_query($mysqli, "SELECT id,value,timeAdj,timeType,timeSE,function FROM point ORDER BY function, timeSE, timeAdj");
+  $knownSrc = mysqli_query($mysqli, "SELECT id, name, scale FROM source");
+  $knownReact = mysqli_query($mysqli, "SELECT id, action, scale, channel, react FROM reaction");
+  $knownChan = mysqli_query($mysqli, "SELECT id, name, type, variable, active, max, min, color, units FROM channel");
+  $knownProf = mysqli_query($mysqli, "SELECT id, name, start, end, refresh, scale, reaction, function FROM profile");
+  $knownCPS = mysqli_query($mysqli, "SELECT id, scale, channel, profile, source FROM cps");
+  $knownSched = mysqli_query($mysqli, "SELECT id, name, type, profile FROM scheduler");
+
+  //TODO
+
+}
+
+
+function profConfigForm($mysqli, $debug_mode)
+{
+  //Paint the page organizing by source
+  echo "<h3>\nSort By:\n";
+  echo "<table width='100%'>\n";
+  echo "<tr>\n";
+  echo "<td align='center'>\n";
+  echo "<a href='" . $_SERVER["SCRIPT_NAME"] . "?mode=source'>\n";
+  echo "Source\n";
+  echo "</a>\n";
+  echo "</td>\n";
+  echo "<td align='center'>\n";
+  echo "<a href='" . $_SERVER["SCRIPT_NAME"] . "?mode=channel'>\n";
+  echo "Channel\n";
+  echo "</a>\n";
+  echo "</td>\n";
+  echo "<td align='center'>\n";
+  echo "Profile\n";
+  echo "</td>\n";
+  echo "</tr>\n";
+  echo "</table>\n";
+  echo "</h3>\n";
+
+
+  // Grab our existing data
+  $knownFn = mysqli_query($mysqli, "SELECT id,name FROM function");
+  $knownPts = mysqli_query($mysqli, "SELECT id,value,timeAdj,timeType,timeSE,function FROM point ORDER BY function, timeSE, timeAdj");
+  $knownSrc = mysqli_query($mysqli, "SELECT id, name, scale FROM source");
+  $knownReact = mysqli_query($mysqli, "SELECT id, action, scale, channel, react FROM reaction");
+  $knownChan = mysqli_query($mysqli, "SELECT id, name, type, variable, active, max, min, color, units FROM channel");
+  $knownProf = mysqli_query($mysqli, "SELECT id, name, start, end, refresh, scale, reaction, function FROM profile");
+  $knownCPS = mysqli_query($mysqli, "SELECT id, scale, channel, profile, source FROM cps");
+  $knownSched = mysqli_query($mysqli, "SELECT id, name, type, profile FROM scheduler");
+
+  //TODO
+
+}
 
 
 function configRtn($mysqli, $postRet)
 {
+  // Handle our form
 
-    // Handle our form
+  // Check the token
+  if(!\aqctrl\token_check($mysqli, $debug_mode)) {
+    //We don't have a good token
+    if ($debug_mode) echo "<p>Error: token not accepted</p>\n";
+    return($_SERVER["QUERY_STRING"]);
+  }
 
+  // First test for the "new" buttons
+  if(isset($_POST['new'])) {
+    // The only thing that we explicitly create new items of is sources
+    $sql = "INSERT INTO source (name, scale, type) VALUES ('new', 1, 'new')";
+
+    if(!mysqli_query($mysqli, $sql)) {
+      if ($debug_mode) echo "<p>Error adding new source" . mysqli_error($mysqli) . "\n</p>\n";
+    }
+    return("mode=source&edit=" . mysqli_insert_id($mysqli)); //We can return because all we're doing is creating a new src.
+  }
+
+
+    
+
+  // Note: return is handled as a query string with checking, so don't return unchecked things from the wild
+  return "edit=CreatedNum";
 }
 
