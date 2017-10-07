@@ -29,30 +29,56 @@ include 'setupFn.php';
 // Connect to the db.
 $mysqli = \aqctrl\db_connect();
 
+// Find out if we're in debug mode.
+$debug_mode = \aqctrl\debug_status();
+
 $title = "Setup";
 
 // Do my content here
 if(!$mysqli) {
-    //Complain about not being able to connect and give up.
-    include 'header.php';
-    echo "<p>Could not connect to dB, check /etc/aqctrl.ini</p>";
-    echo "<p>Or, try going to the <a href=quickstart.php>quickstart page.</a></p>";
-    include 'footer.php';
-    return;
+  //Complain about not being able to connect and give up.
+  include 'header.php';
+  echo "<p>Could not connect to dB, check /etc/aqctrl.ini</p>\n";
+  echo "<p>Or, try going to the <a href=quickstart.php>quickstart page.</a></p>\n";
+  include 'footer.php';
+  return;
 }
 
-echo "<h1>Setup</h1>";
+echo "<h1>Setup Connected Hardware</h1>\n";
 
 if ($_SERVER['REQUEST_METHOD'] == "POST") {
-    //Do the form fcn
-    \aqctrl\setupRtn($mysqli, $_POST);
+  //Test for a reset option
+  if(isset($_POST['okay']) && isset($_POST['reset']) &&
+     \aqctrl\token_check($mysqli, $debug_mode)) {
 
+    //Reset the db
+    \aqctrl\db_create();
     header("Location: setup.php");
+    return;
+  }
+
+
+  //Do the form fcn
+  if(isset($_POST['save'])) \aqctrl\setupRtn($mysqli, $_POST);
+
+  header("Location: setup.php");
 
 } else {
-    include 'header.php';
-    //Show the form
-    \aqctrl\setupForm($mysqli, "setup.php");
-    include 'footer.php';
+  include 'header.php';
+  //Show the form
+  echo "<form action='setup.php' method='post'>\n";
+  \aqctrl\setupForm($mysqli, $debug_mode);
+
+  mysqli_close($mysqli);
+
+  echo "<p class='alignleft'>\n";
+  echo "<input type='submit' name='save' value='Save' />\n";
+  echo "<input type='submit' name='cancel' value='Cancel' />\n";
+  echo "</p>\n";
+  echo "</form>\n";
+  echo "<div style='clear: both;'></div>\n";
+
+  include 'footer.php';
+
 }
 

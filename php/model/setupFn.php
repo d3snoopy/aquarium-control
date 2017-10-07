@@ -30,11 +30,7 @@ setupRtn - function to handle the return a POST of SetupForm
 
 */
 
-// TODO: Color-code the "last ping" & make it a delta, not a date.
-// TODO: Convert to prepared statements
-
 namespace aqctrl;
-
 
 
 function setupForm($mysqli, $debug_mode)
@@ -92,10 +88,25 @@ function setupForm($mysqli, $debug_mode)
     }
 
   echo "</table>";
-    
-  //Add some csrf/replay protection.
-  echo \aqctrl\token_insert($mysqli, $debug_mode);
   }
+    
+//Add some csrf/replay protection.
+echo \aqctrl\token_insert($mysqli, $debug_mode);
+
+//Add db reset option.
+  
+?>
+<p> <details>
+<summary>Reset the DB</summary>
+Resetting the DB will erase ALL of your settings and saved data, COMPLETELY resetting EVERYTHING.
+<br>
+Are you sure that you REALLY want to do this?<br>
+<input type="checkbox" name="okay" />Yes, I'm sure I want to do this.<br>
+<input type="submit" name="reset" value="Reset" />
+</details> </p>
+
+<?php
+
 }
 
 

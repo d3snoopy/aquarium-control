@@ -37,7 +37,6 @@ if(($_SERVER['REQUEST_METHOD'] == "POST" && isset($_POST['okay']) && isset($_POS
 
   //Reset the db
   \aqctrl\db_create();
-  header("Location: quickstart.php");
 }
 
 // Do our quickstart step content; essentially include the correct stuff
@@ -141,7 +140,7 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
 
 mysqli_close($mysqli);
 
-// At the end allow for a "reset" option
+// Build the save/continue/etc options.
 ?>
 
 <p class="alignleft">
@@ -155,18 +154,6 @@ mysqli_close($mysqli);
 </form>
 
 <div style="clear: both;"></div>
-
-<p> <details>
-<summary>Reset the DB</summary>
-<form action="quickstart.php" method="post">
-Resetting the DB will erase ALL of your settings and saved data, COMPLETELY resetting EVERYTHING.
-<br>
-Are you sure that you REALLY want to do this?<br>
-<input type="checkbox" name="okay" />Yes, I'm sure I want to do this.<br>
-<input type="submit" name="reset" value="Reset" />
-<input type="submit" name="cancel" value="Cancel" />
-</form>
-</details> </p>
         
 <?php
 include 'footer.php';

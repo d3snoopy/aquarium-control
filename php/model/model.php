@@ -326,7 +326,7 @@ function token_check($mysqli, $debug_mode)
     if ($debug_mode) echo "Error dropping old tokens " . mysqli_error($mysqli) . "<br>";
   }
 
-  //Check to see if the token exists.
+  //Check to see if the token post key exists.
   if (!array_key_exists("token", $_POST)) return false;
 
   //The key exists, Prepare a query.
