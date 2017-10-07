@@ -30,6 +30,8 @@ setupRtn - function to handle the return a POST of SetupForm
 
 */
 
+//TODO: Add in a list of channels for each host; allow the channels to be renamed (to avoid ambiguity)
+
 namespace aqctrl;
 
 

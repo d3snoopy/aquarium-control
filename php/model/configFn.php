@@ -141,16 +141,79 @@ function srcConfigForm($mysqli, $debug_mode)
 
     //We're up to the CPSes for this source.
     while ($CPSRow["source"] == $srcRow["id"]) {
+      //TODO Add an overall plot for this source.
+
       //TODO Do stuff with the data
       //First, make an overall plot
       //Then, plot out the effect of each profile
-      //Add an edit button
       //Catch for edit and make stuff configurable
     }
 
     //TODO reset the CPS pointer to row 1
     //TODO reset our counters as necessary
-    echo "</table>\n";
+
+    if(isset($_GET['edit']) && $_GET['edit'] == $srcRow["id"]) {
+      //Give all of the controls
+      echo "<input type='hidden' name='editID' value=" . $srcRow["id"] . ">\n";
+      echo "<tr>\n<td>\n";
+
+      //Populate a list of potential types
+      $chanRow = mysqli_fetch_array($knownChan);
+      $knownTypes = array();
+      $chanMatch = array();
+
+      while($chanRow) {
+        $knownTypes[] = $chanRow['type'];
+        $chanRow = mysqli_fetch_array($knownChan);
+
+        if($chanRow['type'] == $srcRow["type"]) $chanMatch[$chanRow['name']] = $chanRow['id'];
+      }
+
+      mysqli_data_seek($knownChan, 0);
+
+      $knownTypes = array_unique($knownTypes);
+
+      echo "Name: \n";
+      echo "<input type='text' name='name' value='" . $srcRow["name"] . "'>\n<br>\n";
+
+      echo "Source Type: \n";
+      echo "<select name='srcType'>\n";
+      
+      foreach ($knownTypes as $typeName) {
+        $selOpt = "";
+        if($typeName == $srcRow["type"]) $selOpt = "selected";
+
+        echo "<option value='" . $typeName . "' " . $selOpt . ">" . $typeName . "</option>\n";
+      }
+      echo "</select>\n";
+
+      echo "<br>\n";
+      echo "Channels Used:\n<br>\n";
+
+      $j=1;
+
+      foreach ($chanMatch as $chanName => $chanID) {
+        //TODO: pre-check if already mapped.
+        echo "<input type='checkbox' name='ch" . $j . "' value='" . $chanID . "'>";
+        echo($chanName . "\n<br>\n");
+        $j++;
+      }
+      $j--;
+      echo "<input type='hidden' name='numchan' value='" . $j . "'>\n";
+      echo "</td>\n";
+
+      //TODO parse through each associated profile
+
+      echo "</tr>\n"; 
+      echo "</table>\n";
+    } else {
+      //Show an edit link
+      echo "</table>\n";
+      echo "<p class='alignright'>\n";
+      echo "<a href='" . $_SERVER["SCRIPT_NAME"] . "?mode=source&edit=" . $srcRow["id"] . "'>";
+      echo "edit</a>\n";
+    }
+
     echo "</td>\n";
     echo "</tr>\n";
   }
