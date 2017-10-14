@@ -192,6 +192,9 @@ void readChannels() {
   full = lum & 0xFFFF;
   float reading = tsl.calculateLux(full, ir);
 
+  Serial.print("Read Time: ");
+  Serial.println(Ltime);
+
   Serial.print("Lux Reading: ");
   Serial.println(reading);
 
@@ -223,7 +226,9 @@ void readChannels() {
   
   // Do additional channels here.
   
-  
+
+
+  Serial.println("");
 }
 
 
@@ -299,9 +304,9 @@ void sendPost(WiFiClient client, int i) {
   client.print("Content-length: ");
 
   // Calculate the length of our message.
-  // Fixed numbers: 13 commas in "host" + 5 chars for "host=" + 6 chars for "&time=" +
+  // Fixed numbers: 14 commas in "host" + 5 chars for "host=" + 6 chars for "&time=" +
   // 6 chars for "&data=" + 6 chars for "&HMAC=" + 64 chars for HMAC + 
-  // 5x10 = 50 int characters + 2*13 = 26 float characters = 176
+  // 6x10 = 60 int characters + 2*13 = 26 float characters = 187
   int dataLen;
   if (chanIn[i]) {
     dataLen = (chanReg[i])*25;
@@ -309,7 +314,7 @@ void sendPost(WiFiClient client, int i) {
     dataLen = 0;
   }
   
-  client.print(176+strlen(hostID)+strlen(hostName)+strlen(chanNames[i])+strlen(chanTypes[i])
+  client.print(187+strlen(hostID)+strlen(hostName)+strlen(chanNames[i])+strlen(chanTypes[i])
     +strlen(chanColors[i])+strlen(chanUnits[i])+dataLen);
     
   Sha256.initHmac(key,20);
@@ -370,6 +375,10 @@ void sendPost(WiFiClient client, int i) {
   Sha256.print(",");
   client.print(chanUnits[i]);
   Sha256.print(chanUnits[i]);
+  client.print(",");
+  Sha256.print(",");
+  client.printf("%010d", chanIn[i]);
+  Sha256.printf("%010d", chanIn[i]);
   client.print(",");
   Sha256.print(",");
 
@@ -619,6 +628,8 @@ void rxPost(WiFiClient client, int i) {
     Serial.println("Hashes matched");
     Toffset = newDate - millis()/1000;
     Ltime = millis()/1000 + Toffset;
+    Serial.print("Time Updated to: ");
+    Serial.println(Ltime);
     nextPing = newPing;
     inInterval = newIn;
     outInterval = newOut;
@@ -633,15 +644,8 @@ void rxPost(WiFiClient client, int i) {
 
   chanReg[i] = 0;
 
-  Serial.print("Ping time: ");
-  Serial.print(Ltime);
-  Serial.print(" NextPing: ");
+  Serial.print("NextPing: ");
   Serial.println(nextPing);
-  ///TODO: check the read interval.
-  Serial.print("newIn: ");
-  Serial.println(newIn);
-  Serial.print("inInterval: ");
-  Serial.println(inInterval);
 }
 
 

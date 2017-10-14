@@ -29,6 +29,7 @@ float chanMax, #applies to variable: maximum number the channel will accept
 float chanMin, #minimum number the channel will accept
 string "chancolor", #hex color string, minus the #
 string "chanunits", #human readable representation of units (units in which it expects values)
+int chanIn, #Input/output status of the channel; 1 = input (sensor), 0 = output (driven)
 
 
 # "time" POST string: #Timestamps for data for the channel we're working tih

@@ -153,23 +153,18 @@ function host_process($data_in, $data_out, $mysqli, $row)
   global $debug_mode;
 
   $chanRes = mysqli_query($mysqli, "SELECT id,name,variable,active,max,min,UNIX_TIMESTAMP(lastPing) FROM channel
-    WHERE host = " . $row['id']);
+    WHERE host = " . $row['id'] . " AND hostChNum = " . (int)$data_in[4]);
 
   if(!$chanRes) {
-    if ($debug_mode) echo("Could not get channel list for host in host_process");
+    if ($debug_mode) echo("Could not get channel list for host in host_process" . mysqli_error($mysqli));
     return;
   }
 
-  // Test for how many channels we have, if we don't have enough call channels_add.
-  if(mysqli_num_rows($chanRes) <= (int)$data_in[4]){
-    $chanInfo = \aqctrl\channel_add($data_in, $mysqli, $row['id'], mysqli_num_rows($chanRes));
+  // Test if we found this channel.
+  if(!mysqli_num_rows($chanRes)){
+    $chanInfo = \aqctrl\channel_add($data_in, $mysqli, $row['id']);
   } else {
-    mysqli_data_seek($chanRes, (int)$data_in[4]);
     $chanInfo = mysqli_fetch_assoc($chanRes);
-
-    // Test for NULLs in out channel info, if so we added this channel before without details about it.
-    if(is_null($chanInfo['name']))
-      $chanInfo = \aqctrl\channel_add($data_in, $mysqli, $row['id'], mysqli_num_rows($chanRes));
   }
 
   // Set up a multiQuery string
@@ -247,46 +242,27 @@ function host_add($data_in, $mysqli)
 
 
 
-function channel_add($data_in, $mysqli, $hostId, $numRows)
+function channel_add($data_in, $mysqli, $hostId)
 {
   //Function to add channels to our host, called the first time the host pings
   global $debug_mode;
 
-  $mQuery = "";
-
-  //We need to keep the channels for this host in order, so if this channel skips numbers, create intermediate ones.
-  if($numRows < $data_in[4]) {
-    for ($i=$numRows; $i<$data_in[4]; $i++) {
-      //Make a channel placeholder.
-      $mQuery .= "INSERT INTO channel (lastPing, host)
-        VALUES(FROM_UNIXTIME(0),$hostId); ";
-    }
-  }
-
   //Add our channel
-  $mQuery .= "INSERT INTO channel (name, type, variable, active, max, min, color, units, lastPing, host)
-    VALUES('" . mysqli_real_escape_string($mysqli, $data_in[5]) . "', '"
+  $Qstr = "INSERT INTO channel (name, type, variable, active, input, hostChNum, max, min, color, units,
+    lastPing, host) VALUES('" . mysqli_real_escape_string($mysqli, $data_in[5]) . "', '"
     . mysqli_real_escape_string($mysqli, $data_in[6]) . "', " 
-    . (int)$data_in[7] . ", " . (int)$data_in[8] . ", " 
+    . (int)$data_in[7] . ", " . (int)$data_in[8] . ", " . (int)$data_in[13] . ", " . (int)$data_in[4] . ", "
     . (float)$data_in[9] . ", " . (float)$data_in[10] . ", '"
     . mysqli_real_escape_string($mysqli, $data_in[11]) . "', '" 
     . mysqli_real_escape_string($mysqli, $data_in[12]) . "', FROM_UNIXTIME("
     . (int)$data_in[2] . "), " . $hostId . "); ";
     
   // Do the query
-  if (empty($mQuery)) {
-    if ($debug_mode) echo "Chan mquery empty.";
-  } elseif (!mysqli_multi_query($mysqli, $mQuery)) {
-    if ($debug_mode) echo "multiquery: " . $mQuery . " failed.";
+ if (!mysqli_query($mysqli, $Qstr)) {
+    if ($debug_mode) echo "query: " . $Qstr . " failed. " . mysqli_error($mysqli);
   } else {
     if ($debug_mode) echo "Successfully added channel. ";
   }
-
-  //Flush the results
-  do {
-    $chanId = mysqli_insert_id($mysqli);
-    mysqli_next_result($mysqli);
-  } while (mysqli_more_results($mysqli));
 
   // Return
   return [

@@ -156,6 +156,8 @@ function db_create()
     type VARCHAR(30),
     variable INT(1) UNSIGNED,
     active INT(1) UNSIGNED,
+    input BOOLEAN,
+    hostChNum INT(6) UNSIGNED,
     max FLOAT(10,4) UNSIGNED,
     min FLOAT(10,4) UNSIGNED,
     color CHAR(6),
@@ -172,7 +174,7 @@ function db_create()
   $mQuery .= "CREATE TABLE source (
     id INT(6) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(30),
-    scale INT(6) UNSIGNED,
+    scale FLOAT(10,4),
     type VARCHAR(30)
     );";
 
@@ -200,8 +202,8 @@ function db_create()
     scale FLOAT(10,4) UNSIGNED NOT NULL,
     channel INT(6) UNSIGNED,
     react INT(6) UNSIGNED,
-    FOREIGN KEY (channel) REFERENCES channel(id),
-    FOREIGN KEY (react) REFERENCES reaction(id)
+    FOREIGN KEY (channel) REFERENCES channel(id) ON DELETE CASCADE ON UPDATE CASCADE,
+    FOREIGN KEY (react) REFERENCES reaction(id) ON DELETE CASCADE ON UPDATE CASCADE
     );";
 
   //Profile
@@ -245,7 +247,7 @@ function db_create()
     date DATETIME NOT NULL,
     value FLOAT(10,4) NOT NULL,
     channel INT(6) UNSIGNED,
-    FOREIGN KEY (channel) REFERENCES channel(id)
+    FOREIGN KEY (channel) REFERENCES channel(id) ON DELETE CASCADE ON UPDATE CASCADE
     );";
 
   //Quickstart Tracker

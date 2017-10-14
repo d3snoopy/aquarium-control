@@ -104,7 +104,7 @@ function srcConfigForm($mysqli, $debug_mode)
   $knownReact = mysqli_query($mysqli, "SELECT id, action, scale, channel, react FROM reaction");
   $knownChan = mysqli_query($mysqli, "SELECT id, name, type, variable, active, max, min, color, units FROM channel");
   $knownProf = mysqli_query($mysqli, "SELECT id, name, start, end, refresh, scale, reaction, function FROM profile");
-  $knownCPS = mysqli_query($mysqli, "SELECT id, scale, channel, profile, source FROM cps ORDER BY source, profile, channel");
+  $knownCPS = mysqli_query($mysqli, "SELECT id, scale, channel, profile, source FROM cps ORDER BY source, channel, profile");
   $knownSched = mysqli_query($mysqli, "SELECT id, name, type, profile FROM scheduler");
 
   // Warn if we don't know about any channels
@@ -115,41 +115,42 @@ function srcConfigForm($mysqli, $debug_mode)
   // Cycle through all of our sources
   echo "<table width='100%' >\n";
 
-  // Pre-fetch our first CPS
-  $CPSRow = mysqli_fetch_array($knownCPS);
-
   for($i=0; $i < $numSrc; $i++) {
+    mysqli_data_seek($knownCPS, 0);
     
-    $srcRow = mysqli_fetch_array($knownSrc);
+    $srcRow = mysqli_fetch_assoc($knownSrc);
 
     echo "<tr>\n";
     echo "<td>\n";
     echo "<h3>" . $srcRow["name"] . "</h3>\n";
     echo "<table>\n";
 
-    //Get through any preceeding CPSes that don't map to this source.
-    while ($CPSRow["source"] != $srcRow["id"]) {
-      $CPSRow = mysqli_fetch_array($knownCPS);
+    $CPSRow = mysqli_fetch_assoc($knownCPS);
 
-      //Catch reaching the end of our rows
-      if(!$CPSRow) {
-        //We reached the end of our rows with no matches
-        echo "<tr>\n<td>\nNo channels associated with this source\n</td>\n</tr>\n";
-        break;
-      }
+    //Get through any preceeding CPSes that don't map to this source.
+    while (($CPSRow["source"] != $srcRow["id"]) && $CPSRow) {
+      $CPSRow = mysqli_fetch_assoc($knownCPS);
+    }
+
+    if(!$CPSRow) {
+      //No CPS matches
+      echo "<tr>\n<td>\nNo channels associated with this source\n</td>\n</tr>\n";
     }
 
     //We're up to the CPSes for this source.
     while ($CPSRow["source"] == $srcRow["id"]) {
+      echo "<tr>\n<td>\nChannels found for this source, do stuff here\n</td>\n</tr>\n";
       //TODO Add an overall plot for this source.
 
       //TODO Do stuff with the data
       //First, make an overall plot
       //Then, plot out the effect of each profile
       //Catch for edit and make stuff configurable
+
+      $CPSRow = mysqli_fetch_assoc($knownCPS);
     }
 
-    //TODO reset the CPS pointer to row 1
+    mysqli_data_seek($knownCPS, 0);
     //TODO reset our counters as necessary
 
     if(isset($_GET['edit']) && $_GET['edit'] == $srcRow["id"]) {
@@ -164,9 +165,10 @@ function srcConfigForm($mysqli, $debug_mode)
 
       while($chanRow) {
         $knownTypes[] = $chanRow['type'];
-        $chanRow = mysqli_fetch_array($knownChan);
 
-        if($chanRow['type'] == $srcRow["type"]) $chanMatch[$chanRow['name']] = $chanRow['id'];
+        if($chanRow["type"] == $srcRow["type"]) $chanMatch[$chanRow['name']] = $chanRow['id'];
+
+        $chanRow = mysqli_fetch_array($knownChan);
       }
 
       mysqli_data_seek($knownChan, 0);
@@ -175,6 +177,9 @@ function srcConfigForm($mysqli, $debug_mode)
 
       echo "Name: \n";
       echo "<input type='text' name='name' value='" . $srcRow["name"] . "'>\n<br>\n";
+
+      echo "Source Scale: \n";
+      echo "<input type='number' name='scale' value='" . $srcRow["scale"] . "' step='any'>\n<br>\n";
 
       echo "Source Type: \n";
       echo "<select name='srcType'>\n";
@@ -190,15 +195,26 @@ function srcConfigForm($mysqli, $debug_mode)
       echo "<br>\n";
       echo "Channels Used:\n<br>\n";
 
-      $j=1;
+      $j=0;
+      $CPSRow = mysqli_fetch_assoc($knownCPS);
 
       foreach ($chanMatch as $chanName => $chanID) {
-        //TODO: pre-check if already mapped.
-        echo "<input type='checkbox' name='ch" . $j . "' value='" . $chanID . "'>";
+        $chSel = "";
+
+        while (($CPSRow['source'] < $srcRow["id"]) && $CPSRow) {
+          $CPSRow = mysqli_fetch_array($knownCPS);
+        }
+
+        while (($CPSRow['channel'] < $chanID) && $CPSRow) {
+          $CPSRow = mysqli_fetch_array($knownCPS);
+        }
+        
+        if (($CPSRow['channel'] == $chanID) && ($CPSRow['source'] == $srcRow["id"])) $chSel = "checked";
+
+        echo "<input type='checkbox' name='ch" . $j . "' value='" . $chanID . "' " . $chSel . ">";
         echo($chanName . "\n<br>\n");
         $j++;
       }
-      $j--;
       echo "<input type='hidden' name='numchan' value='" . $j . "'>\n";
       echo "</td>\n";
 
@@ -206,6 +222,8 @@ function srcConfigForm($mysqli, $debug_mode)
 
       echo "</tr>\n"; 
       echo "</table>\n";
+      echo "<p class='alignright'>\n";
+      echo "<input type='submit' name='update' value='Update' />\n";
     } else {
       //Show an edit link
       echo "</table>\n";
@@ -305,6 +323,7 @@ function profConfigForm($mysqli, $debug_mode)
 
 function configRtn($mysqli, $postRet)
 {
+  global $debug_mode;
   // Handle our form
 
   // Check the token
@@ -322,13 +341,110 @@ function configRtn($mysqli, $postRet)
     if(!mysqli_query($mysqli, $sql)) {
       if ($debug_mode) echo "<p>Error adding new source" . mysqli_error($mysqli) . "\n</p>\n";
     }
-    return("mode=source&edit=" . mysqli_insert_id($mysqli)); //We can return because all we're doing is creating a new src.
+    return("edit=" . mysqli_insert_id($mysqli)); //We can return because all we're doing is creating a new src.
+  }
+
+  // Second, test for a change in type; if so, clear all CPS associated with this source
+  $sql = "SELECT id, name, scale, type FROM source WHERE id = " . (int)$_POST['editID'];
+
+  $srcRet = mysqli_query($mysqli, $sql);
+
+  if(!$srcRet) {
+    if ($debug_mode) echo "<p>Error getting source" . mysqli_error($mysqli) . "\n</p>\n";
+  }
+
+  $srcInfo = mysqli_fetch_array($srcRet);
+
+  if($srcInfo["type"] != $_POST["srcType"]) {
+    $sql = "DELETE FROM cps WHERE source =" . $srcInfo['id'];
+    
+    if(!mysqli_query($mysqli, $sql)) {
+      if ($debug_mode) echo "<p>Error deleting CPSes" . mysqli_error($mysqli) . "\n</p>\n";
+    }
+  }
+
+  // Third, update the name, type, scale
+  $stmt = $mysqli->prepare("UPDATE source SET name = ?, scale = ?, type = ? WHERE id = ?");
+
+  $stmt-> bind_param("sdsi", $nameStr, $scaleInt, $typeStr, $srcID);
+
+  $nameStr = $_POST["name"];
+  $scaleInt = (float)$_POST["scale"];
+  $typeStr = $_POST["srcType"];
+  $srcID = $_POST["editID"];
+
+  if(!$stmt->execute() && $debug_mode) {
+    echo "Execute failed: (" . $stmt->errno . ") " . $stmt->error;
   }
 
 
-    
+  // Third, check and update our channel maps
+  // Get all CPSes associated with this source
+  $sql = "SELECT id, scale, channel, profile, source FROM cps WHERE source = " . $srcInfo['id']
+     . " ORDER BY channel, profile";
+
+  $selCPS = mysqli_query($mysqli, $sql);
+
+  if(!$selCPS) {
+    if ($debug_mode) echo "<p>Error getting CPSes" . mysqli_error($mysqli) . "\n</p>\n";
+  }
+
+  $CPSRow = mysqli_fetch_array($selCPS);
+
+  $desiredChan = array();
+  $i = 0;
+
+  // Now, check on our mapping.  Account for new checks and new check removals.
+  while ($i<(int)$_POST["numchan"]) {
+    if(isset($_POST["ch$i"])) {
+      // We do want to use this channel.
+      $desiredChan[] = $_POST["ch$i"];
+      
+      while (($CPSRow["channel"] < (int)$_POST["ch$i"]) && $CPSRow) {
+        // This is a CPS to delete.
+        $sql = "DELETE FROM cps WHERE id = " . $CPSRow['id'];
+
+        if(!mysqli_query($mysqli, $sql)) {
+          if ($debug_mode) echo "<p>Error deleting CPSes" . mysqli_error($mysqli) . "\n</p>\n";
+        }
+        $CPSRow = mysqli_fetch_array($selCPS);
+      }
+
+      // We are past any preceeding non-matches - See if we need to add a CPS.
+      if (($CPSRow["channel"] > $_POST["ch$i"]) || !$CPSRow) {
+        // Add a CPS
+        $sql = "INSERT INTO cps (scale, channel, source) VALUES (1, " . (int)$_POST["ch$i"]
+          . ", " . $srcInfo['id'] . ")";
+
+        if(!mysqli_query($mysqli, $sql)) {
+          if ($debug_mode) echo "<p>Error deleting CPSes" . mysqli_error($mysqli) . "\n</p>\n";
+        }
+      }
+
+      // Skip through any CPSes the match
+      while (($CPSRow["channel"] == (int)$_POST["ch$i"]) && $CPSRow) {
+        $CPSRow = mysqli_fetch_array($selCPS);
+      }
+    }
+
+    //Clean up any trailing CPSes that need to be deleted
+    while ($CPSRow) {
+      // This is a CPS to delete.
+      $sql = "DELETE FROM cps WHERE id = " . $CPSRow['id'];
+
+      if(!mysqli_query($mysqli, $sql)) {
+        if ($debug_mode) echo "<p>Error deleting CPSes" . mysqli_error($mysqli) . "\n</p>\n";
+      }
+      $CPSRow = mysqli_fetch_array($selCPS);
+    }
+
+    $i++;
+
+  }
+  //TODO
+
 
   // Note: return is handled as a query string with checking, so don't return unchecked things from the wild
-  return "edit=CreatedNum";
+  return "edit=" . urlencode($_POST['editID']);
 }
 
