@@ -160,10 +160,13 @@ function srcConfigForm($mysqli, $debug_mode)
       //TODO
       echo "Overall plot goes here";
       echo "</td>\n";
+      echo "<td>\n=\n</td>\n";
 
       foreach($assocProf as $profID) {
         // TODO
         echo "<td>\nPlot for profile goes here\n</td>\n";
+        
+        if($profID != end($assocProf)) echo "<td>\n*\n</td>\n";
       }
 
       echo "</tr>\n";
@@ -247,13 +250,15 @@ function srcConfigForm($mysqli, $debug_mode)
 
       echo "<input type='submit' name='profAdd' value='Add' />\n";
       echo "<input type='hidden' name='numchan' value='" . $j . "'>\n";
-      echo "</td>\n";
+      echo "</td>\n<td>\n</td>\n";
 
       foreach ($assocProf as $profID) {
         //TODO parse through each associated profile
         echo "<td>\n";
         echo "$profID\n";
         echo "</td>\n";
+
+        if($profID != end($assocProf)) echo "<td>\n</td>\n";
       }
 
       echo "</tr>\n"; 
