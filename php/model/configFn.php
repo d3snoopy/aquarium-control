@@ -102,7 +102,7 @@ function srcConfigForm($mysqli, $debug_mode)
   $knownFn = mysqli_query($mysqli, "SELECT id,name FROM function");
   $knownPts = mysqli_query($mysqli, "SELECT id,value,timeAdj,timeType,timeSE,function FROM point ORDER BY function, timeSE, timeAdj");
   $knownReact = mysqli_query($mysqli, "SELECT id, action, scale, channel, react FROM reaction");
-  $knownChan = mysqli_query($mysqli, "SELECT id, name, type, variable, active, max, min, color, units FROM channel");
+  $knownChan = mysqli_query($mysqli, "SELECT id, name, type, variable, active, max, min, color, units FROM channel WHERE input=0");
   $knownProf = mysqli_query($mysqli, "SELECT id, name, start, end, refresh, scale, reaction, function FROM profile");
   $knownCPS = mysqli_query($mysqli, "SELECT id, scale, channel, profile, source FROM cps ORDER BY source, channel, profile");
   $knownSched = mysqli_query($mysqli, "SELECT id, name, type, profile FROM scheduler");
@@ -132,15 +132,14 @@ function srcConfigForm($mysqli, $debug_mode)
       $CPSRow = mysqli_fetch_assoc($knownCPS);
     }
 
-    if(!$CPSRow) {
-      //No CPS matches
-      echo "<tr>\n<td>\nNo channels associated with this source\n</td>\n</tr>\n";
-    }
+    //Build list of profiles associated with this source.
+    $assocProf = array();
+    $CPSfound = false;
 
     //We're up to the CPSes for this source.
     while ($CPSRow["source"] == $srcRow["id"]) {
-      echo "<tr>\n<td>\nChannels found for this source, do stuff here\n</td>\n</tr>\n";
-      //TODO Add an overall plot for this source.
+      $CPSfound = true;
+      if($CPSRow["profile"]) $assocProf[] = $CPSRow["profile"]; //If it's Null, it isn't added.
 
       //TODO Do stuff with the data
       //First, make an overall plot
@@ -150,8 +149,28 @@ function srcConfigForm($mysqli, $debug_mode)
       $CPSRow = mysqli_fetch_assoc($knownCPS);
     }
 
+    $assocProf = array_unique($assocProf);
+
+
+    if(!$CPSfound) {
+      echo "<tr>\n<td>\nNothing associated with this source yet, edit it to add associations\n</td>\n</tr>\n";
+    } else {
+      // We found associations, do stuff!
+      echo "<tr>\n<td>\n";
+      //TODO
+      echo "Overall plot goes here";
+      echo "</td>\n";
+
+      foreach($assocProf as $profID) {
+        // TODO
+        echo "<td>\nPlot for profile goes here\n</td>\n";
+      }
+
+      echo "</tr>\n";
+    }
+      
+
     mysqli_data_seek($knownCPS, 0);
-    //TODO reset our counters as necessary
 
     if(isset($_GET['edit']) && $_GET['edit'] == $srcRow["id"]) {
       //Give all of the controls
@@ -215,10 +234,27 @@ function srcConfigForm($mysqli, $debug_mode)
         echo($chanName . "\n<br>\n");
         $j++;
       }
+      echo "Add profile: \n";
+      echo "<select name='profSel'>\n";
+      echo "<option value='New'>New</option>\n";
+
+
+      foreach ($knownProf as $prof) {
+        if(!in_array($prof['id'],$assocProf)) { 
+          echo "<option value='" . $prof['id'] . "'>" . $prof['name'] . "</option>\n";
+        }
+      }
+
+      echo "<input type='submit' name='profAdd' value='Add' />\n";
       echo "<input type='hidden' name='numchan' value='" . $j . "'>\n";
       echo "</td>\n";
 
-      //TODO parse through each associated profile
+      foreach ($assocProf as $profID) {
+        //TODO parse through each associated profile
+        echo "<td>\n";
+        echo "$profID\n";
+        echo "</td>\n";
+      }
 
       echo "</tr>\n"; 
       echo "</table>\n";
@@ -333,7 +369,7 @@ function configRtn($mysqli, $postRet)
     return($_SERVER["QUERY_STRING"]);
   }
 
-  // First test for the "new" buttons
+  // First test for the "new" button
   if(isset($_POST['new'])) {
     // The only thing that we explicitly create new items of is sources
     $sql = "INSERT INTO source (name, scale, type) VALUES ('new', 1, 'new')";
@@ -342,6 +378,39 @@ function configRtn($mysqli, $postRet)
       if ($debug_mode) echo "<p>Error adding new source" . mysqli_error($mysqli) . "\n</p>\n";
     }
     return("edit=" . mysqli_insert_id($mysqli)); //We can return because all we're doing is creating a new src.
+  }
+
+  // Next, test for the "Add a profile" button
+  if(isset($_POST['profAdd'])) {
+    // Test to see if "New" was selected.
+    if($_POST["profSel"] == "New") {
+      //Create a new profile
+      $now = time();
+      $sql = "INSERT INTO profile (name, start, end, refresh, scale) VALUES ('new', FROM_UNIXTIME($now),
+        FROM_UNIXTIME($now+3600), 3600, 1)";
+
+      if(!mysqli_query($mysqli, $sql)) {
+        if ($debug_mode) echo "<p>Error adding new profile " . mysqli_error($mysqli) . "\n</p>\n";
+      }
+
+      $sql = "INSERT INTO cps (scale, profile, source) VALUES (1, " . mysqli_insert_id($mysqli)
+        . ", " . (int)$_POST['editID'] . ")";
+
+      if(!mysqli_query($mysqli, $sql)) {
+        if ($debug_mode) echo "<p>Error adding CPS " . mysqli_error($mysqli) . "\n</p>\n";
+      }
+
+    } else {
+      //Associate existing profile with this source.
+      $sql = "INSERT INTO cps (scale, profile, source) VALUES (1, " . (int)$_POST['profSel']
+        . ", " . (int)$_POST['editID'] . ")";
+
+      if(!mysqli_query($mysqli, $sql)) {
+        if ($debug_mode) echo "<p>Error adding CPS" . mysqli_error($mysqli) . "\n</p>\n";
+      }
+
+    }
+    //Also allow other updates, so don't return here.
   }
 
   // Second, test for a change in type; if so, clear all CPS associated with this source
@@ -378,7 +447,7 @@ function configRtn($mysqli, $postRet)
   }
 
 
-  // Third, check and update our channel maps
+  // Fourth, check and update our channel maps
   // Get all CPSes associated with this source
   $sql = "SELECT id, scale, channel, profile, source FROM cps WHERE source = " . $srcInfo['id']
      . " ORDER BY channel, profile";
@@ -390,57 +459,43 @@ function configRtn($mysqli, $postRet)
   }
 
   $CPSRow = mysqli_fetch_array($selCPS);
-
-  $desiredChan = array();
-  $i = 0;
+  $foundChans = array();
 
   // Now, check on our mapping.  Account for new checks and new check removals.
-  while ($i<(int)$_POST["numchan"]) {
-    if(isset($_POST["ch$i"])) {
-      // We do want to use this channel.
-      $desiredChan[] = $_POST["ch$i"];
-      
-      while (($CPSRow["channel"] < (int)$_POST["ch$i"]) && $CPSRow) {
-        // This is a CPS to delete.
-        $sql = "DELETE FROM cps WHERE id = " . $CPSRow['id'];
-
-        if(!mysqli_query($mysqli, $sql)) {
-          if ($debug_mode) echo "<p>Error deleting CPSes" . mysqli_error($mysqli) . "\n</p>\n";
-        }
-        $CPSRow = mysqli_fetch_array($selCPS);
-      }
-
-      // We are past any preceeding non-matches - See if we need to add a CPS.
-      if (($CPSRow["channel"] > $_POST["ch$i"]) || !$CPSRow) {
-        // Add a CPS
-        $sql = "INSERT INTO cps (scale, channel, source) VALUES (1, " . (int)$_POST["ch$i"]
-          . ", " . $srcInfo['id'] . ")";
-
-        if(!mysqli_query($mysqli, $sql)) {
-          if ($debug_mode) echo "<p>Error deleting CPSes" . mysqli_error($mysqli) . "\n</p>\n";
-        }
-      }
-
-      // Skip through any CPSes the match
-      while (($CPSRow["channel"] == (int)$_POST["ch$i"]) && $CPSRow) {
-        $CPSRow = mysqli_fetch_array($selCPS);
+  while ($CPSRow) {
+    $chanSet = false;
+    for($i=0; $i<(int)$_POST['numchan']; $i++) {
+      //Test if the channel associated with the CPS is selected
+      if(isset($_POST["ch$i"]) && ($_POST["ch$i"] == $CPSRow['channel'])) {
+        $chanSet = true;
+        $foundChans[] = $CPSRow['channel'];
       }
     }
 
-    //Clean up any trailing CPSes that need to be deleted
-    while ($CPSRow) {
-      // This is a CPS to delete.
+    //If we didn't catch that the channel is set, and it's associated with a channel, delete.
+    if(!is_null($CPSRow["channel"]) && !$chanSet) {
       $sql = "DELETE FROM cps WHERE id = " . $CPSRow['id'];
 
       if(!mysqli_query($mysqli, $sql)) {
-        if ($debug_mode) echo "<p>Error deleting CPSes" . mysqli_error($mysqli) . "\n</p>\n";
+        if ($debug_mode) echo "<p>Error deleting CPS" . mysqli_error($mysqli) . "\n</p>\n";
       }
-      $CPSRow = mysqli_fetch_array($selCPS);
     }
-
-    $i++;
-
+  $CPSRow = mysqli_fetch_array($selCPS);
   }
+
+  //Add missing channel associations
+  for($i=0; $i<(int)$_POST['numchan']; $i++) {
+    if(isset($_POST["ch$i"]) && !in_array($_POST["ch$i"],$foundChans)) {
+      //Need to add a CPS for this channel.
+      $sql = "INSERT INTO cps (scale, channel, source) VALUES (1, " . (int)$_POST["ch$i"]
+        . ", " . $srcInfo['id'] . ")";
+
+      if(!mysqli_query($mysqli, $sql)) {
+        if ($debug_mode) echo "<p>Error adding CPS" . mysqli_error($mysqli) . "\n</p>\n";
+      }
+    }
+  }
+
   //TODO
 
 
