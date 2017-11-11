@@ -120,7 +120,17 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
 
   }
 
-  header("Location: quickstart.php?" . $procRtn);
+  $newLoc = false;
+  $newEdit = false;
+  $newMode = false;
+  $otherOpts = false;
+
+  if(isset($procRtn['loc'])) $newLoc = $procRtn['loc'];
+  if(isset($procRtn['edit'])) $newEdit = $procRtn['edit'];
+  if(isset($procRtn['mode'])) $newMode = $procRtn['mode'];
+  if(isset($procRtn['other'])) $otherOpts = $procRtn['other'];
+
+  \aqctrl\retGen($newLoc, $newEdit, $newMode, $otherOpts, true);
 
   mysqli_close($mysqli);
   return;
@@ -134,7 +144,8 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
   echo "<h1>Quickstart Step " . $stepNum . ": " . $stepTitle . "</h1>";
 
   //Show the form
-  echo '<form action="quickstart.php" method="post">';
+  $newUrl = \aqctrl\retGen();
+  echo "<form action='$newUrl' method='post'>";
   $stepForm($mysqli, $debug_mode);
 }
 

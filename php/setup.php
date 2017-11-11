@@ -44,8 +44,6 @@ if(!$mysqli) {
   return;
 }
 
-echo "<h1>Setup Connected Hardware</h1>\n";
-
 if ($_SERVER['REQUEST_METHOD'] == "POST") {
   //Test for a reset option
   if(isset($_POST['okay']) && isset($_POST['reset']) &&
@@ -59,13 +57,15 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
 
 
   //Do the form fcn
-  if(isset($_POST['save'])) \aqctrl\setupRtn($mysqli, $_POST);
+  if(isset($_POST['save'])) \aqctrl\setupRtn($mysqli, $debug_mode);
 
   header("Location: setup.php");
 
 } else {
   include 'header.php';
   //Show the form
+
+  echo "<h1>Setup Connected Hardware</h1>\n";
   echo "<form action='setup.php' method='post'>\n";
   \aqctrl\setupForm($mysqli, $debug_mode);
 

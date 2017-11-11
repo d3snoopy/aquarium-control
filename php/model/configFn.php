@@ -29,6 +29,9 @@ configForm - function to generate the form to fill out
 
 configRtn - function to handle the return a POST of SetupForm
 
+
+TODO: rework using foreach loops rather than manually fetching/processing.
+
 */
 
 namespace aqctrl;
@@ -48,10 +51,8 @@ function configForm($mysqli, $debug_mode)
 
   // Determine how to organize the data
   // Organize either by source, channel, or profile
-  if ($_GET["mode"] == "channel") {
+  if (isset($_GET["mode"]) && ($_GET["mode"] == "channel")) {
     \aqctrl\chanConfigForm($mysqli, $debug_mode);
-  } elseif ($_GET["mode"] == "profile") {
-    \aqctrl\profConfigForm($mysqli, $debug_mode);
   } else {
     \aqctrl\srcConfigForm($mysqli, $debug_mode);
   }
@@ -67,19 +68,14 @@ function srcConfigForm($mysqli, $debug_mode)
 {
   //Paint the page organizing by source
   echo "<h3>\nSort By:\n";
-  echo "<table width='100%'>\n";
+  echo "<table>\n";
   echo "<tr>\n";
   echo "<td align='center'>\n";
   echo "Source\n";
   echo "</td>\n";
   echo "<td align='center'>\n";
-  echo "<a href='" . $_SERVER["SCRIPT_NAME"] . "?mode=channel'>\n";
+  echo "<a href='" . \aqctrl\retGen(false, -1, 'channel', false, false) . "'>\n";
   echo "Channel\n";
-  echo "</a>\n";
-  echo "</td>\n";
-  echo "<td align='center'>\n";
-  echo "<a href='" . $_SERVER["SCRIPT_NAME"] . "?mode=profile'>\n";
-  echo "Profile\n";
   echo "</a>\n";
   echo "</td>\n";
   echo "</tr>\n";
@@ -103,9 +99,8 @@ function srcConfigForm($mysqli, $debug_mode)
   $knownPts = mysqli_query($mysqli, "SELECT id,value,timeAdj,timeType,timeSE,function FROM point ORDER BY function, timeSE, timeAdj");
   $knownReact = mysqli_query($mysqli, "SELECT id, action, scale, channel, react FROM reaction");
   $knownChan = mysqli_query($mysqli, "SELECT id, name, type, variable, active, max, min, color, units FROM channel WHERE input=0");
-  $knownProf = mysqli_query($mysqli, "SELECT id, name, start, end, refresh, scale, reaction, function FROM profile");
+  $knownProf = mysqli_query($mysqli, "SELECT id, name FROM profile");
   $knownCPS = mysqli_query($mysqli, "SELECT id, scale, channel, profile, source FROM cps ORDER BY source, channel, profile");
-  $knownSched = mysqli_query($mysqli, "SELECT id, name, type, profile FROM scheduler");
 
   // Warn if we don't know about any channels
   if(!mysqli_num_rows($knownChan)) echo "<h3>Warning: no channels found.</h3>\n
@@ -113,7 +108,7 @@ function srcConfigForm($mysqli, $debug_mode)
     <p>You won't be able to properly configure sources until the hardware hosts connect and inform the system about their channels. Click <a href=./setup.php>here</a> to go to the setup page.</p>\n";
 
   // Cycle through all of our sources
-  echo "<table width='100%' >\n";
+  echo "<table>\n";
 
   for($i=0; $i < $numSrc; $i++) {
     mysqli_data_seek($knownCPS, 0);
@@ -197,6 +192,7 @@ function srcConfigForm($mysqli, $debug_mode)
 
       $knownTypes = array_unique($knownTypes);
 
+      echo "Source Info\n<br>\n";
       echo "Name: \n";
       echo "<input type='text' name='name' value='" . $srcRow["name"] . "'>\n<br>\n";
 
@@ -250,12 +246,37 @@ function srcConfigForm($mysqli, $debug_mode)
 
       echo "<input type='submit' name='profAdd' value='Add' />\n";
       echo "<input type='hidden' name='numchan' value='" . $j . "'>\n";
+      echo "<br>";
+      echo "<input type='submit' name='delSrc' value='Delete Source' />\n";
       echo "</td>\n<td>\n</td>\n";
 
-      foreach ($assocProf as $profID) {
-        //TODO parse through each associated profile
+      $j = 0;
+
+      foreach ($assocProf as $profNum => $profID) {
         echo "<td>\n";
-        echo "$profID\n";
+        echo "Channels:\n<br>\n";
+        
+        foreach ($knownCPS as $CPSRow) {
+          if(($CPSRow['source'] == $srcRow['id']) && ($CPSRow['profile'] == $profID) && ($CPSRow['channel'])) {
+            //This is a profile to list here.
+            //Get the channel name for this CPS.
+            foreach ($knownChan as $chan) {
+              if($CPSRow['channel'] == $chan['id']) {
+                echo $chan['name'] . " scale: \n";
+                break;
+              }
+            }
+
+            echo "<input type='number' name='scale$j' value='" . $CPSRow['scale'] . "' step='any'>\n<br>\n";
+            echo "<input type='hidden' name='ID$j' value='" . $CPSRow['id'] . "'>\n";
+            $j++;
+          }
+        }
+
+        echo "<a href='" . \aqctrl\retGen('profile.php', $profID, 'single', false, false)
+          . "'>Edit Profile</a>\n<br>\n";
+        echo "<input type='submit' name='delProf$profNum' value='Remove Profile from Source' />\n";
+        echo "<input type='hidden' name='prof$profNum' value='$profID'>\n";
         echo "</td>\n";
 
         if($profID != end($assocProf)) echo "<td>\n</td>\n";
@@ -269,7 +290,7 @@ function srcConfigForm($mysqli, $debug_mode)
       //Show an edit link
       echo "</table>\n";
       echo "<p class='alignright'>\n";
-      echo "<a href='" . $_SERVER["SCRIPT_NAME"] . "?mode=source&edit=" . $srcRow["id"] . "'>";
+      echo "<a href='" . \aqctrl\retGen(false, $srcRow["id"], false, false, false) . "'>";
       echo "edit</a>\n";
     }
 
@@ -286,95 +307,40 @@ function srcConfigForm($mysqli, $debug_mode)
 
 function chanConfigForm($mysqli, $debug_mode)
 {
-  //Paint the page organizing by source
+  //Paint the page organizing by channel
   echo "<h3>\nSort By:\n";
-  echo "<table width='100%'>\n";
+  echo "<table>\n";
   echo "<tr>\n";
   echo "<td align='center'>\n";
-  echo "<a href='" . $_SERVER["SCRIPT_NAME"] . "?mode=source'>\n";
+  echo "<a href='" . \aqctrl\retGen(false, -1, 'source', false, false) . "'>\n";
   echo "Source\n";
   echo "</a>\n";
   echo "</td>\n";
   echo "<td align='center'>\n";
   echo "Channel\n";
   echo "</td>\n";
-  echo "<td align='center'>\n";
-  echo "<a href='" . $_SERVER["SCRIPT_NAME"] . "?mode=profile'>\n";
-  echo "Profile\n";
-  echo "</a>\n";
-  echo "</td align='center'>\n";
   echo "</tr>\n";
   echo "</table>\n";
   echo "</h3>\n";
-
-
-  // Grab our existing data
-  $knownFn = mysqli_query($mysqli, "SELECT id,name FROM function");
-  $knownPts = mysqli_query($mysqli, "SELECT id,value,timeAdj,timeType,timeSE,function FROM point ORDER BY function, timeSE, timeAdj");
-  $knownSrc = mysqli_query($mysqli, "SELECT id, name, scale FROM source");
-  $knownReact = mysqli_query($mysqli, "SELECT id, action, scale, channel, react FROM reaction");
-  $knownChan = mysqli_query($mysqli, "SELECT id, name, type, variable, active, max, min, color, units FROM channel");
-  $knownProf = mysqli_query($mysqli, "SELECT id, name, start, end, refresh, scale, reaction, function FROM profile");
-  $knownCPS = mysqli_query($mysqli, "SELECT id, scale, channel, profile, source FROM cps");
-  $knownSched = mysqli_query($mysqli, "SELECT id, name, type, profile FROM scheduler");
 
   //TODO
 
 }
 
 
-function profConfigForm($mysqli, $debug_mode)
+
+function configRtn($mysqli, $debug_mode)
 {
-  //Paint the page organizing by source
-  echo "<h3>\nSort By:\n";
-  echo "<table width='100%'>\n";
-  echo "<tr>\n";
-  echo "<td align='center'>\n";
-  echo "<a href='" . $_SERVER["SCRIPT_NAME"] . "?mode=source'>\n";
-  echo "Source\n";
-  echo "</a>\n";
-  echo "</td>\n";
-  echo "<td align='center'>\n";
-  echo "<a href='" . $_SERVER["SCRIPT_NAME"] . "?mode=channel'>\n";
-  echo "Channel\n";
-  echo "</a>\n";
-  echo "</td>\n";
-  echo "<td align='center'>\n";
-  echo "Profile\n";
-  echo "</td>\n";
-  echo "</tr>\n";
-  echo "</table>\n";
-  echo "</h3>\n";
-
-
-  // Grab our existing data
-  $knownFn = mysqli_query($mysqli, "SELECT id,name FROM function");
-  $knownPts = mysqli_query($mysqli, "SELECT id,value,timeAdj,timeType,timeSE,function FROM point ORDER BY function, timeSE, timeAdj");
-  $knownSrc = mysqli_query($mysqli, "SELECT id, name, scale FROM source");
-  $knownReact = mysqli_query($mysqli, "SELECT id, action, scale, channel, react FROM reaction");
-  $knownChan = mysqli_query($mysqli, "SELECT id, name, type, variable, active, max, min, color, units FROM channel");
-  $knownProf = mysqli_query($mysqli, "SELECT id, name, start, end, refresh, scale, reaction, function FROM profile");
-  $knownCPS = mysqli_query($mysqli, "SELECT id, scale, channel, profile, source FROM cps");
-  $knownSched = mysqli_query($mysqli, "SELECT id, name, type, profile FROM scheduler");
-
-  //TODO
-
-}
-
-
-function configRtn($mysqli, $postRet)
-{
-  global $debug_mode;
   // Handle our form
 
   // Check the token
   if(!\aqctrl\token_check($mysqli, $debug_mode)) {
     //We don't have a good token
     if ($debug_mode) echo "<p>Error: token not accepted</p>\n";
-    return($_SERVER["QUERY_STRING"]);
+    return;
   }
 
-  // First test for the "new" button
+  // First test for the "New Source" button
   if(isset($_POST['new'])) {
     // The only thing that we explicitly create new items of is sources
     $sql = "INSERT INTO source (name, scale, type) VALUES ('new', 1, 'new')";
@@ -382,11 +348,39 @@ function configRtn($mysqli, $postRet)
     if(!mysqli_query($mysqli, $sql)) {
       if ($debug_mode) echo "<p>Error adding new source" . mysqli_error($mysqli) . "\n</p>\n";
     }
-    return("edit=" . mysqli_insert_id($mysqli)); //We can return because all we're doing is creating a new src.
+    return(['edit' => mysqli_insert_id($mysqli)]); //We can return because all we're doing is creating a new src.
+  }
+
+  // Next, test for the "Delete Source" button
+  if(isset($_POST["delSrc"])) {
+    $sql = "DELETE FROM source WHERE id = " . (int)$_POST['editID'];
+
+    if(!mysqli_query($mysqli, $sql)) {
+      if ($debug_mode) echo "<p>Error deleting source" . mysqli_error($mysqli) . "\n</p>\n";
+    }
+    return; //We can return
+  }
+
+  // Next, test for the "Remove Profile from source" button
+  $i = 0;
+
+  while(isset($_POST["prof$i"])) {
+    if(isset($_POST["delProf$i"])) {
+      //We want to delete this profile association.
+      $sql = "DELETE FROM cps WHERE profile = " . (int)$_POST["prof$i"];
+
+      if(!mysqli_query($mysqli, $sql)) {
+        if ($debug_mode) echo "<p>Error deleting profile CPSes " . mysqli_error($mysqli) . "\n</p>\n";
+      }
+
+      return(['edit' => (int)$_POST['editID']]); //We can return
+    }
+    $i++;
   }
 
   // Next, test for the "Add a profile" button
   if(isset($_POST['profAdd'])) {
+    $retArgs = false;
     // Test to see if "New" was selected.
     if($_POST["profSel"] == "New") {
       //Create a new profile
@@ -398,16 +392,23 @@ function configRtn($mysqli, $postRet)
         if ($debug_mode) echo "<p>Error adding new profile " . mysqli_error($mysqli) . "\n</p>\n";
       }
 
-      $sql = "INSERT INTO cps (scale, profile, source) VALUES (1, " . mysqli_insert_id($mysqli)
+      $addID = mysqli_insert_id($mysqli);
+
+      $sql = "INSERT INTO cps (scale, profile, source) VALUES (1, " . $addID
         . ", " . (int)$_POST['editID'] . ")";
 
       if(!mysqli_query($mysqli, $sql)) {
         if ($debug_mode) echo "<p>Error adding CPS " . mysqli_error($mysqli) . "\n</p>\n";
       }
 
+      //Redirect to the page to edit our new profile.
+      $retArgs = ['loc' => 'profile.php', 'edit' => $addID, 'mode' => 'single'];
+
     } else {
       //Associate existing profile with this source.
-      $sql = "INSERT INTO cps (scale, profile, source) VALUES (1, " . (int)$_POST['profSel']
+      $addID = (int)$_POST['profSel'];
+
+      $sql = "INSERT INTO cps (scale, profile, source) VALUES (1, " . $addID
         . ", " . (int)$_POST['editID'] . ")";
 
       if(!mysqli_query($mysqli, $sql)) {
@@ -415,10 +416,38 @@ function configRtn($mysqli, $postRet)
       }
 
     }
-    //Also allow other updates, so don't return here.
+
+    //Add a CPS for each channel already associated.
+    $sql = "SELECT channel FROM cps WHERE source = " . (int)$_POST['editID'];
+
+    $selCPS = mysqli_query($mysqli, $sql);
+
+    if(!$selCPS) {
+      if ($debug_mode) echo "<p>Error getting CPSes" . mysqli_error($mysqli) . "\n</p>\n";
+    }
+
+    $assocChan = [];
+
+    foreach($selCPS as $thisCPS) {
+      $assocChan[] = $thisCPS['channel'];
+    }
+
+    $assocChan = array_unique($assocChan);
+
+    foreach($assocChan as $thisChan) {
+      $sql = "INSERT INTO cps (scale, profile, channel, source) VALUES (1, $addID, $thisChan, "
+        . (int)$_POST['editID'] . ")";
+
+      if(!mysqli_query($mysqli, $sql)) {
+        if ($debug_mode) echo "<p>Error adding CPS" . mysqli_error($mysqli) . "\n</p>\n";
+      }
+    }
+
+    //Only return here if we're creating a new Profile.
+    if($retArgs) return($retArgs);
   }
 
-  // Second, test for a change in type; if so, clear all CPS associated with this source
+  // Next, test for a change in type; if so, clear all CPS associated with this source
   $sql = "SELECT id, name, scale, type FROM source WHERE id = " . (int)$_POST['editID'];
 
   $srcRet = mysqli_query($mysqli, $sql);
@@ -437,7 +466,7 @@ function configRtn($mysqli, $postRet)
     }
   }
 
-  // Third, update the name, type, scale
+  // Next, update the name, type, scale
   $stmt = $mysqli->prepare("UPDATE source SET name = ?, scale = ?, type = ? WHERE id = ?");
 
   $stmt-> bind_param("sdsi", $nameStr, $scaleInt, $typeStr, $srcID);
@@ -452,7 +481,7 @@ function configRtn($mysqli, $postRet)
   }
 
 
-  // Fourth, check and update our channel maps
+  // Next, check and update our channel maps
   // Get all CPSes associated with this source
   $sql = "SELECT id, scale, channel, profile, source FROM cps WHERE source = " . $srcInfo['id']
      . " ORDER BY channel, profile";
@@ -488,23 +517,66 @@ function configRtn($mysqli, $postRet)
   $CPSRow = mysqli_fetch_array($selCPS);
   }
 
+  //Get profiles already associated.
+  $sql = "SELECT profile FROM cps WHERE source = " . (int)$_POST['editID'];
+
+  $selCPS = mysqli_query($mysqli, $sql);
+
+  if(!$selCPS) {
+    if ($debug_mode) echo "<p>Error getting CPSes" . mysqli_error($mysqli) . "\n</p>\n";
+  }
+
+  $assocProf = [];
+
+  foreach($selCPS as $thisCPS) {
+    $assocProf[] = $thisCPS['profile'];
+  }
+
+  $assocProf = array_unique($assocProf);
+
   //Add missing channel associations
   for($i=0; $i<(int)$_POST['numchan']; $i++) {
     if(isset($_POST["ch$i"]) && !in_array($_POST["ch$i"],$foundChans)) {
       //Need to add a CPS for this channel.
-      $sql = "INSERT INTO cps (scale, channel, source) VALUES (1, " . (int)$_POST["ch$i"]
+      $thisChan = (int)$_POST["ch$i"];
+
+      $sql = "INSERT INTO cps (scale, channel, source) VALUES (1, " . $thisChan
         . ", " . $srcInfo['id'] . ")";
 
       if(!mysqli_query($mysqli, $sql)) {
         if ($debug_mode) echo "<p>Error adding CPS" . mysqli_error($mysqli) . "\n</p>\n";
       }
+
+      foreach($assocProf as $thisProf) {
+        $sql = "INSERT INTO cps (scale, profile, channel, source) VALUES (1, $thisProf, $thisChan, "
+          . $srcInfo['id'] . ")";
+
+        if(!mysqli_query($mysqli, $sql)) {
+          if ($debug_mode) echo "<p>Error adding CPS " . mysqli_error($mysqli) . "\n</p>\n";
+        }
+      }
     }
   }
 
-  //TODO
+  //Update all of our CPS scales.
+  $i = 0;
 
+  $stmt = $mysqli->prepare("UPDATE cps SET scale = ? WHERE id = ?");
+
+  $stmt-> bind_param("di", $cpsScale, $cpsID);
+
+  while(isset($_POST["ID$i"])) {
+    $cpsScale = $_POST["scale$i"];
+    $cpsID = $_POST["ID$i"];
+
+    if(!$stmt->execute() && $debug_mode) {
+      echo "Execute failed: (" . $stmt->errno . ") " . $stmt->error;
+    }
+
+    $i++;
+  }
 
   // Note: return is handled as a query string with checking, so don't return unchecked things from the wild
-  return "edit=" . urlencode($_POST['editID']);
+  return(['edit' => (int)($_POST['editID'])]);
 }
 
