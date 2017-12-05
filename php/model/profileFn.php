@@ -55,11 +55,11 @@ function profileForm($mysqli, $debug_mode)
   }
 
   if(!mysqli_num_rows($knownProf)) {
-    echo "<p>No Profiles Configured or profile not found.</p>\n";
+    echo "<p>No profiles configured or profile not found.</p>\n";
     return;
   }
 
-  // If we got here, we do have at least one source
+  // If we got here, we do have at least one profile
   $knownSrc = mysqli_query($mysqli, "SELECT id, name FROM source");
   $knownFn = mysqli_query($mysqli, "SELECT id, name FROM function");
   $knownReact = mysqli_query($mysqli, "SELECT id, action, scale, channel, react FROM reaction");
@@ -73,7 +73,7 @@ function profileForm($mysqli, $debug_mode)
     echo "<tr>\n";
     echo "<td>\n";
     echo "<h3>" . $profRow["name"] . "</h3>\n";
-    echo "<table>\n";
+    //echo "<table>\n";
 
     //Build a list of sources associated with this profile, for reference.
     $assocSrc = array();
@@ -91,7 +91,7 @@ function profileForm($mysqli, $debug_mode)
 
     $srcNames = array_unique($srcNames);
 
-    echo "<tr>\n<td>\n";
+    //echo "<tr>\n<td>\n";
 
     if(isset($_GET['edit']) && $_GET['edit'] == $profRow['id']) {
       //Give all of the controls
@@ -139,6 +139,7 @@ function profileForm($mysqli, $debug_mode)
         echo "Function: \n";
         echo "<select name='function'>\n";
         $fnNew = 'selected';
+        $fnID = false;
 
         foreach ($knownFn as $fn) {
           if($profRow['function'] == $fn['id']) {
@@ -153,7 +154,15 @@ function profileForm($mysqli, $debug_mode)
         }
         //Print a "New" option
         echo "<option value='new' $fnNew>New</option>\n";
-        echo "</select>\n<br>\n";
+        echo "</select>\n";
+
+        //Edit link for the function.
+        if ($profRow['function']) {
+          echo "<a href='" . \aqctrl\retGen('function.php', $profRow['function'], 'single', false, false) . "'>";
+          echo "edit</a>\n";
+        }
+
+        echo "<br>\n";
       }
         
       echo "<input type='submit' name='delete' value='Delete Profile' />\n";
@@ -180,9 +189,9 @@ function profileForm($mysqli, $debug_mode)
       echo "$srcN\n<br>\n";
     }
 
-    echo "</td>\n";
-    echo "</tr>\n"; 
-    echo "</table>\n";
+    //echo "</td>\n";
+    //echo "</tr>\n"; 
+    //echo "</table>\n";
 
     if(isset($_GET['edit']) && $_GET['edit'] == $profRow["id"]) {
       echo "<p class='alignright'>\n";
@@ -225,7 +234,7 @@ function profileRtn($mysqli, $debug_mode)
     if(!mysqli_query($mysqli, $sql)) {
       if ($debug_mode) echo "<p>Error adding new profile" . mysqli_error($mysqli) . "\n</p>\n";
     }
-    return(['edit' => mysqli_insert_id($mysqli), 'mode' => 'single', 'loc' => 'profile.php']); //We can return
+    return(['edit' => mysqli_insert_id($mysqli), 'loc' => 'profile.php']); //We can return
   }
 
   // Next, test for the "Delete Source" button

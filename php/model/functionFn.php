@@ -34,11 +34,7 @@ functionInit - function to create some model functions on start
 
 namespace aqctrl;
 
-/* pChart library inclusions */
-include("chart/class/pData.class.php");
-include("chart/class/pDraw.class.php");
-include("chart/class/pImage.class.php");
-include("chart/class/pScatter.class.php");
+include("calcFn.php");
 
 
 function functionForm($mysqli, $debug_mode)
@@ -46,160 +42,152 @@ function functionForm($mysqli, $debug_mode)
   // Show the form
   echo "<h2>Functions</h2>\n";
 
-  // Iterate through each host found
-  $knownFn = mysqli_query($mysqli, "SELECT id,name FROM function");
-  $knownPts = mysqli_query($mysqli, "SELECT id,value,timeAdj,timeType,timeSE,function FROM point ORDER BY function, timeSE, timeAdj");
+  //Add some csrf/replay protection
+  echo \aqctrl\token_insert($mysqli, $debug_mode);
 
-  $numFn = mysqli_num_rows($knownFn);
-
-  if(!$numFn) {
-    echo "<p>No Functions Configured.</p>\n";
-        
+  // Grab our existing data
+  if(isset($_GET['mode']) && isset($_GET['edit']) && $_GET['mode'] == 'single') {
+    // We're editing and viewing a single entity
+    $editID = (int)$_GET['edit'];
+    $knownFn = mysqli_query($mysqli, "SELECT id, name FROM function WHERE id = $editID");
+    $knownPts = mysqli_query($mysqli, "SELECT id,value,timeAdj,timeType,timeSE,function FROM point WHERE
+      function = $editID ORDER BY timeSE, timeAdj");
   } else {
-    echo "<table>\n";
+    // Show a "new" button
+    echo "<p>\n<input type='submit' name='new' value='Create New Function'>\n</p>\n";
 
-    $ptsRow = mysqli_fetch_array($knownPts);
+    // Iterate through each function found
+    $knownFn = mysqli_query($mysqli, "SELECT id,name FROM function");
+    $knownPts = mysqli_query($mysqli, "SELECT id,value,timeAdj,timeType,timeSE,function FROM point
+      ORDER BY function, timeSE, timeAdj");
+    $knownProf = mysqli_query($mysqli, "SELECT id, name, function FROM profile");
+  }
 
-    for($i=0; $i < $numFn; $i++) {
-      $fnRow = mysqli_fetch_array($knownFn);
-      $timeAdjs = array();
-      $timeTypes = array();
-      $timeSEs = array();
-      $dataPts = array();
-      $ids = array();
-      
-      while ($ptsRow["function"] == $fnRow["id"]) {
-        $timeAdjs[] = $ptsRow["timeAdj"];
-        $timeTypes[] = $ptsRow["timeType"];
-        $timeSEs[] = $ptsRow["timeSE"];
-        $dataPts[] = $ptsRow["value"];
-        $ids[] = $ptsRow["id"];
-        
-        $ptsRow = mysqli_fetch_array($knownPts);
-      }
+  if(!mysqli_num_rows($knownFn)) {
+    echo "<p>No functions configured or function not found.</p>\n";
+    return;
+  }
 
-      $orgData = \aqctrl\functionCalc($dataPts, $timeAdjs, $timeTypes, $timeSEs, 0);
+  // If we got here, we do have at least one function
+  echo "<table>\n";
 
-      echo "<tr>\n";
-      echo "<td>\n";
+  foreach($knownFn as $fnRow) {
+    //Get our plot data.
+    $plotData = \aqctrl\functionCalc($knownPts, $fnRow["id"], 0.1);
 
-      if (count($ids)) {
+    echo "<tr>\n";
+    echo "<td>\n";
 
-        $myData = new \pData();
+    if (count($plotData["timePts"])) {
 
-        $myData->addPoints($orgData["timePts"], "Labels");
-        $myData->setAxisName(0,"Time");
-        $myData->setAxisXY(0,AXIS_X);
-        $myData->setAxisPosition(0,AXIS_POSITION_BOTTOM);
+      $plotData["label0"] = 'Value';
+      $plotData["title"] = $fnRow["name"];
+      $plotData["outName"] = "functionChart" . $fnRow["id"];
 
-        $myData->addPoints($orgData["dataPts"], "Data");
-        $myData->setSerieOnAxis("Data",1);
-        $myData->setAxisName(1,"Value");
-        $myData->setAxisXY(1,AXIS_Y);
-        $myData->setAxisPosition(1,AXIS_POSITION_LEFT);
+      \aqctrl\plotData($plotData);
 
-        $myData->setScatterSerie("Labels","Data",0);
-        $myData->setScatterSerieColor(0,array("R"=>102,"G"=>140,"B"=>255));
-
-        $myPicture = new \pImage(400,200,$myData);
-
-        $myPicture->Antialias = FALSE;
-
-        $myPicture->drawFilledRectangle(0,0,399,199,array("R"=>9,"G"=>9,"B"=>9));
-        /* Write the chart title */ 
-        $myPicture->drawText(10,30,$fnRow["name"],array("FontSize"=>20,"Align"=>TEXT_ALIGN_BOTTOMLEFT,"R"=>102,"G"=>140,"B"=>255,"FontName"=>"chart/fonts/Forgotte.ttf"));
-
-        /* Set the default font */
-        $myPicture->setFontProperties(array("R"=>102,"G"=>140,"B"=>255,"FontName"=>"chart/fonts/Forgotte.ttf","FontSize"=>12));
-
-        $myPicture->setGraphArea(40,40,390,150);
-
-        $myScatter = new \pScatter($myPicture, $myData);
-        $myScatter->drawScatterScale(array("AxisR"=>90,"AxisG"=>90,"AxisB"=>90));
-
-        $myPicture->Antialias = TRUE;
-
-        $myScatter->drawScatterLineChart();
-
-        $myPicture->Render("../static/functionChart.$i.png");
-
-        echo "<img src='../static/functionChart.$i.png'>\n";
-      } else {
-        echo "<h3>No points in function</h3>\n";
-      }
-
-      $numElements = count($timeTypes);
-
-      echo "</td>\n";
-      echo "<td>\n";
-      echo "<p>\nName: \n";
-      echo "<input type='text' name='name" . $i . "' value='" . 
-        $fnRow["name"] . "'>\n";
-      echo " Number of points: \n";
-      echo "<input type='number' name='numPts" . $i . "' value=" .
-        $numElements . ">\n";
-      echo "<br>\n";
-
-
-      for ($j=0; $j<$numElements; $j++) {
-        //Create a table line for each point.
-        echo "<br>\n";
-
-        //Make a hidden form to associate ids.
-        echo "<input type='hidden' name='id" . $i . "_" . $j . "' value=" .
-          $ids[$j] . ">\n";
-
-        if ($timeTypes[$j]) {
-          $biasSel = "";
-          $pctSel = "selected";
-          $tScale = 100;
-        } else {
-          $biasSel = "selected";
-          $pctSel = "";
-          $tScale = 1;
-        }
-
-        echo "<input type='number' name='timeAdj" . $i . "_" . $j . "' value=" .
-          $timeAdjs[$j]*$tScale . " step='any'>\n";
-        echo "<select name='timeType" . $i . "_" . $j . "'>\n";
-        echo "<option value='0' " . $biasSel . ">Sec.</option>\n";
-        echo "<option value='1' " . $pctSel . ">%</option>\n";
-        echo "</select>\n";
-        echo " from ";
-
-        echo "<select name='timeSE" . $i . "_" . $j . "'>\n";
-
-        if ($timeSEs[$j]) {
-          $startSel = "";
-          $endSel = "selected";
-        } else {
-          $startSel = "selected";
-          $endSel = "";
-        }
-
-        echo "<option value='0' " . $startSel . ">Start</option>\n";
-        echo "<option value='1' " . $endSel . ">End</option>\n";
-        echo "</select>\n";
-        echo "Value: ";
-        echo "<input type='number' name='val" . $i . "_" . $j . "' value=" .
-          $dataPts[$j] . " step='any'>\n";
-
-      }
-
-
-      echo "<br>\n<br>\n";
-      echo "<input type='submit' name='delete$i' value='Delete Function'>\n";
-      echo "<input type='hidden' name='delId$i' value=" . $fnRow["id"] . ">\n";
-      echo "</p>\n</td>\n</tr>\n";
+      echo "<img src='../static/functionChart" . $fnRow["id"] . ".png'>\n";
+    } else {
+      echo "<h3>No points in function</h3>\n";
     }
 
-  echo "</table>\n";
+    //Plot is done, proceed to the next table element.
+    echo "</td>\n";
+    echo "<td>\n";
 
-  echo "<p>\n<input type='submit' name='new' value='Create New Function'>\n</p>\n";
+    //If we're editing this one, show the form; otherwise, show the associated profiles.
+    if(isset($_GET["edit"]) && $_GET["edit"] == $fnRow["id"]) {
+      //We are editing this function
+      echo "<input type='hidden' name='editID' value=" . $fnRow["id"] . ">\n";
 
-  //Add some csrf/replay protection.
-  echo \aqctrl\token_insert($mysqli, $debug_mode);
+      //Count the number of points for this function.
+      $numElements = 0;
+
+      foreach($knownPts as $ptRow) {
+        if($ptRow["function"] == $fnRow["id"]) $numElements++;
+      }
+
+      echo "<p>\nName: \n";
+      echo "<input type='text' name='name' value='" . $fnRow["name"] . "'>\n";
+      echo " Number of points: \n";
+      echo "<input type='number' name='numPts' value=" . $numElements . ">\n";
+      echo "<br>\n";
+
+      $i = 0;
+
+      foreach($knownPts as $ptRow) {
+        if($ptRow["function"] == $fnRow["id"]) {
+          echo "<br>\n";
+          
+          //Make a hidden form to associate ids.
+          echo "<input type='hidden' name='id" . $i . "' value=" .
+            $ptRow["id"] . ">\n";
+
+          if ($ptRow["timeType"]) {
+            $biasSel = "";
+            $pctSel = "selected";
+            $tScale = 100;
+          } else {
+            $biasSel = "selected";
+            $pctSel = "";
+            $tScale = 1;
+          }
+
+          echo "<input type='number' name='timeAdj" . $i . "' value=" .
+            $ptRow["timeAdj"]*$tScale . " step='any'>\n";
+          echo "<select name='timeType" . $i . "'>\n";
+          echo "<option value='0' " . $biasSel . ">Sec.</option>\n";
+          echo "<option value='1' " . $pctSel . ">%</option>\n";
+          echo "</select>\n";
+          echo " from ";
+
+          echo "<select name='timeSE" . $i . "'>\n";
+
+          if ($ptRow["timeSE"]) {
+            $startSel = "";
+            $endSel = "selected";
+          } else {
+            $startSel = "selected";
+            $endSel = "";
+          }
+
+          echo "<option value='0' " . $startSel . ">Start</option>\n";
+          echo "<option value='1' " . $endSel . ">End</option>\n";
+          echo "</select>\n";
+          echo "Value: ";
+          echo "<input type='number' name='val" . $i . "' value=" .
+            $ptRow["value"] . " step='any'>\n";
+
+        }
+        $i++;
+      }
+
+      echo "<br>\n<br>\n";
+      echo "<input type='submit' name='delete' value='Delete Function'>\n";
+    } else {
+      //We want to list the associated profiles.
+      echo "<p>\nAssociated Profiles:\n<br>\n";
+
+      foreach($knownProf as $profRow) {
+        if ($profRow["function"] == $fnRow["id"]) echo $profRow['name'] . "\n<br>\n";
+      }
+    }
+    
+    echo "<p class='alignright'>\n";
+
+    if(isset($_GET["edit"]) && $_GET["edit"] == $fnRow["id"]) {
+      echo "<input type='submit' name='update' value='Update' />\n";
+    } else {
+      //Show an edit link
+      echo "<a href='" . \aqctrl\retGen(false, $fnRow["id"], false, false, false) . "'>";
+      echo "edit</a>\n";
+    }
+
+    echo "</td>\n";
+    echo "</tr>\n";
   }
+  
+  echo "</table>\n";
 }
 
 
@@ -222,22 +210,19 @@ function functionRtn($mysqli, $debug_mode)
     if(!mysqli_query($mysqli, $sql)) {
       if ($debug_mode) echo "<p>Error adding new function" . mysqli_error($mysqli) . "\n</p>\n";
     }
-    return; //We can return because all we're doing is creating a new function.
+    return(['edit' => mysqli_insert_id($mysqli), 'loc' => 'function.php']); //We can return.
   }
 
-  // Second, handle function deletion
-  for ($i=0; isset($_POST["name$i"]); $i++) {
-    if(isset($_POST["delete$i"])) {
-      //The user clicked delete for this function.
-      $delNum = (int)$_POST["delId$i"];
-      $sql = "DELETE FROM function WHERE id=" . $delNum;
+  // Next, handle function deletion
+  if(isset($_POST["delete"])) {
+    //The user clicked delete for this function.
+    $sql = "DELETE FROM function WHERE id=" . (int)$_POST["editID"];
 
-      if(!mysqli_query($mysqli, $sql)) {
-        if ($debug_mode) echo "<p>Error deleting function:" . mysqli_error($mysqli) . "</p>";
-      }
-
-      return;  //We can return because all we want to do is the deletion
+    if(!mysqli_query($mysqli, $sql)) {
+      if ($debug_mode) echo "<p>Error deleting function:" . mysqli_error($mysqli) . "</p>";
     }
+
+    return;  //We can return because all we want to do is the deletion
   }
 
   //Finally, go through everything else
@@ -256,66 +241,61 @@ function functionRtn($mysqli, $debug_mode)
     WHERE id=?");
   $stmt2->bind_param("ddiii", $ptVal, $ptAdj, $ptType, $ptSE, $ptID);
 
-  for ($i=0; isset($_POST["name$i"]); $i++) {
-    
-    //Update the function name.
-    $fnName = $_POST["name$i"];
-    $fnId = $_POST["delId$i"];
+  //Update the function name.
+  $fnName = $_POST["name"];
+  $fnId = $_POST["editID"];
       
-    $stmt1->execute();
+  $stmt1->execute();
 
-    //Go through this function's points.
-    for ($j=0; $j<$_POST["numPts$i"]; $j++) {
-      //Update this point - loop is driven by the count input, so handle extra/missing points.
+  //Go through this function's points.
+  $i = 0;
 
-      //Make sure the key exists in our given data.
-      if (isset($_POST["id$i" . "_$j"])) {
-        //Update this point.
-        $ptVal = $_POST["val$i" . "_$j"];
-        $ptType = (bool)$_POST["timeType$i" . "_$j"];
+  while(isset($_POST["id$i"])) {
+    //Test whether we need to delete or update this point.
+    if(($i+1)<(int)$_POST["numPts"]) {
+      //Update this point.
+      $ptVal = $_POST["val$i"];
+      $ptType = (bool)$_POST["timeType$i"];
 
-        if ($ptType) {
-          $ptAdj = ((float)$_POST["timeAdj$i" . "_$j"])/100;
-        } else {
-          $ptAdj = $_POST["timeAdj$i" . "_$j"];
-        }
-
-        $ptSE = (bool)$_POST["timeSE$i" . "_$j"];
-        $ptID = $_POST["id$i" . "_$j"];
-
-        $stmt2->execute();
+      if ($ptType) {
+        $ptAdj = ((float)$_POST["timeAdj$i"])/100;
       } else {
-        //This point doesn't exist; we need to create some more points.
-        $sql = "INSERT INTO point (value, timeAdj, timeType, timeSE, function) VALUES ";
-
-        for ($k=$j; $k<$_POST["numPts$i"]; $k++) {
-          $sql .= "(0, 0, 0, 0, $fnId),";
-        }
-
-        //Strip the trailing comma
-        $sql = substr($sql, 0, -1);
-
-        //Do the query
-        if(!mysqli_query($mysqli, $sql)) {
-          if ($debug_mode) echo "Error adding points: " . mysqli_error($mysqli) . "<br>";
-        }
-
-        //break out of our inner loop
-        break;
+        $ptAdj = $_POST["timeAdj$i"];
       }
-    }
 
-    //Test to see if we have an excess of points and delete
-    while (isset($_POST["id$i" . "_$j"])) {
-      $sql = "DELETE FROM point WHERE id = " . (int)$_POST["id$i" . "_$j"];
+      $ptSE = (bool)$_POST["timeSE$i"];
+      $ptID = $_POST["id$i"];
+
+      $stmt2->execute();
+
+    } else {
+      //Delete this point.
+      $sql = "DELETE FROM point WHERE id = " . (int)$_POST["id$i"];
 
       //Do the query
       if(!mysqli_query($mysqli, $sql)) {
-        if ($debug_mode) echo "Error deleting points: " . mysqli_error($mysqli) . "<br>";
+        if ($debug_mode) echo "Error deleting point: " . mysqli_error($mysqli) . "<br>";
       }
+    }
 
-    $j++;
+    $i++;
+  }
 
+  //See if we need to create more points.
+  if((int)$_POST["numPts"] > $i) {
+    //Add a point.
+    $sql = "INSERT INTO point (value, timeAdj, timeType, timeSE, function) VALUES ";
+
+    for ($k=$i; $k<$_POST["numPts"]; $k++) {
+      $sql .= "(0, 0, 0, 0, $fnId),";
+    }
+
+    //Strip the trailing comma
+    $sql = substr($sql, 0, -1);
+
+    //Do the query
+    if(!mysqli_query($mysqli, $sql)) {
+      if ($debug_mode) echo "Error adding points: " . mysqli_error($mysqli) . "<br>";
     }
   }
 }
@@ -447,99 +427,5 @@ function functionInit($mysqli, $debug_mode)
 
 }
 
-// function to append the mQuery.
-function functionMQA($val, $time, $type, $SE, $fnNum)
-{
-  return "INSERT INTO point (value, timeAdj, timeType, timeSE, function)
-    VALUES (" . $val . ", " . $time . ", " . $type . ", "
-    . $SE . ", " . $fnNum . ");";
-}
 
 
-//Function to calculate values/times based on our dB data and start/end times for a function
-function functionCalc($dataPts, $timeAdjs, $timeTypes, $timeSEs, $startTime, $endTime = false)
-{
-  //See if we've been given an end time.
-  if (!$endTime) {
-    //We need to define the end time.  We want to make end-start 2x the length of the sum of the
-    //beginning and end portions, or 1 depending on if we have offset types.
-    $begMin = INF;
-    $begMax = -INF;
-    $endMin = INF;
-    $endMax = -INF;
-    $numElements = count($timeTypes);
-
-    for ($i=0; $i<$numElements; $i++) {
-      if (!$timeSEs[$i]) {
-        //Start Type - find the min and max bias values
-        if (!$timeTypes[$i] && ($timeAdjs[$i] < $begMin)) $begMin = $timeAdjs[$i];
-        if (!$timeTypes[$i] && ($timeAdjs[$i] > $begMax)) $begMax = $timeAdjs[$i];
-      } else {
-        //End Type - find the min and max bias values
-        if (!$timeTypes[$i] && ($timeAdjs[$i] < $endMin)) $endMin = $timeAdjs[$i];
-        if (!$timeTypes[$i] && ($timeAdjs[$i] > $endMax)) $endMax = $timeAdjs[$i];
-      }
-    }
-    //We have now found the min, max biases for both the beginning and end types.
-    //Calc our end time.
-
-    $begDelta = is_finite($begMax-$begMin) ? $begMax-$begMin : 0;
-    $endDelta = is_finite($endMax-$endMin) ? $endMax-$endMin : 0;
-
-    $endTime = max(1, 2*($begDelta + $endDelta)) + $startTime;
-  }
-
-  //We are now sure to have an end time.
-  $timeDelta = $endTime - $startTime;
-
-  $timesOut = array();
-
-  $maxStart = -INF;
-
-  //Calculate our time points.
-  //First loop does all of the start points.
-  for ($i=0; $i<$numElements; $i++) {
-    if (!$timeSEs[$i]) {
-      //Start Type
-      if ($timeTypes[$i]) {
-        //scale
-        $timesOut[] = $startTime + $timeDelta*$timeAdjs[$i];
-      } else {
-        //bias
-        $timesOut[] = $startTime + $timeAdjs[$i];
-      }
-
-      //Update maxStart
-      $maxStart = end($timesOut) > $maxStart ? end($timesOut) : $maxStart;
-    }
-  }
-
-  //Second loop does all of the end points.
-  for ($i=0; $i<$numElements; $i++) {
-    if ($timeSEs[$i]) {
-      //End Type - these we stage and drop if less than maxStart.
-      if ($timeTypes[$i]) {
-        //scale
-        $calcOut = $endTime + $timeDelta*$timeAdjs[$i];
-      } else {
-        //bias
-        $calcOut = $endTime + $timeAdjs[$i];
-      }
-
-      //Determine whether to keep this point.
-      if ($calcOut > $maxStart) {
-        $timesOut[] = $calcOut;
-      } else {
-        //pull this element out of our values array.
-        unset($dataPts[$i]);
-      }
-    }
-  }
-
-  //Finally, sort our points.
-  array_multisort($timesOut, $dataPts);
-
-  return array(
-    "timePts" => $timesOut,
-    "dataPts" => $dataPts);
-}

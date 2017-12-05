@@ -19,12 +19,12 @@ You should have received a copy of the GNU General Public License
 along with Aqctrl.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-// profile.php
+// function.php
 
 set_include_path("template:model");
 
 include 'model.php';
-include 'profileFn.php';
+include 'functionFn.php';
 
 // Connect to the db.
 $mysqli = \aqctrl\db_connect();
@@ -32,7 +32,7 @@ $mysqli = \aqctrl\db_connect();
 // Find out if we're in debug mode.
 $debug_mode = \aqctrl\debug_status();
 
-$title = "Profile Editing";
+$title = "Function Editing";
 
 // Do my content here
 if(!$mysqli) {
@@ -44,13 +44,13 @@ if(!$mysqli) {
   return;
 }
 
-echo "<h1>Profile Editing</h1>\n";
+echo "<h1>Function Editing</h1>\n";
 
 if ($_SERVER['REQUEST_METHOD'] == "POST") {
   //Do the form fcn
   if(isset($_POST['save'])) {
     // Do the return function
-    \aqctrl\profileRtn($mysqli, $debug_mode);
+    \aqctrl\functionRtn($mysqli, $debug_mode);
 
     // Redirect back up a level in our nesting
     \aqctrl\retParse(false);
@@ -64,7 +64,7 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
   }
 
   // Otherwise, one of the submits from the function has been invoked - process and stay here.
-  $procRtn = \aqctrl\profileRtn($mysqli, $debug_mode);
+  $procRtn = \aqctrl\functionRtn($mysqli, $debug_mode);
 
   $newLoc = false;
   $newEdit = false;
@@ -89,7 +89,7 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
   //Show the form
   $newUrl = \aqctrl\retGen();
   echo "<form action='$newUrl' method='post'>\n";
-  \aqctrl\profileForm($mysqli, $debug_mode);
+  \aqctrl\functionForm($mysqli, $debug_mode);
 
   mysqli_close($mysqli);
 
