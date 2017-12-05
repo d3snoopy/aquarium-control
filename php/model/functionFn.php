@@ -157,9 +157,8 @@ function functionForm($mysqli, $debug_mode)
           echo "Value: ";
           echo "<input type='number' name='val" . $i . "' value=" .
             $ptRow["value"] . " step='any'>\n";
-
+          $i++;
         }
-        $i++;
       }
 
       echo "<br>\n<br>\n";
@@ -252,7 +251,7 @@ function functionRtn($mysqli, $debug_mode)
 
   while(isset($_POST["id$i"])) {
     //Test whether we need to delete or update this point.
-    if(($i+1)<(int)$_POST["numPts"]) {
+    if($i<(int)$_POST["numPts"]) {
       //Update this point.
       $ptVal = $_POST["val$i"];
       $ptType = (bool)$_POST["timeType$i"];
