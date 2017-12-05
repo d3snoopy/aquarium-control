@@ -48,9 +48,39 @@ if(($_SERVER['REQUEST_METHOD'] == "POST" && isset($_POST['okay']) && isset($_POS
 // TODO: "saved" status.
 
 //Set the quickstart step number
-$res = mysqli_query($mysqli, "SELECT step FROM quickstart WHERE id = 1");
+$res = mysqli_query($mysqli, "SELECT step, numStep FROM quickstart WHERE id = 1");
+$QSrow = mysqli_fetch_assoc($res);
 
-$stepNum = mysqli_fetch_row($res)[0];
+$stepNum = $QSrow["step"];
+
+if($QSrow["step"] > $QSrow["numStep"]) {
+  if(($_SERVER['REQUEST_METHOD'] == "POST") && isset($_POST['resetQS'])) {
+    $sql = "UPDATE quickstart SET step = 1 WHERE id = 1";
+
+    if(!mysqli_query($mysqli, $sql)) {
+        if ($debug_mode) echo "<p>Error resetting quickstart count " . mysqli_error($mysqli) . "</p>";
+    }
+
+    \aqctrl\retParse();
+    return;
+  }
+  $title = "Quickstart Steps Done";
+
+  include 'header.php';
+
+  //We're past our quickstart count - provide links to either get out or decrement a number.
+  echo "<h1>Quickstart: Steps Done</h1>\n";
+  $newUrl = \aqctrl\retGen();
+  echo "<form action='$newUrl' method='post'>\n";
+  echo "<p class='alignleft'>\n";
+  echo "<input type='submit' name='resetQS' value='Reset Quickstart Count' />\n";
+  echo "</p>\n";
+  echo "<div style='clear: both;'></div>\n";
+  echo "<a href='index.php'>Go to the index</a>\n";
+
+  include 'footer.php';
+  return;
+}
 
 switch ($stepNum) {
 
@@ -61,12 +91,6 @@ switch ($stepNum) {
     $stepIncl = 'setupFn.php';
     break;
   case 2:
-    $stepTitle = "Edit Controlling Functions";
-    $stepForm = '\aqctrl\functionForm';
-    $stepRtn = '\aqctrl\functionRtn';
-    $stepIncl = 'functionFn.php';
-    break;
-  case 3:
     $stepTitle = "Configure Channel Control";
     $stepForm = '\aqctrl\configForm';
     $stepRtn = '\aqctrl\configRtn';
@@ -114,6 +138,7 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
         if ($debug_mode) echo "<p>Error adding quickstart count " . mysqli_error($mysqli) . "</p>";
       }
     }
+
   } else {
     //Default to sending this on to the rtnfunction without the quickstart change.
     $procRtn = $stepRtn($mysqli, $debug_mode);
@@ -154,17 +179,17 @@ mysqli_close($mysqli);
 // Build the save/continue/etc options.
 ?>
 
-<p class="alignleft">
-<input type="submit" name="back" value="Back, Discarding Changes" />
+<p class='alignleft'>
+<input type='submit' name='back' value='Back, Discarding Changes' />
 </p>
-<p class="alignright">
-<input type="submit" name="save" value="Save" />
-<input type="submit" name="nextCan" value="Continue, Discarding Changes" />
-<input type="submit" name="nextSave" value="Save and Continue" />
+<p class='alignright'>
+<input type='submit' name='save' value='Save' />
+<input type='submit' name='nextCan' value='Continue, Discarding Changes' />
+<input type='submit' name='nextSave' value='Save and Continue' />
 </p>
 </form>
 
-<div style="clear: both;"></div>
+<div style='clear: both;'></div>
         
 <?php
 include 'footer.php';

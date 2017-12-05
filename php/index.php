@@ -41,22 +41,17 @@ if(!$mysqli) {
 
 
 //Test to see if we made it through the quickstart
-// Number of quickstart steps plus one
-$numQuickstart = 4; //Make sure to update this appropriately
+$res = mysqli_query($mysqli, "SELECT step, numStep FROM quickstart WHERE id = 1");
 
-$res = mysqli_query($mysqli, "SELECT step FROM quickstart WHERE id = 1");
+$QSrow = mysqli_fetch_assoc($res);
 
-if(mysqli_fetch_row($res)[0] != $numQuickstart) {
+if($QSrow["step"] <= $QSrow["numStep"]) {
     mysqli_close($mysqli);
     header("Location: quickstart.php");
     return;
 }
 
-
-
-?>
-<p>
-<?php
+echo "<p>\n";
 
 for ($i = 1; $i <= 200; $i++) {
     echo "<br>$i";

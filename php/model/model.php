@@ -243,7 +243,8 @@ function db_create()
   //Quickstart Tracker
   $mQuery .= "CREATE TABLE quickstart (
     id INT(6) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-    step INT(1) UNSIGNED NOT NULL
+    step INT(1) UNSIGNED NOT NULL,
+    numStep INT(1) UNSIGNED NOT NULL
     );";
 
   //Token Tracker
@@ -264,8 +265,8 @@ function db_create()
 
 
   //Create a record for the quickstart and set it to 1
-  $sql = "INSERT INTO quickstart (id, step)
-    VALUES (1, 1)";
+  $sql = "INSERT INTO quickstart (id, step, numStep)
+    VALUES (1, 1, 2)";
 
   if(!mysqli_query($mysqli, $sql)) {
     if ($debug_mode) echo "Error initiating quickstart count " . mysqli_error($mysqli) . "<br>";
