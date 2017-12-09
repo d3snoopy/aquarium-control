@@ -146,7 +146,6 @@ function srcConfigForm($mysqli, $debug_mode)
 
     $assocProf = array_unique($assocProf);
 
-
     if(!$CPSfound) {
       echo "<tr>\n<td>\nNothing associated with this source yet, edit it to add associations\n</td>\n</tr>\n";
     } else {
@@ -385,8 +384,8 @@ function configRtn($mysqli, $debug_mode)
     if($_POST["profSel"] == "New") {
       //Create a new profile
       $now = time();
-      $sql = "INSERT INTO profile (name, start, end, refresh, scale) VALUES ('new', FROM_UNIXTIME($now),
-        FROM_UNIXTIME($now+3600), 3600, 1)";
+      $sql = "INSERT INTO profile (name, start, end, refresh) VALUES ('new', FROM_UNIXTIME($now),
+        FROM_UNIXTIME($now+3600), 3600)";
 
       if(!mysqli_query($mysqli, $sql)) {
         if ($debug_mode) echo "<p>Error adding new profile " . mysqli_error($mysqli) . "\n</p>\n";

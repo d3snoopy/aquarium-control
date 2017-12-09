@@ -85,12 +85,18 @@ if($QSrow["step"] > $QSrow["numStep"]) {
 switch ($stepNum) {
 
   case 1:
+    $stepTitle = "Introduction";
+    $stepForm = '\aqctrl\helpIntro';
+    $stepRtn = '\aqctrl\helpRt';
+    $stepIncl = 'help.php';
+    break;
+  case 2:
     $stepTitle = "Setup Connected Hardware";
     $stepForm = '\aqctrl\setupForm';
     $stepRtn = '\aqctrl\setupRtn';
     $stepIncl = 'setupFn.php';
     break;
-  case 2:
+  case 3:
     $stepTitle = "Configure Channel Control";
     $stepForm = '\aqctrl\configForm';
     $stepRtn = '\aqctrl\configRtn';

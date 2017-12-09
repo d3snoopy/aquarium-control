@@ -30,8 +30,6 @@ setupRtn - function to handle the return a POST of SetupForm
 
 */
 
-//TODO: Add in a list of channels for each host; allow the channels to be renamed (to avoid ambiguity)
-
 namespace aqctrl;
 
 
@@ -42,7 +40,10 @@ function setupForm($mysqli, $debug_mode)
   echo "<h2>Hardware Hosts</h2>\n";
 
   // Iterate through each host found
-  $knownHosts = mysqli_query($mysqli, "SELECT id,ident,name,auth,UNIX_TIMESTAMP(lastPing),inInterval,outInterval,pingInterval,status FROM host");
+  $knownHosts = mysqli_query($mysqli, "SELECT id,ident,name,auth,UNIX_TIMESTAMP(lastPing),inInterval,
+    outInterval,pingInterval,status FROM host");
+  $knownChan = mysqli_query($mysqli, "SELECT id,name,type,variable,active,input,hostChNum,max,min,color,
+    units,UNIX_TIMESTAMP(lastPing),host FROM channel ORDER BY host,hostChNum");
 
   $numHosts = mysqli_num_rows($knownHosts);
 
@@ -55,49 +56,153 @@ function setupForm($mysqli, $debug_mode)
     echo " and turn them on now then \n";
 
     echo "<a href=".">refresh</a>\n the page.\n</p>\n";
+
+    return;
         
-  } else {
-    ?>
+  }
+
+  ?>
+<table>
+<tr>
+<th>Name</th>
+<th>ID</th>
+<th>Last Ping</th>
+<th>Last Status</th>
+<th>Channels</th>
+</tr>
+    <?php
+
+  foreach($knownHosts as $hostRow) {
+    echo "<tr>\n";
+    echo "<td>" . $hostRow["name"] . "\n";
+    echo "<td>" . $hostRow["ident"] . "\n";
+    echo "<td>" . \aqctrl\time_elapsed_string($hostRow["UNIX_TIMESTAMP(lastPing)"], $hostRow["pingInterval"]) .
+        "</td>\n";
+    echo "<td>" . $hostRow["status"] . "</td>\n";
+    echo "<td>\n";
+
+    foreach($knownChan as $chan) {
+      if($chan["host"] == $hostRow["id"]) echo $chan["name"] . "\n<br>\n";
+    }
+
+    if(!(isset($_GET["edit"]) && $_GET["edit"] == $hostRow["id"])) {
+      echo "<p class='alignright'>\n";
+      echo "<a href='" . \aqctrl\retGen(false, $hostRow["id"], false, false, false) . "'>";
+      echo "edit</a>\n";
+    }
+
+    echo "</td>\n";
+    echo "</tr>\n";
+
+  }
+
+  echo "</table>\n";
+
+
+  foreach($knownHosts as $hostRow) {
+    if(isset($_GET["edit"]) && $_GET["edit"] == $hostRow["id"]) {
+
+      ?>
+
+<h3>Host Edit</h3>
 <table>
 <tr>
 <th>Name</th>
 <th>ID</th>
 <th>Key</th>
-<th>Last Ping</th>
-<th>Last Status</th>
 <th>Read Interval (sec)</th>
 <th>Write Interval (sec)</th>
 <th>Ping Interval (sec)</th>
 </tr>
-    <?php
+<tr>
+      <?php
 
-    for($i=0; $i < $numHosts; $i++) {
-      $row = mysqli_fetch_array($knownHosts);
-        
-      echo "<tr>\n";
-      echo "<td>" . $row["name"] . "</td>\n";
-      echo "<td>" . $row["ident"] . "</td>\n";
-      echo "<td><input type='text' name='auth" . $i . "' value='" . $row["auth"] . "'></td>\n";
-      echo "<td>" . time_elapsed_string($row["UNIX_TIMESTAMP(lastPing)"], $row["pingInterval"]) .
-        "</td>\n";
-      echo "<td>" . $row["status"] . "</td>\n";
-      echo "<td><input type='number' min='1' name='inInt" . $i . "' value='" . $row["inInterval"] . "'></td>\n";
-      echo "<td><input type='number' min='1' name='outInt" . $i . "' value='" . $row["outInterval"] . "'></td>\n";
-      echo "<td><input type='number' min='1' name='pingInt" . $i . "' value='" . $row["pingInterval"] . "'></td>\n";
-      echo "</tr>\n";
-      echo "<input type='hidden' name='Id$i' value=" . $row["id"] . ">\n";
+      //We are editing this host
+      echo "<input type='hidden' name='editID' value=" . $hostRow["id"] . ">\n";
+      echo "<td><input type='text' name='hostName' value='" . $hostRow["name"] . "'></td>\n";
+      echo "<td>" . $hostRow["ident"] . "</td>\n";
+      echo "<td><input type='text' name='hostAuth' value='" . $hostRow["auth"] . "'></td>\n";
+      echo "<td><input type='number' min='1' name='inInt' value='" . $hostRow["inInterval"] . "'></td>\n";
+      echo "<td><input type='number' min='1' name='outInt' value='" . $hostRow["outInterval"] . "'></td>\n";
+      echo "<td><input type='number' min='1' name='pingInt' value='" . $hostRow["pingInterval"] . "'></td>\n";
 
+      ?>
+</tr>
+</table>
+<p class='alignright'>
+<input type='submit' name='delete' value='Delete Host' />
+<div style='clear:both;'></div>
+<h3>Channels</h3>
+<table>
+<tr>
+<th>Name</th>
+<th>Type</th>
+<th>Variable/Boolean</th>
+<th>Active</th>
+<th>Input/Output</th>
+<th>Host Channel Number</th>
+<th>Max</th>
+<th>Min</th>
+<th>Color</th>
+<th>Units</th>
+<th>Last Ping</th>
+</tr>
+      
+      <?php
+
+      $i = 0;
+
+      foreach($knownChan as $chan) {
+        if($chan["host"] == $hostRow["id"]) {
+
+          //This is a channel for this host, so display it's info/open editing
+          echo "<input type='hidden' name='chan$i' value=" . $chan["id"] . ">\n";
+          echo "<tr>\n";
+          echo "<td><input type='text' name='name$i' value='" . $chan["name"] . "'></td>\n";
+          echo "<td><input type='text' name='type$i' value='" . $chan["type"] . "'></td>\n";
+          echo "<td>";
+          if($chan["variable"]) {
+            echo "Variable";
+          } else {
+            echo "Boolean";
+          }
+          echo "</td>\n<td>";
+          if($chan["active"]) {
+            echo "True";
+          } else {
+            echo "False";
+          }
+          echo "</td>\n<td>";
+          if($chan["input"]) {
+            echo "Input";
+          } else {
+            echo "Output";
+          }
+          echo "</td>\n";
+          echo "<td>" . $chan["hostChNum"] . "</td>\n";
+          echo "<td><input type='number' name='max$i' value=" . $chan["max"] . " step='any'></td>\n";
+          echo "<td><input type='number' name='min$i' value=" . $chan["min"] . " step='any'></td>\n";
+          echo "<td><input type='text' name='color$i' value='" . $chan["color"] . "'></td>\n"; //TODO: change to colorpicker
+          echo "<td>" . $chan["units"] . "</td>\n"; //TODO: Make sure units are alphanumeric
+          echo "<td>" . \aqctrl\time_elapsed_string($chan["UNIX_TIMESTAMP(lastPing)"], $hostRow["pingInterval"]) .
+            "</td>\n";
+          echo "</tr>\n";
+
+          $i++;
+        }
+      }
+
+    echo "</table>\n";
+    break;
     }
-
-  echo "</table>";
   }
     
-//Add some csrf/replay protection.
-echo \aqctrl\token_insert($mysqli, $debug_mode);
+  //Add some csrf/replay protection.
+  echo \aqctrl\token_insert($mysqli, $debug_mode);
 
-//Add db reset option.
+  //Add db reset option.
   
-?>
+  ?>
 <p> <details>
 <summary>Reset the DB</summary>
 Resetting the DB will erase ALL of your settings and saved data, COMPLETELY resetting EVERYTHING.
@@ -107,13 +212,15 @@ Are you sure that you REALLY want to do this?<br>
 <input type="submit" name="reset" value="Reset" />
 </details> </p>
 
-<?php
+  <?php
 
 }
 
 
 function setupRtn($mysqli, $debug_mode)
 {
+
+//TODO Refactor this.
   // Handle our form
 
   // Check the token
@@ -123,19 +230,49 @@ function setupRtn($mysqli, $debug_mode)
     return;
   }
 
+  // Check for a host delete choice.
+  if(isset($_POST["delete"])) {
+    //The user clicked delete for this function.
+    $sql = "DELETE FROM host WHERE id=" . (int)$_POST["editID"];
+
+    if(!mysqli_query($mysqli, $sql)) {
+      if ($debug_mode) echo "<p>Error deleting host:" . mysqli_error($mysqli) . "</p>";
+    }
+
+    return;  //We can return because all we want to do is the deletion
+  }
+
   // Prepare our statement to update hosts
-  $stmt = $mysqli->prepare("UPDATE host SET auth = ?, inInterval = ?, outInterval = ?,
+  $stmt = $mysqli->prepare("UPDATE host SET name = ?, auth = ?, inInterval = ?, outInterval = ?,
     pingInterval = ? WHERE id = ?");
 
-  $stmt-> bind_param("siiii", $authStr, $inInt, $outInt, $pingInt, $hostID);
+  $stmt-> bind_param("ssiiii", $nameStr, $authStr, $inInt, $outInt, $pingInt, $hostID);
 
-  for ($i=0; isset($_POST["Id$i"]); $i++) {
+  $nameStr = $_POST["hostName"];
+  $authStr = $_POST["hostAuth"];
+  $inInt = $_POST["inInt"];
+  $outInt = $_POST["outInt"];
+  $pingInt = $_POST["pingInt"];
+  $hostID = $_POST["editID"];
+
+  if(!$stmt->execute() && $debug_mode) {
+      echo "Execute failed: (" . $stmt->errno . ") " . $stmt->error;
+  }
+
+  //Update the chans
+  $stmt = $mysqli->prepare("UPDATE channel SET name = ?, type= ?, max = ?, min = ?,
+    color = ? WHERE id = ?");
+
+  $stmt-> bind_param("ssddsi", $nameStr, $typeStr, $maxD, $minD, $colorStr, $chanID);
+
+  for ($i=0; isset($_POST["chan$i"]); $i++) {
     // Update the values
-    $authStr = $_POST["auth$i"];
-    $inInt = $_POST["inInt$i"];
-    $outInt = $_POST["outInt$i"];
-    $pingInt = $_POST["pingInt$i"];
-    $hostID = $_POST["Id$i"];
+    $nameStr = $_POST["name$i"];
+    $typeStr = $_POST["type$i"];
+    $maxD = $_POST["max$i"];
+    $minD = $_POST["min$i"];
+    $colorStr = $_POST["color$i"];
+    $chanID = $_POST["chan$i"];
 
     if(!$stmt->execute() && $debug_mode) {
       echo "Execute failed: (" . $stmt->errno . ") " . $stmt->error;

@@ -23,6 +23,8 @@ along with Aqctrl.  If not, see <http://www.gnu.org/licenses/>.
 
 // Module to handle interactions with the hosts
 
+// TODO: Update to handle/check channel-level lastping rather than host-level lastping.
+
 namespace aqctrl;
 
 set_include_path("model");

@@ -51,7 +51,7 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
 
     //Reset the db
     \aqctrl\db_create();
-    header("Location: setup.php");
+    \aqctrl\retParse();
     return;
   }
 
@@ -59,14 +59,16 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
   //Do the form fcn
   if(isset($_POST['save'])) \aqctrl\setupRtn($mysqli, $debug_mode);
 
-  header("Location: setup.php");
+  \aqctrl\retParse();
 
 } else {
   include 'header.php';
   //Show the form
 
+  $newUrl = \aqctrl\retGen();
+
   echo "<h1>Setup Connected Hardware</h1>\n";
-  echo "<form action='setup.php' method='post'>\n";
+  echo "<form action='$newUrl' method='post'>\n";
   \aqctrl\setupForm($mysqli, $debug_mode);
 
   mysqli_close($mysqli);

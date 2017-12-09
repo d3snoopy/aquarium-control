@@ -20,18 +20,11 @@ along with Aqctrl.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 /*
-configFn.php
-
-
-Functions to support the configure.php page.
-
-configForm - function to generate the form to fill out
-
-configRtn - function to handle the return a POST of SetupForm
+newHost.php
 
 */
 
-// newHosts.php
+// newHost.php
 
 // This returns a link when a new host is found.
 

@@ -86,7 +86,7 @@ function functionForm($mysqli, $debug_mode)
 
       \aqctrl\plotData($plotData);
 
-      echo "<img src='../static/functionChart" . $fnRow["id"] . ".png'>\n";
+      echo "<img src='../static/functionChart" . $fnRow["id"] . ".png' />\n";
     } else {
       echo "<h3>No points in function</h3>\n";
     }

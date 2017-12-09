@@ -138,14 +138,12 @@ function profileForm($mysqli, $debug_mode)
         //This is a function profile
         echo "Function: \n";
         echo "<select name='function'>\n";
-        $fnNew = 'selected';
         $fnID = false;
 
         foreach ($knownFn as $fn) {
           if($profRow['function'] == $fn['id']) {
             //We have already picked this reaction
             $fnSel = 'selected';
-            $fnNew = '';
           } else {
             $fnSel = '';
           }
@@ -153,7 +151,7 @@ function profileForm($mysqli, $debug_mode)
           echo "<option value='" . $fn['id'] . "' $fnSel>" . $fn['name'] . "</option>\n";
         }
         //Print a "New" option
-        echo "<option value='new' $fnNew>New</option>\n";
+        echo "<option value='new'>New</option>\n";
         echo "</select>\n";
 
         //Edit link for the function.
@@ -189,9 +187,6 @@ function profileForm($mysqli, $debug_mode)
       echo "$srcN\n<br>\n";
     }
 
-    //echo "</td>\n";
-    //echo "</tr>\n"; 
-    //echo "</table>\n";
 
     if(isset($_GET['edit']) && $_GET['edit'] == $profRow["id"]) {
       echo "<p class='alignright'>\n";

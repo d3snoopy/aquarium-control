@@ -266,7 +266,7 @@ function db_create()
 
   //Create a record for the quickstart and set it to 1
   $sql = "INSERT INTO quickstart (id, step, numStep)
-    VALUES (1, 1, 2)";
+    VALUES (1, 1, 3)";
 
   if(!mysqli_query($mysqli, $sql)) {
     if ($debug_mode) echo "Error initiating quickstart count " . mysqli_error($mysqli) . "<br>";
