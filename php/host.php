@@ -154,7 +154,7 @@ function host_process($data_in, $data_out, $mysqli, $row)
   // Get the channel dB objects that match to our host.
   global $debug_mode;
 
-  $chanRes = mysqli_query($mysqli, "SELECT id,name,variable,active,max,min,UNIX_TIMESTAMP(lastPing) FROM channel
+  $chanRes = mysqli_query($mysqli, "SELECT id,name,variable,active,input,max,min,UNIX_TIMESTAMP(lastPing) FROM channel
     WHERE host = " . $row['id'] . " AND hostChNum = " . (int)$data_in[4]);
 
   if(!$chanRes) {
@@ -169,9 +169,6 @@ function host_process($data_in, $data_out, $mysqli, $row)
     $chanInfo = mysqli_fetch_assoc($chanRes);
   }
 
-  // Set up a multiQuery string
-  $mQuery = "";
-
   // Get how many values to limit to
   $chanValLim = (int)$data_in[3];
 
@@ -185,38 +182,48 @@ function host_process($data_in, $data_out, $mysqli, $row)
 
   // Check if this channel is active and for a replay within this second.
   if(($chanInfo['active']) && ((int)$data_in[2] > (int)$lastPing)){
-    // Process this channel: Save data provided, generate data.    
+    // Process this channel: Save data provided if input, otherwise generate data.
+    if((int)$chanInfo['input']){
 
-    // Get the timestamps and data
-    $times = explode(",", $_POST["time"]);
-    $values = explode(",", $_POST["data"]);
+      // Get the timestamps and data
+      $times = explode(",", $_POST["time"]);
+      $values = explode(",", $_POST["data"]);
 
-    foreach($times as $i => $timeStamp) {
-      // Add data for this channel.
-      if (is_numeric($timeStamp) && is_numeric($values[$i]))
-        $mQuery .= "INSERT INTO data (date, value, channel)
-          VALUES (FROM_UNIXTIME(" . $timeStamp . "), " . $values[$i] . ", "
-          . $chanInfo['id'] . ");";
+      $stmt = $mysqli->prepare("INSERT INTO data (date, value, channel) VALUES (FROM_UNIXTIME(?), ?, ?)");
+
+      $stmt-> bind_param("idi", $insTime, $insValue, $insChan);
+
+      foreach($times as $i => $timeStamp) {
+        // Add data for this channel.
+        $insTime = $timeStamp;
+        $insValue = $values[$i];
+        $insChan = $chanInfo['id'];
+
+        if(!$stmt->execute() && $debug_mode) {
+          echo "Execute failed: (" . $stmt->errno . ") " . $stmt->error;
+        }
+      }
+
+      // This is an input channel, so we don't need to return any data.
+      $data_out .= ';';
+    } else {
+    // Output channel; return data
+      $data_out .= \aqctrl\chan_vals($chanInfo, $chanValLim);
+
     }
 
-    // Construct the return.
-    $data_out .= \aqctrl\chan_vals($chanInfo, $chanValLim);
+    $timeNow = time();
+    $sql = "UPDATE channel SET lastPing = FROM_UNIXTIME($timeNow) WHERE id = " . $chanInfo['id'];
+
+    if (!mysqli_query($mysqli, $sql)) {
+      if ($debug_mode) echo "query: " . $sql . " failed. " . mysqli_error($mysqli);
+    } 
+
   } else {
-    //Just construct the "data" portion of the return without populating with data.
+    //Channel inactive or replay.
+    if ($debug_mode) echo "Channel Inactive or replay.\n";
     $data_out .= ';';
-
   }
-
-  // Insert the data.
-  if (empty($mQuery)) {
-    if ($debug_mode) echo "No channel data provided.\n";
-  }
-  elseif(!mysqli_multi_query($mysqli, $mQuery)) {
-    if ($debug_mode) echo "multiquery: " . $mQuery . " failed.";
-  }
-
-  //Flush the results.
-  while (mysqli_next_result($mysqli)) {;};
 
   return $data_out;
 }
@@ -249,32 +256,47 @@ function channel_add($data_in, $mysqli, $hostId)
   //Function to add channels to our host, called the first time the host pings
   global $debug_mode;
 
-  //Add our channel
-  $Qstr = "INSERT INTO channel (name, type, variable, active, input, hostChNum, max, min, color, units,
-    lastPing, host) VALUES('" . mysqli_real_escape_string($mysqli, $data_in[5]) . "', '"
-    . mysqli_real_escape_string($mysqli, $data_in[6]) . "', " 
-    . (int)$data_in[7] . ", " . (int)$data_in[8] . ", " . (int)$data_in[13] . ", " . (int)$data_in[4] . ", "
-    . (float)$data_in[9] . ", " . (float)$data_in[10] . ", '"
-    . mysqli_real_escape_string($mysqli, $data_in[11]) . "', '" 
-    . mysqli_real_escape_string($mysqli, $data_in[12]) . "', FROM_UNIXTIME("
-    . (int)$data_in[2] . "), " . $hostId . "); ";
+  $stmt = $mysqli->prepare("INSERT INTO channel (name, type, variable, active, input, hostChNum,
+    max, min, color, units, lastPing, host) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, FROM_UNIXTIME(?), ?)");
+
+  $stmt-> bind_param("ssiiiiddssii", $newName, $newType, $newVariable, $newActive, $newInput, $newHostCh,
+    $newMax, $newMin, $newColor, $newUnits, $newLastping, $newHost);
+
+  $newName = $data_in[5];
+  $newType = $data_in[6];
+  $newVariable = $data_in[7];
+  $newActive = $data_in[8];
+  $newInput = $data_in[13];
+  $newHostCh = $data_in[4];
+  $newMax = $data_in[9];
+  $newMin = $data_in[10];
+  $newColor = $data_in[11];
+  $newUnits = $data_in[12];
+  $newLastping = $data_in[2];
+  $newHost = $hostId;
     
   // Do the query
- if (!mysqli_query($mysqli, $Qstr)) {
-    if ($debug_mode) echo "query: " . $Qstr . " failed. " . mysqli_error($mysqli);
+  if(!$stmt->execute() && $debug_mode) {
+      echo "Execute failed: (" . $stmt->errno . ") " . $stmt->error;
   } else {
     if ($debug_mode) echo "Successfully added channel. ";
   }
 
   // Return
   return [
-    "id" => $chanId,
-    "name" => mysqli_real_escape_string($mysqli, $data_in[5]),
-    "variable" => (int)$data_in[7],
-    "active" => (int)$data_in[8],
-    "max" => (float)$data_in[9],
-    "min" => (float)$data_in[10],
-    "UNIX_TIMESTAMP(lastPing)" => time()-1];
+    "id" => mysqli_insert_id($mysqli),
+    "name" => $newName,
+    "type" => $newType,
+    "variable" => $newVariable,
+    "active" => $newActive,
+    "input" => $newInput,
+    "hostChNum" => $newHostCh,
+    "max" => $newMax,
+    "min" => $newMin,
+    "color" => $newColor,
+    "units" => $newUnits,
+    "UNIX_TIMESTAMP(lastPing)" => $newLastping-1,
+    "host" => $hostId];
 }
 
 
@@ -288,7 +310,7 @@ function chan_vals($chanInfo, $chanValLim)
   $now = time();
 
   for($i=0;$i<$chanValLim;$i++) {
-    $t = $now + $i;
+    $t = $now + ($i*100);
     $retInfo .= "$t,";
   }
 

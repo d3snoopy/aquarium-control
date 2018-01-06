@@ -219,8 +219,6 @@ Are you sure that you REALLY want to do this?<br>
 
 function setupRtn($mysqli, $debug_mode)
 {
-
-//TODO Refactor this.
   // Handle our form
 
   // Check the token

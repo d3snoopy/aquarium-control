@@ -57,7 +57,14 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
 
 
   //Do the form fcn
-  if(isset($_POST['save'])) \aqctrl\setupRtn($mysqli, $debug_mode);
+  if(isset($_POST['cancel'])) {
+    //Just return
+    \aqctrl\retParse();
+    return;
+  }
+
+  //Something else has been invoked, call the model function
+  \aqctrl\setupRtn($mysqli, $debug_mode);
 
   \aqctrl\retParse();
 
