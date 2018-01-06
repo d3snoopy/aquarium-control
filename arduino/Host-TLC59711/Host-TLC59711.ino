@@ -178,7 +178,7 @@ void loop() {
     client.stop();
     postData();
   }
-  //TODO add function to listen for a ping
+
 }
 
 
@@ -295,6 +295,8 @@ void startWIFI() {
   Serial.println("WiFi connected");  
   Serial.println("IP address: ");
   Serial.println(WiFi.localIP());
+
+  server.begin();
 }
 
 
