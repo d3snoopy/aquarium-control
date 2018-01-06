@@ -77,6 +77,7 @@ const float chanInits[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
 // Also, setup our hardware needs
 Adafruit_TLC59711 tlc = Adafruit_TLC59711(1, 14, 13);
+WiFiServer server(80);
 
 
 // Initialize our time variables to track current linux time.
@@ -141,16 +142,16 @@ void loop() {
 
   //read from our input channels if it's time
   if (Ltime >= nextRead) {
+    Serial.println("Reading:");
     readChannels();
     nextRead = Ltime + inInterval;
-    Serial.println("Reading:");
   }
 
   //write to our output channels if it's time
   if (Ltime >= nextWrite) {
+    Serial.println("Writing:");
     writeChannels();
     nextWrite = Ltime + outInterval;
-    Serial.println("Writing:");
   }
 
   //upload to the server if it's time
@@ -170,6 +171,13 @@ void loop() {
     postData();
   }
 
+  WiFiClient client = server.available();
+  if (client)
+  {
+    Serial.println("Someone is pinging");
+    client.stop();
+    postData();
+  }
   //TODO add function to listen for a ping
 }
 
@@ -233,24 +241,24 @@ uint16_t PWMCalc(int i) {
     
     calcAns = chanScales[i] * intAns;
     
-    Serial.print("LED ");
-    Serial.print(i);
-    Serial.print(" chanReg: ");
-    Serial.print(chanReg[i]);
-    Serial.print(" %: ");
-    Serial.print(intAns,6);
-    Serial.print(" Value: ");
-    Serial.print(calcAns);
-    Serial.print(" Inputs: ");
-    Serial.print(chanVals[i][chanReg[i]],6);
-    Serial.print(" and ");
-    Serial.print(chanVals[i][chanReg[i]+1],6);
-    Serial.print(" Times: ");
-    Serial.print(timeStamps[i][chanReg[i]]);
-    Serial.print(" and ");
-    Serial.print(timeStamps[i][chanReg[i]+1]);
-    Serial.print(" a: ");
-    Serial.println(a,6);
+//    Serial.print("LED ");
+//    Serial.print(i);
+//    Serial.print(" chanReg: ");
+//    Serial.print(chanReg[i]);
+//    Serial.print(" %: ");
+//    Serial.print(intAns,6);
+//    Serial.print(" Value: ");
+//    Serial.print(calcAns);
+//    Serial.print(" Inputs: ");
+//    Serial.print(chanVals[i][chanReg[i]],6);
+//    Serial.print(" and ");
+//    Serial.print(chanVals[i][chanReg[i]+1],6);
+//    Serial.print(" Times: ");
+//    Serial.print(timeStamps[i][chanReg[i]]);
+//    Serial.print(" and ");
+//    Serial.print(timeStamps[i][chanReg[i]+1]);
+//    Serial.print(" a: ");
+//    Serial.println(a,6);
   }
 
   return calcAns;
