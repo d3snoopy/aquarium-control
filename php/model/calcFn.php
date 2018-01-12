@@ -166,8 +166,8 @@ function channelCalc($chanInfo, $chanValLim)
 }
 
 
-function sourceCalc($knownChan, $srcID, $knownFn, $knownPt, $knownProf, $knownCPS,
-   $numPts = 0, $duration = 0)
+function sourceCalc($knownChan, $srcID, $knownFn, $knownPt, $knownProf, $knownCPS, $srcScale = 1,
+   $srcName = 'No Name', $numPts = 0, $duration = 0)
 {
   //Calculate values for our source.
   //We're given a source ID: $srcID that needs to be calculated.
@@ -208,6 +208,9 @@ function sourceCalc($knownChan, $srcID, $knownFn, $knownPt, $knownProf, $knownCP
     }
   }
 
+  //Time point tracker - for the future.
+  $timePtsSeen = array();
+
   //Now, go through the profiles, calculating along the way.
   foreach($knownProf as $thisProf) {
     //We have CPS and chann data tee'd up for us in the $retData variable
@@ -240,7 +243,10 @@ function sourceCalc($knownChan, $srcID, $knownFn, $knownPt, $knownProf, $knownCP
       $timeCount = count($retData['profData'][$profKey]['timePts']);
       $timeDiff = $retData['profData'][$profKey]['timePts'][$timeCount-1]-
         $retData['profData'][$profKey]['timePts'][[0];
-    } while (($timeCount < $numPts) || ($timeDiff < $duration)) 
+    } while (($timeCount < $numPts) || ($timeDiff < $duration))
+
+    //Log that we've seen these time points.
+    $timePtsSeen[] = $retData['profData'][$profKey]['timePts'];
 
     //Now, we have a set of function points for this profile.
     //Next, calculate and stage our individual channel data; this will be usable later for plotting.
@@ -266,11 +272,73 @@ function sourceCalc($knownChan, $srcID, $knownFn, $knownPt, $knownProf, $knownCP
 
   //Now, calculate the product of the profiles.
   //Make sure to remember to map channels (they don't necessarily correlate)
-  //Also make sure to remember to interpolate so everything is on the same timebase
+  //Also make sure to remember to interpolate so everything is on the same time points.
+  $retData['timePts'] = array_unique($timePtsSeen);
+  sort($retData['timePts']);
+
+  $retData['title'] = $srcName;
+  $retData['outName'] = 'srcChart' . $srcID;
+
+  //Seed the data with our overall source scale.
+  foreach($chanList as $i => $chanID) {
+    $retData["data$i"] = array_fill(0, count($retData['timePts']), $srcScale);
+    $retData["color$i"] = $retData['chanInfo'][$chanID]['color'];
+    $retData["label$i"] = $retData['chanInfo'][$chanID]['name'];
+  }
+
+  //Channel mapping for our source data: from $chanList.
+  //Channel mapping for each proflie: $retData['chans'][$profKey]
+
+  foreach($retData['profData'] as $profKey => $profData) {
+    foreach($chanList as $i => $chanID) {
+      //Find this chanID in our profData.
+      $PCKey = array_search($chanID, $retData['chans'][$profKey]);
+
+      if($PCKey === false) continue; //This chanID not used in this profile.
+
+      //The chanID was found.
+      $newData = \aqctrl\interpData($retData['timePts'], $profData['timeData'],
+        $profData["data$PCKey"]);
+
+      //Multiply through.
+      foreach($newData as $j => $newPt) {
+        $retData["data$i"][$j] *= $newPt;
+      }
+    }
+  }
+  //Return format to match plotData already queued up
+  return($retData);
+}
 
 
-  //Return format to match plotData.
+function interpData($outX, $inX, $inY)
+{
+  //Function to interpolate points for us.
+  $inCtr = 0;
+  $y = array();
+  $inXCnt = count($inX)-1; //Note: it's the final index.
 
+  foreach($outX as $x) {
+    //First, decide if we need to increment our inCtr
+    while($inCtr < $inXCnt && $inX[$inCtr+1]<$x) {
+      $inCtr++;
+    }
+
+    //Handle leading points - where outX is earlier than any known inX
+    //In this case, make them all equal to inY0.
+    if(!$inCtr && $inX[$inCtr]>$x) {
+      $y[] = $inY[$inCtr];
+    } elseif ($inCtr == $inXCnt) {
+      //Trailing points: use the final inY
+      $y[] = $inY[$inXCnt];
+    } else {
+      //Interpolate
+      $a = (($inY[$inCtr+1]-$inY[$inCtr])/($inX[$inCtr+1]-$inX[$inCtr]));
+      $y[] = $a*($x-$inX[$inCtr])+$inY[$inCtr];
+    }
+  }
+
+  return($y);
 }
 
 
@@ -285,8 +353,6 @@ function plotData($plotData)
    'title' - The title for the plot
    'outName' - The desired name for the plot.
   */
-
-  //TODO: Add color conversion
 
   $myData = new \pData();
 
@@ -303,8 +369,11 @@ function plotData($plotData)
     $myData->setScatterSerie("Labels","data$i",$i);
     $myData->setScatterSerieDescription($i,$plotData["label$i"]);
     if(isset($plotData["color$i"])) {
-      $myData->setScatterSerieColor($i,array("R"=>$plotData["color$i"]["R"],
-        "G"=>$plotData["color$i"]["G"],"B"=>$plotData["color$i"]["B"]));
+      $R = hexdec(substr($plotData["color$i"],0,2));
+      $G = hexdec(substr($plotData["color$i"],2,2));
+      $B = hexdec(substr($plotData["color$i"],4,2));
+
+      $myData->setScatterSerieColor($i,array("R"=>$R, "G"=>$G,"B"=>$B));
     } else {
       $myData->setScatterSerieColor($i,array("R"=>102,"G"=>140,"B"=>255));
     }

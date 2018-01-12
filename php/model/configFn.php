@@ -128,48 +128,52 @@ function srcConfigForm($mysqli, $debug_mode)
         $CPSfound = true;
         if($CPSRow["profile"]) $assocProf[] = $CPSRow["profile"]; //If it's Null, it isn't added.
       }
+    }
 
-      $assocProf = array_unique($assocProf);
+    $assocProf = array_unique($assocProf);
 
-      if(!$CPSfound) {
-        echo "<tr>\n<td>\nNothing associated with this source yet, edit it to add associations\n</td>\n</tr>\n";
-      } else {
-        // We found associations, do stuff!
-        echo "<tr>\n<td>\n";
-        $plotData = \aqctrl\sourceCalc($knownChan, $srcRow["id"], $knownFn, $knownPt, $knownProf,
-          $knownCPS);
+    if(!$CPSfound) {
+      echo "<tr>\n<td>\nNothing associated with this source yet, edit it to add associations\n</td>\n</tr>\n";
+    } else {
+      // We found associations, do stuff!
+      echo "<tr>\n<td>\n";
+      $plotData = \aqctrl\sourceCalc($knownChan, $srcRow["id"], $knownFn, $knownPt, $knownProf,
+        $knownCPS, $srcRow['scale'], $srcRow['name'], 0, 0); //Update last number for duration.
         
-        \aqctrl\plotData($plotData);
+      \aqctrl\plotData($plotData);
+      echo "<img src='../static/" . $plotData['outName'] . ".png' />\n";
+      echo "</td>\n";
+      echo "<td>\n=\n</td>\n";
+
+      foreach($assocProf as $profID) {
+        echo "<td>\n";
+        \aqctrl\plotData($plotData['profData'][$profID]);
+        echo "<img src='../static/" . $plotData['profData'][$profID]['outName'] . ".png' />\n";
         echo "</td>\n";
-        echo "<td>\n=\n</td>\n";
-
-        foreach($assocProf as $profID) {
-          // TODO
-          echo "<td>\nPlot for profile goes here\n</td>\n";
         
-          if($profID != end($assocProf)) echo "<td>\n*\n</td>\n";
-        }
-
-        echo "</tr>\n";
+        if($profID != end($assocProf)) echo "<td>\n*\n</td>\n";
       }
 
-      if(isset($_GET['edit']) && $_GET['edit'] == $srcRow["id"]) {
-        //Give all of the controls
-        echo "<input type='hidden' name='editID' value=" . $srcRow["id"] . ">\n";
-        echo "<tr>\n<td>\n";
+      echo "</tr>\n";
+    }
 
-        //Populate a list of potential types
+    if(isset($_GET['edit']) && $_GET['edit'] == $srcRow["id"]) {
+      //Give all of the controls
+      echo "<input type='hidden' name='editID' value=" . $srcRow["id"] . ">\n";
+      echo "<tr>\n<td>\n";
+
+      //Populate a list of potential types
+      $chanRow = mysqli_fetch_array($knownChan);
+      $knownTypes = array();
+      $chanMatch = array();
+
+      foreach($knownChan as $chanRow) {
+        $knownTypes[] = $chanRow['type'];
+
+        if($chanRow["type"] == $srcRow["type"]) $chanMatch[$chanRow['name']] = $chanRow['id'];
+
         $chanRow = mysqli_fetch_array($knownChan);
-        $knownTypes = array();
-        $chanMatch = array();
-
-        foreach($knownChan as $chanRow) {
-          $knownTypes[] = $chanRow['type'];
-
-          if($chanRow["type"] == $srcRow["type"]) $chanMatch[$chanRow['name']] = $chanRow['id'];
-
-          $chanRow = mysqli_fetch_array($knownChan);
-        }
+      }
 
       $knownTypes = array_unique($knownTypes);
 
@@ -195,20 +199,16 @@ function srcConfigForm($mysqli, $debug_mode)
       echo "Channels Used:\n<br>\n";
 
       $j=0;
-      $CPSRow = mysqli_fetch_assoc($knownCPS);
 
       foreach ($chanMatch as $chanName => $chanID) {
         $chSel = "";
 
-        while (($CPSRow['source'] < $srcRow["id"]) && $CPSRow) {
-          $CPSRow = mysqli_fetch_array($knownCPS);
+        foreach($knownCPS as $CPSRow) {
+          if (($CPSRow['channel'] == $chanID) && ($CPSRow['source'] == $srcRow["id"])) {
+            $chSel = "checked";
+            break; //We're finished here, so don't bother finishing the iteration.
+          }
         }
-
-        while (($CPSRow['channel'] < $chanID) && $CPSRow) {
-          $CPSRow = mysqli_fetch_array($knownCPS);
-        }
-        
-        if (($CPSRow['channel'] == $chanID) && ($CPSRow['source'] == $srcRow["id"])) $chSel = "checked";
 
         echo "<input type='checkbox' name='ch" . $j . "' value='" . $chanID . "' " . $chSel . ">";
         echo($chanName . "\n<br>\n");
@@ -226,7 +226,7 @@ function srcConfigForm($mysqli, $debug_mode)
       }
 
       echo "<input type='submit' name='profAdd' value='Add' />\n";
-      echo "<input type='hidden' name='numchan' value='" . $j . "'>\n";
+      echo "<input type='hidden' name='numchan' value='$j'>\n";
       echo "<br>";
       echo "<input type='submit' name='delSrc' value='Delete Source' />\n";
       echo "</td>\n<td>\n</td>\n";
@@ -236,23 +236,33 @@ function srcConfigForm($mysqli, $debug_mode)
       foreach ($assocProf as $profNum => $profID) {
         echo "<td>\n";
         echo "Channels:\n<br>\n";
-        
-        foreach ($knownCPS as $CPSRow) {
-          if(($CPSRow['source'] == $srcRow['id']) && ($CPSRow['profile'] == $profID) && ($CPSRow['channel'])) {
-            //This is a profile to list here.
-            //Get the channel name for this CPS.
-            foreach ($knownChan as $chan) {
-              if($CPSRow['channel'] == $chan['id']) {
-                echo $chan['name'] . " scale: \n";
-                break;
-              }
-            }
 
-            echo "<input type='number' name='scale$j' value='" . $CPSRow['scale'] . "' step='any'>\n<br>\n";
-            echo "<input type='hidden' name='ID$j' value='" . $CPSRow['id'] . "'>\n";
-            $j++;
+        foreach ($chanMatch as $chanName => $chanID) {
+          //Go through our channels; they're not necessarily all mapped.
+          $chanFound = "";
+
+          foreach ($knownCPS as $CPSRow) {
+            if(($CPSRow['source'] == $srcRow['id']) && ($CPSRow['profile'] == $profID) &&
+              ($CPSRow['channel'] == $chanID)) {
+                //We have a CPS for this mapping.
+                $chanFound = 'checked';
+                break;
+            }
           }
+
+          echo "<input type='checkbox' name='check$j' value='$profID" . "_$chanID' $chanFound>\n";
+          echo $chanName;
+
+          if($chanFound) {
+            echo " scale: \n";
+            echo "<input type='number' name='scale$j' value='" . $CPSRow['scale'] .
+              "' step='any'>\n<br>\n";
+            echo "<input type='hidden' name='ID$j' value='" . $CPSRow['id'] . "'>\n";
+          }
+          $j++;
         }
+
+        echo "<input type='hidden' name='numcheck' value='$j'>\n";
 
         echo "<a href='" . \aqctrl\retGen('profile.php', $profID, 'single', false, false)
           . "'>Edit Profile</a>\n<br>\n";
@@ -473,88 +483,73 @@ function configRtn($mysqli, $debug_mode)
     if ($debug_mode) echo "<p>Error getting CPSes" . mysqli_error($mysqli) . "\n</p>\n";
   }
 
-  $CPSRow = mysqli_fetch_array($selCPS);
-  $foundChans = array();
+  // Build a list of the channels checked for this source.
+  $srcChans = array();
 
-  // Now, check on our mapping.  Account for new checks and new check removals.
-  while ($CPSRow) {
-    $chanSet = false;
-    for($i=0; $i<(int)$_POST['numchan']; $i++) {
-      //Test if the channel associated with the CPS is selected
-      if(isset($_POST["ch$i"]) && ($_POST["ch$i"] == $CPSRow['channel'])) {
-        $chanSet = true;
-        $foundChans[] = $CPSRow['channel'];
-      }
-    }
-
-    //If we didn't catch that the channel is set, and it's associated with a channel, delete.
-    if(!is_null($CPSRow["channel"]) && !$chanSet) {
-      $sql = "DELETE FROM cps WHERE id = " . $CPSRow['id'];
-
-      if(!mysqli_query($mysqli, $sql)) {
-        if ($debug_mode) echo "<p>Error deleting CPS" . mysqli_error($mysqli) . "\n</p>\n";
-      }
-    }
-  $CPSRow = mysqli_fetch_array($selCPS);
-  }
-
-  //Get profiles already associated.
-  $sql = "SELECT profile FROM cps WHERE source = " . (int)$_POST['editID'];
-
-  $selCPS = mysqli_query($mysqli, $sql);
-
-  if(!$selCPS) {
-    if ($debug_mode) echo "<p>Error getting CPSes" . mysqli_error($mysqli) . "\n</p>\n";
-  }
-
-  $assocProf = [];
-
-  foreach($selCPS as $thisCPS) {
-    $assocProf[] = $thisCPS['profile'];
-  }
-
-  $assocProf = array_unique($assocProf);
-
-  //Add missing channel associations
   for($i=0; $i<(int)$_POST['numchan']; $i++) {
-    if(isset($_POST["ch$i"]) && !in_array($_POST["ch$i"],$foundChans)) {
-      //Need to add a CPS for this channel.
-      $thisChan = (int)$_POST["ch$i"];
+    //Test if the channel associated with the CPS is selected & add to list
+    if(isset($_POST["ch$i"])) $srcChans[] = (int)$_POST["ch$i"];
+  }
 
-      $sql = "INSERT INTO cps (scale, channel, source) VALUES (1, " . $thisChan
-        . ", " . $srcInfo['id'] . ")";
+  // Prepare the three queries: update, delete, add
+  $stmtUpdate = $mysqli->prepare("UPDATE cps SET scale = ? WHERE id = ?");
+  $stmtDel = $mysqli->prepare("DELETE FROM cps WHERE id = ?");
+  $stmtAdd = $mysqli->prepare("INSERT INTO cps (scale, source, profile, channel) VALUES (1, ?, ?, ?)");
+  
+  $stmtUpdate-> bind_param("di", $scaleNum, $CPSID);
+  $stmtDel-> bind_param("i", $CPSID);
+  $stmtAdd-> bind_param("iii", $SrcID, $ProfID, $ChanID);
 
-      if(!mysqli_query($mysqli, $sql)) {
-        if ($debug_mode) echo "<p>Error adding CPS" . mysqli_error($mysqli) . "\n</p>\n";
-      }
+  // Build a list of the checkboxes checked and do 4. (below - add CPSes necessary)
+  $checks = array();
 
-      foreach($assocProf as $thisProf) {
-        $sql = "INSERT INTO cps (scale, profile, channel, source) VALUES (1, $thisProf, $thisChan, "
-          . $srcInfo['id'] . ")";
+  for($i=0; $i<(int)$_POST['numcheck']; $i++) {
+    //Test if this check is set & add it to our list.
+    if(isset($_POST["check$i"])) $checks[$i] = $_POST["check$i"];
 
-        if(!mysqli_query($mysqli, $sql)) {
-          if ($debug_mode) echo "<p>Error adding CPS " . mysqli_error($mysqli) . "\n</p>\n";
-        }
+    //Test if we need to add a CPS for this because it's a newly added check
+    if(!isset($_POST["scale$i"])) {
+      //Need to create this CPS
+      $addInfo = explode("_", $_POST["check$i"]);
+      $SrcID = $_POST['editID'];
+      $ProfID = $addInfo[0];
+      $ChanID = $addInfo[1];
+
+      if(!$stmtAdd->execute() && $debug_mode) {
+        echo "Execute failed: (" . $stmtAdd->errno . ") " . $stmtAdd->error;
       }
     }
   }
 
-  //Update all of our CPS scales.
-  $i = 0;
+  foreach($selCPS as $CPSRow) {
+    //We have four things to do:
+    //1. See if the channel for this CPS is checked for the source, if it isn't delete it.
+    //2. See if the channel, profile combo for this CPS is checked, if not delete it.
+    //3. If we meet both criteria to keep it, update the scale.
+    //4. Check for missing CPSes that should be there (criteria 1 and 2 met, but the CPS is missing)
+    //   and add the missing ones.
+    //   This can be done by checking for check$i that exists but ID$i and scale$i don't.
 
-  $stmt = $mysqli->prepare("UPDATE cps SET scale = ? WHERE id = ?");
+    $checkVar = (string)$CPSRow['profile'] . "_" . (string)$CPSRow['channel'];
+    $checkFound = array_search($checkVar, $checks);
 
-  $stmt-> bind_param("di", $cpsScale, $cpsID);
+    if(in_array($CPSRow['channel'], $srcChans) && $checkFound !== false) {
+      //3. Need to update the CPS
+      $scaleNum = $_POST["scale$checkFound"];
+      $CPSID = $CPSRow['id'];
 
-  while(isset($_POST["ID$i"])) {
-    $cpsScale = $_POST["scale$i"];
-    $cpsID = $_POST["ID$i"];
+      if(!$stmtUpdate->execute() && $debug_mode) {
+        echo "Execute failed: (" . $stmtUpdate->errno . ") " . $stmtUpdate->error;
+      }
+    } else {
+      //1. or 2. Need to delete this CPS
+      $CPSID = $CPSRow['id'];
 
-    if(!$stmt->execute() && $debug_mode) {
-      echo "Execute failed: (" . $stmt->errno . ") " . $stmt->error;
+      if(!$stmtDel->execute() && $debug_mode) {
+        echo "Execute failed: (" . $stmtDel->errno . ") " . $stmtDel->error;
+      }
+        
     }
-
-    $i++;
   }
 
   // Note: return is handled as a query string with checking, so don't return unchecked things from the wild
