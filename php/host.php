@@ -23,7 +23,8 @@ along with Aqctrl.  If not, see <http://www.gnu.org/licenses/>.
 
 // Module to handle interactions with the hosts
 
-// TODO: Update to handle/check channel-level lastping rather than host-level lastping.
+// TODO: Update values given to not be random data
+// TODO: Add in a last known address portion so we can potentially call in to a host
 
 namespace aqctrl;
 
@@ -38,9 +39,9 @@ set_include_path("model");
 
 */
 
-// Pull in the models - general model and hostFn
+// Pull in the models - general model and calcFn
 include 'model.php';
-//include 'hostFn.php';
+include 'calcFn.php';
 
 // Find out if we're in debug mode.
 $debug_mode = \aqctrl\debug_status();
@@ -208,7 +209,7 @@ function host_process($data_in, $data_out, $mysqli, $row)
       $data_out .= ';';
     } else {
     // Output channel; return data
-      $data_out .= \aqctrl\chan_vals($chanInfo, $chanValLim);
+      $data_out .= \aqctrl\channelCalc($chanInfo, $chanValLim);
 
     }
 
@@ -298,30 +299,3 @@ function channel_add($data_in, $mysqli, $hostId)
     "UNIX_TIMESTAMP(lastPing)" => $newLastping-1,
     "host" => $hostId];
 }
-
-
-function chan_vals($chanInfo, $chanValLim)
-{
-  //Function to create the return for a host
-  global $debug_mode;
-
-  $retInfo = "";
-
-  $now = time();
-
-  for($i=0;$i<$chanValLim;$i++) {
-    $t = $now + ($i*100);
-    $retInfo .= "$t,";
-  }
-
-  $retInfo .= ';';
-
-  for($i=0;$i<$chanValLim;$i++) {
-    $v = mt_rand() / mt_getrandmax();
-    $retInfo .= "$v,";
-  }
-
-  return $retInfo;
-}
-
-

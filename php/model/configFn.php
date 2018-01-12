@@ -31,6 +31,7 @@ configRtn - function to handle the return a POST of SetupForm
 
 
 TODO: rework using foreach loops rather than manually fetching/processing.
+TODO: Don't include inactive channels
 
 */
 
@@ -98,96 +99,77 @@ function srcConfigForm($mysqli, $debug_mode)
   $knownFn = mysqli_query($mysqli, "SELECT id,name FROM function");
   $knownPts = mysqli_query($mysqli, "SELECT id,value,timeAdj,timeType,timeSE,function FROM point ORDER BY function, timeSE, timeAdj");
   $knownReact = mysqli_query($mysqli, "SELECT id, action, scale, channel, react FROM reaction");
-  $knownChan = mysqli_query($mysqli, "SELECT id, name, type, variable, active, max, min, color, units FROM channel WHERE input=0");
-  $knownProf = mysqli_query($mysqli, "SELECT id, name FROM profile");
+  $knownChan = mysqli_query($mysqli, "SELECT id, name, type, variable, active, max, min, color, units FROM channel WHERE input=0 AND active=1");
+  $knownProf = mysqli_query($mysqli, "SELECT id, name, UNIX_TIMESTAMP(start), UNIX_TIMESTAMP(end), refresh, reaction, function FROM profile");
   $knownCPS = mysqli_query($mysqli, "SELECT id, scale, channel, profile, source FROM cps ORDER BY source, channel, profile");
 
   // Warn if we don't know about any channels
-  if(!mysqli_num_rows($knownChan)) echo "<h3>Warning: no channels found.</h3>\n
-    <p>Channels are created to connecting hardware hosts via the setup page, you can't manually create channels.</p>\n
-    <p>You won't be able to properly configure sources until the hardware hosts connect and inform the system about their channels. Click <a href=./setup.php>here</a> to go to the setup page.</p>\n";
+  if(!mysqli_num_rows($knownChan)) {
+    echo "<h3>Warning: no channels found.</h3>\n";
+    echo "<p>Channels are created to connecting hardware hosts via the setup page, you can't manually create channels.</p>\n";
+    echo "<p>You won't be able to properly configure sources until the hardware hosts connect and inform the system about their channels. Click <a href=./setup.php>here</a> to go to the setup page.</p>\n";
+  }
 
   // Cycle through all of our sources
   echo "<table>\n";
 
-  for($i=0; $i < $numSrc; $i++) {
-    mysqli_data_seek($knownCPS, 0);
-    
-    $srcRow = mysqli_fetch_assoc($knownSrc);
-
+  foreach($knownSrc as $srcRow) {
     echo "<tr>\n";
     echo "<td>\n";
     echo "<h3>" . $srcRow["name"] . "</h3>\n";
     echo "<table>\n";
 
-    $CPSRow = mysqli_fetch_assoc($knownCPS);
-
-    //Get through any preceeding CPSes that don't map to this source.
-    while (($CPSRow["source"] != $srcRow["id"]) && $CPSRow) {
-      $CPSRow = mysqli_fetch_assoc($knownCPS);
-    }
-
-    //Build list of profiles associated with this source.
-    $assocProf = array();
+    $assocProc = array();
     $CPSfound = false;
+    //Build list of profiles associated with this source.
+    foreach($knownCPS as $CPSRow) {
+      //Test if this CPS is for this source
+      if ($CPSRow["source"] == $srcRow["id"]) {
+        $CPSfound = true;
+        if($CPSRow["profile"]) $assocProf[] = $CPSRow["profile"]; //If it's Null, it isn't added.
+      }
 
-    //We're up to the CPSes for this source.
-    while ($CPSRow["source"] == $srcRow["id"]) {
-      $CPSfound = true;
-      if($CPSRow["profile"]) $assocProf[] = $CPSRow["profile"]; //If it's Null, it isn't added.
+      $assocProf = array_unique($assocProf);
 
-      //TODO Do stuff with the data
-      //First, make an overall plot
-      //Then, plot out the effect of each profile
-      //Catch for edit and make stuff configurable
-
-      $CPSRow = mysqli_fetch_assoc($knownCPS);
-    }
-
-    $assocProf = array_unique($assocProf);
-
-    if(!$CPSfound) {
-      echo "<tr>\n<td>\nNothing associated with this source yet, edit it to add associations\n</td>\n</tr>\n";
-    } else {
-      // We found associations, do stuff!
-      echo "<tr>\n<td>\n";
-      //TODO
-      echo "Overall plot goes here";
-      echo "</td>\n";
-      echo "<td>\n=\n</td>\n";
-
-      foreach($assocProf as $profID) {
-        // TODO
-        echo "<td>\nPlot for profile goes here\n</td>\n";
+      if(!$CPSfound) {
+        echo "<tr>\n<td>\nNothing associated with this source yet, edit it to add associations\n</td>\n</tr>\n";
+      } else {
+        // We found associations, do stuff!
+        echo "<tr>\n<td>\n";
+        $plotData = \aqctrl\sourceCalc($knownChan, $srcRow["id"], $knownFn, $knownPt, $knownProf,
+          $knownCPS);
         
-        if($profID != end($assocProf)) echo "<td>\n*\n</td>\n";
+        \aqctrl\plotData($plotData);
+        echo "</td>\n";
+        echo "<td>\n=\n</td>\n";
+
+        foreach($assocProf as $profID) {
+          // TODO
+          echo "<td>\nPlot for profile goes here\n</td>\n";
+        
+          if($profID != end($assocProf)) echo "<td>\n*\n</td>\n";
+        }
+
+        echo "</tr>\n";
       }
 
-      echo "</tr>\n";
-    }
-      
+      if(isset($_GET['edit']) && $_GET['edit'] == $srcRow["id"]) {
+        //Give all of the controls
+        echo "<input type='hidden' name='editID' value=" . $srcRow["id"] . ">\n";
+        echo "<tr>\n<td>\n";
 
-    mysqli_data_seek($knownCPS, 0);
-
-    if(isset($_GET['edit']) && $_GET['edit'] == $srcRow["id"]) {
-      //Give all of the controls
-      echo "<input type='hidden' name='editID' value=" . $srcRow["id"] . ">\n";
-      echo "<tr>\n<td>\n";
-
-      //Populate a list of potential types
-      $chanRow = mysqli_fetch_array($knownChan);
-      $knownTypes = array();
-      $chanMatch = array();
-
-      while($chanRow) {
-        $knownTypes[] = $chanRow['type'];
-
-        if($chanRow["type"] == $srcRow["type"]) $chanMatch[$chanRow['name']] = $chanRow['id'];
-
+        //Populate a list of potential types
         $chanRow = mysqli_fetch_array($knownChan);
-      }
+        $knownTypes = array();
+        $chanMatch = array();
 
-      mysqli_data_seek($knownChan, 0);
+        foreach($knownChan as $chanRow) {
+          $knownTypes[] = $chanRow['type'];
+
+          if($chanRow["type"] == $srcRow["type"]) $chanMatch[$chanRow['name']] = $chanRow['id'];
+
+          $chanRow = mysqli_fetch_array($knownChan);
+        }
 
       $knownTypes = array_unique($knownTypes);
 

@@ -140,15 +140,136 @@ function functionCalc($knownPts, $fnID, $startTime, $endTime = false)
 
 
 
-
-
-
-function sourceCalc()
+function channelCalc($chanInfo, $chanValLim)
 {
-  //Data Inputs
+  //TODO: rework
+  //Function to create the return for a host
+  global $debug_mode;
+
+  $retInfo = "";
+
+  $now = time();
+
+  for($i=0;$i<$chanValLim;$i++) {
+    $t = $now + ($i*100);
+    $retInfo .= "$t,";
+  }
+
+  $retInfo .= ';';
+
+  for($i=0;$i<$chanValLim;$i++) {
+    $v = mt_rand() / mt_getrandmax();
+    $retInfo .= "$v,";
+  }
+
+  return $retInfo;
+}
 
 
-  //Return format
+function sourceCalc($knownChan, $srcID, $knownFn, $knownPt, $knownProf, $knownCPS,
+   $numPts = 0, $duration = 0)
+{
+  //Calculate values for our source.
+  //We're given a source ID: $srcID that needs to be calculated.
+  //Go through our CPSes - these give us access to the associated profiles.
+  //Assemble the data all into an array that plotdata likes.
+  $retData = array();
+  $retData['chans'] = array();
+  $retData['scale'] = array();
+  $chanList = array();
+
+  //Mine the CPSes for data we care about.
+  foreach($knownCPS as $thisCPS) {
+    if($thisCPS['source'] == $srcID && $thisCPS['profile'] && $thisCPS['channel']) {
+      //This CPS belongs to the source we're calculating for.
+      //Test if we've seen this profile before.
+      $profKey = $thisCPS['profile'];
+
+      //Add this channel and CPS scale info to the array.
+      $retData['chans'][$profKey][] = $thisCPS['channel'];
+      $retData['scales'][$profKey][] = $thisCPS['scale'];
+
+      //Add this channel to our running channel list.
+      $chanList[] = $thisCPS['channel'];
+    }
+  }
+
+  $retData['chanInfo'] = array();
+  $chanList = array_unique($chanList);
+
+  //Mine the channels for data we care about.
+  foreach($knownChan as $thisChan) {
+    if(in_array($thisChan['id'], $chanList)) {
+      //Add this channel info to our list
+      $retData['chanInfo'][$thisChan['id']] = [
+        'color' => $thisChan['color'],
+        'name' => $thisChan['name'],
+      ];
+    }
+  }
+
+  //Now, go through the profiles, calculating along the way.
+  foreach($knownProf as $thisProf) {
+    //We have CPS and chann data tee'd up for us in the $retData variable
+    $profKey = $thisProf['id'];
+
+    //If the profile isn't used, move on to the next profile.
+    if(!count($retData['scales'][$profKey])) continue;
+
+    //Get our profile points.
+    $retData['profData'][$profKey] = array();
+    $retData['profData'][$profKey]['timePts'] = array();
+    $retData['profData'][$profKey]['dataPts'] = array();
+    
+    $i = 0;
+
+    do {
+      //Calculate the data.
+      $calcData = \aqctrl\functionCalc($knownPts, $thisProf['function'],
+        $thisProf['UNIX_TIMESTAMP(start)'], $thisProf['UNIX_TIMESTAMP(end)']);
+
+      //Shift the time data as necessary.
+      foreach($calcData['timePts'] as $key => $value) {
+        $calcData['timePts'][$key] = $value+($i*$thisProf('refresh'));
+      }
+
+      $retData['profData'][$profKey]['timePts'][] = $calcData['timePts'];
+      $retData['profData'][$profKey]['dataPts'][] = $calcData['data0'];
+
+      $i++;
+      $timeCount = count($retData['profData'][$profKey]['timePts']);
+      $timeDiff = $retData['profData'][$profKey]['timePts'][$timeCount-1]-
+        $retData['profData'][$profKey]['timePts'][[0];
+    } while (($timeCount < $numPts) || ($timeDiff < $duration)) 
+
+    //Now, we have a set of function points for this profile.
+    //Next, calculate and stage our individual channel data; this will be usable later for plotting.
+    $i = 0;
+    $retData['profData'][$profKey]['chans'] = array();
+    $retData['profData'][$profKey]['title'] = $thisProf['name'];
+    $retData['profData'][$profKey]['outName'] = 'profileChart' . $profKey . '_' . $srcID;
+
+    foreach($retData['chans'][$profKey] as $key => $chanID) {
+      $retData['profData'][$profKey]["data$i"] = array();
+ 
+      //Multiply by the channels scale.
+      foreach($retData['profData'][$profKey]['dataPts'] as $inData) {
+        $retData['profData'][$profKey]["data$i"][] = $retData['scales'][$profKey][$key] * $inData;
+      }
+
+      //Stage the color, label, etc.
+      $retData['profData'][$profKey]["color$i"] = $retData['chanInfo'][$chanID]['color'];
+      $retData['profData'][$profKey]["label$i"] = $retData['chanInfo'][$chanID]['name'];
+
+    }
+  }
+
+  //Now, calculate the product of the profiles.
+  //Make sure to remember to map channels (they don't necessarily correlate)
+  //Also make sure to remember to interpolate so everything is on the same timebase
+
+
+  //Return format to match plotData.
 
 }
 
@@ -164,6 +285,8 @@ function plotData($plotData)
    'title' - The title for the plot
    'outName' - The desired name for the plot.
   */
+
+  //TODO: Add color conversion
 
   $myData = new \pData();
 
