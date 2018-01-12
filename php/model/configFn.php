@@ -29,19 +29,11 @@ configForm - function to generate the form to fill out
 
 configRtn - function to handle the return a POST of SetupForm
 
-
-TODO: rework using foreach loops rather than manually fetching/processing.
-TODO: Don't include inactive channels
-
 */
 
 namespace aqctrl;
 
-/* pChart library inclusions */
-include("chart/class/pData.class.php");
-include("chart/class/pDraw.class.php");
-include("chart/class/pImage.class.php");
-include("chart/class/pScatter.class.php");
+include("calcFn.php");
 
 
 function configForm($mysqli, $debug_mode)
@@ -119,7 +111,7 @@ function srcConfigForm($mysqli, $debug_mode)
     echo "<h3>" . $srcRow["name"] . "</h3>\n";
     echo "<table>\n";
 
-    $assocProc = array();
+    $assocProf = array();
     $CPSfound = false;
     //Build list of profiles associated with this source.
     foreach($knownCPS as $CPSRow) {
@@ -137,11 +129,15 @@ function srcConfigForm($mysqli, $debug_mode)
     } else {
       // We found associations, do stuff!
       echo "<tr>\n<td>\n";
-      $plotData = \aqctrl\sourceCalc($knownChan, $srcRow["id"], $knownFn, $knownPt, $knownProf,
+      $plotData = \aqctrl\sourceCalc($knownChan, $srcRow["id"], $knownFn, $knownPts, $knownProf,
         $knownCPS, $srcRow['scale'], $srcRow['name'], 0, 0); //Update last number for duration.
         
-      \aqctrl\plotData($plotData);
-      echo "<img src='../static/" . $plotData['outName'] . ".png' />\n";
+      if($plotData) {
+        \aqctrl\plotData($plotData);
+        echo "<img src='../static/" . $plotData['outName'] . ".png' />\n";
+      } else {
+        echo "Configure some channels and profiles";
+      }
       echo "</td>\n";
       echo "<td>\n=\n</td>\n";
 
@@ -171,8 +167,6 @@ function srcConfigForm($mysqli, $debug_mode)
         $knownTypes[] = $chanRow['type'];
 
         if($chanRow["type"] == $srcRow["type"]) $chanMatch[$chanRow['name']] = $chanRow['id'];
-
-        $chanRow = mysqli_fetch_array($knownChan);
       }
 
       $knownTypes = array_unique($knownTypes);
@@ -262,8 +256,6 @@ function srcConfigForm($mysqli, $debug_mode)
           $j++;
         }
 
-        echo "<input type='hidden' name='numcheck' value='$j'>\n";
-
         echo "<a href='" . \aqctrl\retGen('profile.php', $profID, 'single', false, false)
           . "'>Edit Profile</a>\n<br>\n";
         echo "<input type='submit' name='delProf$profNum' value='Remove Profile from Source' />\n";
@@ -273,6 +265,7 @@ function srcConfigForm($mysqli, $debug_mode)
         if($profID != end($assocProf)) echo "<td>\n</td>\n";
       }
 
+      echo "<input type='hidden' name='numcheck' value='$j'>\n";
       echo "</tr>\n"; 
       echo "</table>\n";
       echo "<p class='alignright'>\n";
@@ -406,6 +399,9 @@ function configRtn($mysqli, $debug_mode)
         if ($debug_mode) echo "<p>Error adding CPS" . mysqli_error($mysqli) . "\n</p>\n";
       }
 
+      //Just keep editing this one.
+      $retArgs = ['edit' => (int)($_POST['editID'])];
+
     }
 
     //Add a CPS for each channel already associated.
@@ -420,7 +416,7 @@ function configRtn($mysqli, $debug_mode)
     $assocChan = [];
 
     foreach($selCPS as $thisCPS) {
-      $assocChan[] = $thisCPS['channel'];
+      if($thisCPS['channel']) $assocChan[] = $thisCPS['channel']; //Don't add Nulls
     }
 
     $assocChan = array_unique($assocChan);
@@ -430,11 +426,11 @@ function configRtn($mysqli, $debug_mode)
         . (int)$_POST['editID'] . ")";
 
       if(!mysqli_query($mysqli, $sql)) {
-        if ($debug_mode) echo "<p>Error adding CPS" . mysqli_error($mysqli) . "\n</p>\n";
+        if ($debug_mode) echo "<p>Error adding CPS" . mysqli_error($mysqli) . " " . $sql . "\n</p>\n";
       }
     }
 
-    //Only return here if we're creating a new Profile.
+    //Return (we no always have define retargs)
     if($retArgs) return($retArgs);
   }
 
@@ -521,6 +517,11 @@ function configRtn($mysqli, $debug_mode)
     }
   }
 
+  //Add a tracker to make sure we found all of the channels checked
+  //This will catch the case were we have the channel picked but not check for any profiles (or we have no profiles)
+
+  $chanfound = array();
+
   foreach($selCPS as $CPSRow) {
     //We have four things to do:
     //1. See if the channel for this CPS is checked for the source, if it isn't delete it.
@@ -530,6 +531,7 @@ function configRtn($mysqli, $debug_mode)
     //   and add the missing ones.
     //   This can be done by checking for check$i that exists but ID$i and scale$i don't.
 
+    $chanfound[] = $CPSRow['channel'];
     $checkVar = (string)$CPSRow['profile'] . "_" . (string)$CPSRow['channel'];
     $checkFound = array_search($checkVar, $checks);
 
@@ -541,7 +543,7 @@ function configRtn($mysqli, $debug_mode)
       if(!$stmtUpdate->execute() && $debug_mode) {
         echo "Execute failed: (" . $stmtUpdate->errno . ") " . $stmtUpdate->error;
       }
-    } else {
+    } elseif($CPSRow['profile'] && $CPSRow['channel']) { //Make sure it's supposed to be aligned.
       //1. or 2. Need to delete this CPS
       $CPSID = $CPSRow['id'];
 
@@ -549,6 +551,23 @@ function configRtn($mysqli, $debug_mode)
         echo "Execute failed: (" . $stmtDel->errno . ") " . $stmtDel->error;
       }
         
+    }
+  }
+
+  //Check and make sure we have all channels desired, if not, add some with NULL for profile.
+  $stmt = $mysqli->prepare("INSERT INTO cps (scale, source, channel) VALUES (1, ?, ?)");
+  $stmt-> bind_param("ii", $SrcID, $ChanID);
+  $SrcID = $_POST['editID'];
+
+  foreach($srcChans as $chan) {
+    if(!in_array($chan, $chanfound)) {
+      //Add a CPS for this channel
+      $ChanID = $chan;
+      
+      if(!$stmt->execute() && $debug_mode) {
+        echo "Execute failed: (" . $stmt->errno . ") " . $stmt->error;
+      }
+
     }
   }
 

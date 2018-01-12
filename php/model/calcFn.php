@@ -34,8 +34,12 @@ include("chart/class/pScatter.class.php");
 // do the queries for you, but given the data as perscribed it will do the necessary calculations.
 // They will accept bulk data and filter.
 
-function functionCalc($knownPts, $fnID, $startTime, $endTime = false)
+function functionCalc($knownPts, $fnID, $startTime, $endTime = 0)
 {
+  //Make sure to cast our inputs.
+  $startTime = (double)$startTime;
+  $endTime = (double)$endTime;
+  $fnID = (int)$fnID;
 
   //Gather our data from the points.
   $timeAdjs = array();
@@ -46,12 +50,14 @@ function functionCalc($knownPts, $fnID, $startTime, $endTime = false)
 
   foreach($knownPts as $ptsRow) {
     if($ptsRow["function"] == $fnID) {
-      $timeAdjs[] = $ptsRow["timeAdj"];
-      $timeTypes[] = $ptsRow["timeType"];
-      $timeSEs[] = $ptsRow["timeSE"];
-      $dataPts[] = $ptsRow["value"];
+      $timeAdjs[] = (double)$ptsRow["timeAdj"];
+      $timeTypes[] = (boolean)$ptsRow["timeType"];
+      $timeSEs[] = (boolean)$ptsRow["timeSE"];
+      $dataPts[] = (double)$ptsRow["value"];
     }
   }
+
+  $numElements = count($timeTypes);
 
   //See if we've been given an end time.
   if (!$endTime) {
@@ -61,7 +67,6 @@ function functionCalc($knownPts, $fnID, $startTime, $endTime = false)
     $begMax = -INF;
     $endMin = INF;
     $endMax = -INF;
-    $numElements = count($timeTypes);
 
     for ($i=0; $i<$numElements; $i++) {
       if (!$timeSEs[$i]) {
@@ -139,6 +144,58 @@ function functionCalc($knownPts, $fnID, $startTime, $endTime = false)
 }
 
 
+function profileCalc($knownPts, $profRow, $startTime = 0, $endTime = 0)
+{
+  //Function to calculate our profile data.
+  //If we're not given start and end times, assumed to be now and now+24h.
+  //Similarly, if the end time ends up before the start time, it'll be over-written
+  if(!$startTime) $startTime = time();
+
+  if($endTime < $startTime) $endTime = $startTime+86400;
+
+  //Calculate the base data.
+  $calcData = \aqctrl\functionCalc($knownPts, $profRow['function'],
+    $profRow['UNIX_TIMESTAMP(start)'], $profRow['UNIX_TIMESTAMP(end)']);
+
+  //Now, figure out bringing the data into the time range that we want calculated.
+  //Figure out how many refreshes we are away.
+  $numRefr = ($startTime-$profRow['UNIX_TIMESTAMP(start)'])/$profRow['refresh'];
+
+  $i = floor($numRefr);
+
+  $retData['timePts'] = array();
+  $retData['data0'] = array();
+
+  do {
+    $newTimes = array();
+    //Shift the time data as necessary.
+    foreach($calcData['timePts'] as $key => $value) {
+      $retData['timePts'][] = $value+($i*$profRow['refresh']);
+      $retData['data0'][] = $calcData['data0'][$key];
+    }
+
+    $i++;
+    $timeCount = count($retData['timePts']);
+    $calcEnd = $retData['timePts'][$timeCount-1];
+
+  } while ($calcEnd < $endTime);
+
+  //Truncate the data to start at startime and end at endtime.
+  $newTimes = array();
+  
+  $newTimes[0] = $startTime;
+
+  foreach($retData['timePts'] as $timePt) {
+    if ($timePt>$startTime && $timePt<$endTime) $newTimes[] = $timePt;
+  }
+
+  $newTimes[] = $endTime;
+
+  return array(
+    'timePts' => $newTimes,
+    'data0' => \aqctrl\interpData($newTimes, $retData['timePts'], $retData['data0']));
+}
+
 
 function channelCalc($chanInfo, $chanValLim)
 {
@@ -166,23 +223,20 @@ function channelCalc($chanInfo, $chanValLim)
 }
 
 
-function sourceCalc($knownChan, $srcID, $knownFn, $knownPt, $knownProf, $knownCPS, $srcScale = 1,
-   $srcName = 'No Name', $numPts = 0, $duration = 0)
+function sourceCalc($knownChan, $srcID, $knownFn, $knownPts, $knownProf, $knownCPS, $srcScale = 1,
+   $srcName = 'No Name', $duration = 0)
 {
   //Calculate values for our source.
   //We're given a source ID: $srcID that needs to be calculated.
   //Go through our CPSes - these give us access to the associated profiles.
   //Assemble the data all into an array that plotdata likes.
   $retData = array();
-  $retData['chans'] = array();
-  $retData['scale'] = array();
   $chanList = array();
 
   //Mine the CPSes for data we care about.
   foreach($knownCPS as $thisCPS) {
     if($thisCPS['source'] == $srcID && $thisCPS['profile'] && $thisCPS['channel']) {
       //This CPS belongs to the source we're calculating for.
-      //Test if we've seen this profile before.
       $profKey = $thisCPS['profile'];
 
       //Add this channel and CPS scale info to the array.
@@ -193,6 +247,9 @@ function sourceCalc($knownChan, $srcID, $knownFn, $knownPt, $knownProf, $knownCP
       $chanList[] = $thisCPS['channel'];
     }
   }
+
+  //Jump out if we didn't get any matches (catch early work with no profiles assoc)
+  if(!count($retData['chans'])) return false;
 
   $retData['chanInfo'] = array();
   $chanList = array_unique($chanList);
@@ -217,55 +274,36 @@ function sourceCalc($knownChan, $srcID, $knownFn, $knownPt, $knownProf, $knownCP
     $profKey = $thisProf['id'];
 
     //If the profile isn't used, move on to the next profile.
-    if(!count($retData['scales'][$profKey])) continue;
+    if(!array_key_exists($profKey, $retData['scales'])) continue;
 
     //Get our profile points.
     $retData['profData'][$profKey] = array();
     $retData['profData'][$profKey]['timePts'] = array();
     $retData['profData'][$profKey]['dataPts'] = array();
     
-    $i = 0;
+    //Calculate data for this profile.
+    $calcData = \aqctrl\profileCalc($knownPts, $thisProf);
 
-    do {
-      //Calculate the data.
-      $calcData = \aqctrl\functionCalc($knownPts, $thisProf['function'],
-        $thisProf['UNIX_TIMESTAMP(start)'], $thisProf['UNIX_TIMESTAMP(end)']);
-
-      //Shift the time data as necessary.
-      foreach($calcData['timePts'] as $key => $value) {
-        $calcData['timePts'][$key] = $value+($i*$thisProf('refresh'));
-      }
-
-      $retData['profData'][$profKey]['timePts'][] = $calcData['timePts'];
-      $retData['profData'][$profKey]['dataPts'][] = $calcData['data0'];
-
-      $i++;
-      $timeCount = count($retData['profData'][$profKey]['timePts']);
-      $timeDiff = $retData['profData'][$profKey]['timePts'][$timeCount-1]-
-        $retData['profData'][$profKey]['timePts'][[0];
-    } while (($timeCount < $numPts) || ($timeDiff < $duration))
+    $retData['profData'][$profKey]['timePts'] = $calcData['timePts'];
+    $retData['profData'][$profKey]['dataPts'] = $calcData['data0'];
 
     //Log that we've seen these time points.
-    $timePtsSeen[] = $retData['profData'][$profKey]['timePts'];
+    $timePtsSeen = array_merge($timePtsSeen, $calcData['timePts']);
 
     //Now, we have a set of function points for this profile.
     //Next, calculate and stage our individual channel data; this will be usable later for plotting.
-    $i = 0;
-    $retData['profData'][$profKey]['chans'] = array();
     $retData['profData'][$profKey]['title'] = $thisProf['name'];
     $retData['profData'][$profKey]['outName'] = 'profileChart' . $profKey . '_' . $srcID;
 
     foreach($retData['chans'][$profKey] as $key => $chanID) {
-      $retData['profData'][$profKey]["data$i"] = array();
- 
       //Multiply by the channels scale.
       foreach($retData['profData'][$profKey]['dataPts'] as $inData) {
-        $retData['profData'][$profKey]["data$i"][] = $retData['scales'][$profKey][$key] * $inData;
+        $retData['profData'][$profKey]["data$key"][] = $retData['scales'][$profKey][$key] * $inData;
       }
 
       //Stage the color, label, etc.
-      $retData['profData'][$profKey]["color$i"] = $retData['chanInfo'][$chanID]['color'];
-      $retData['profData'][$profKey]["label$i"] = $retData['chanInfo'][$chanID]['name'];
+      $retData['profData'][$profKey]["color$key"] = $retData['chanInfo'][$chanID]['color'];
+      $retData['profData'][$profKey]["label$key"] = $retData['chanInfo'][$chanID]['name'];
 
     }
   }
@@ -273,11 +311,13 @@ function sourceCalc($knownChan, $srcID, $knownFn, $knownPt, $knownProf, $knownCP
   //Now, calculate the product of the profiles.
   //Make sure to remember to map channels (they don't necessarily correlate)
   //Also make sure to remember to interpolate so everything is on the same time points.
+  
   $retData['timePts'] = array_unique($timePtsSeen);
   sort($retData['timePts']);
 
   $retData['title'] = $srcName;
   $retData['outName'] = 'srcChart' . $srcID;
+
 
   //Seed the data with our overall source scale.
   foreach($chanList as $i => $chanID) {
@@ -290,6 +330,7 @@ function sourceCalc($knownChan, $srcID, $knownFn, $knownPt, $knownProf, $knownCP
   //Channel mapping for each proflie: $retData['chans'][$profKey]
 
   foreach($retData['profData'] as $profKey => $profData) {
+
     foreach($chanList as $i => $chanID) {
       //Find this chanID in our profData.
       $PCKey = array_search($chanID, $retData['chans'][$profKey]);
@@ -297,7 +338,7 @@ function sourceCalc($knownChan, $srcID, $knownFn, $knownPt, $knownProf, $knownCP
       if($PCKey === false) continue; //This chanID not used in this profile.
 
       //The chanID was found.
-      $newData = \aqctrl\interpData($retData['timePts'], $profData['timeData'],
+      $newData = \aqctrl\interpData($retData['timePts'], $profData['timePts'],
         $profData["data$PCKey"]);
 
       //Multiply through.
@@ -307,6 +348,11 @@ function sourceCalc($knownChan, $srcID, $knownFn, $knownPt, $knownProf, $knownCP
     }
   }
   //Return format to match plotData already queued up
+
+  echo "<br><br>retData<br><pre>";
+  var_dump($retData);
+  echo "</pre><br><br>";
+
   return($retData);
 }
 
