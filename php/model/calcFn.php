@@ -252,7 +252,7 @@ function sourceCalc($knownChan, $srcID, $knownFn, $knownPts, $knownProf, $knownC
   if(!count($retData['chans'])) return false;
 
   $retData['chanInfo'] = array();
-  $chanList = array_unique($chanList);
+  $chanList = array_values($chanList);
 
   //Mine the channels for data we care about.
   foreach($knownChan as $thisChan) {
@@ -348,11 +348,6 @@ function sourceCalc($knownChan, $srcID, $knownFn, $knownPts, $knownProf, $knownC
     }
   }
   //Return format to match plotData already queued up
-
-  echo "<br><br>retData<br><pre>";
-  var_dump($retData);
-  echo "</pre><br><br>";
-
   return($retData);
 }
 

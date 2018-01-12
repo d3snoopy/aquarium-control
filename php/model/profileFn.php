@@ -326,6 +326,6 @@ function profileRtn($mysqli, $debug_mode)
     }
   }
 
-  return($retArgs);
+  //return($retArgs);
 }
 

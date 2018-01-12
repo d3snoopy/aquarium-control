@@ -229,7 +229,7 @@ function srcConfigForm($mysqli, $debug_mode)
 
       foreach ($assocProf as $profNum => $profID) {
         echo "<td>\n";
-        echo "Channels:\n<br>\n";
+        echo "Channels:\n";
 
         foreach ($chanMatch as $chanName => $chanID) {
           //Go through our channels; they're not necessarily all mapped.
@@ -244,19 +244,18 @@ function srcConfigForm($mysqli, $debug_mode)
             }
           }
 
-          echo "<input type='checkbox' name='check$j' value='$profID" . "_$chanID' $chanFound>\n";
+          echo "<br>\n<input type='checkbox' name='check$j' value='$profID" . "_$chanID' $chanFound>\n";
           echo $chanName;
 
           if($chanFound) {
             echo " scale: \n";
             echo "<input type='number' name='scale$j' value='" . $CPSRow['scale'] .
-              "' step='any'>\n<br>\n";
-            echo "<input type='hidden' name='ID$j' value='" . $CPSRow['id'] . "'>\n";
+              "' step='any'>\n";
           }
           $j++;
         }
 
-        echo "<a href='" . \aqctrl\retGen('profile.php', $profID, 'single', false, false)
+        echo "<br>\n<a href='" . \aqctrl\retGen('profile.php', $profID, 'single', false, false)
           . "'>Edit Profile</a>\n<br>\n";
         echo "<input type='submit' name='delProf$profNum' value='Remove Profile from Source' />\n";
         echo "<input type='hidden' name='prof$profNum' value='$profID'>\n";
@@ -504,7 +503,7 @@ function configRtn($mysqli, $debug_mode)
     if(isset($_POST["check$i"])) $checks[$i] = $_POST["check$i"];
 
     //Test if we need to add a CPS for this because it's a newly added check
-    if(!isset($_POST["scale$i"])) {
+    if(!isset($_POST["scale$i"]) && isset($_POST["check$i"])) {
       //Need to create this CPS
       $addInfo = explode("_", $_POST["check$i"]);
       $SrcID = $_POST['editID'];
