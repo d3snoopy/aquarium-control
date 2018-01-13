@@ -144,7 +144,7 @@ function functionCalc($knownPts, $fnID, $startTime, $endTime = 0)
 }
 
 
-function profileCalc($knownPts, $profRow, $startTime = 0, $endTime = 0)
+function profileCalc($knownPts, $profRow, $startTime = 0, $endTime = 0, $numPts = 0)
 {
   //Function to calculate our profile data.
   //If we're not given start and end times, assumed to be now and now+24h.
@@ -159,26 +159,32 @@ function profileCalc($knownPts, $profRow, $startTime = 0, $endTime = 0)
 
   //Now, figure out bringing the data into the time range that we want calculated.
   //Figure out how many refreshes we are away.
-  $numRefr = ($startTime-$profRow['UNIX_TIMESTAMP(start)'])/$profRow['refresh'];
+  if($profRow['refresh']) {
+    $numRefr = ($startTime-$profRow['UNIX_TIMESTAMP(start)'])/$profRow['refresh'];
 
-  $i = floor($numRefr);
+    $i = floor($numRefr);
 
-  $retData['timePts'] = array();
-  $retData['data0'] = array();
+    $retData['timePts'] = array();
+    $retData['data0'] = array();
 
-  do {
-    $newTimes = array();
-    //Shift the time data as necessary.
-    foreach($calcData['timePts'] as $key => $value) {
-      $retData['timePts'][] = $value+($i*$profRow['refresh']);
-      $retData['data0'][] = $calcData['data0'][$key];
-    }
+    do {
+      $newTimes = array();
+      //Shift the time data as necessary.
+      foreach($calcData['timePts'] as $key => $value) {
+        $retData['timePts'][] = $value+($i*$profRow['refresh']);
+        $retData['data0'][] = $calcData['data0'][$key];
+      }
 
-    $i++;
-    $timeCount = count($retData['timePts']);
-    $calcEnd = $retData['timePts'][$timeCount-1];
+      $i++;
+      $timeCount = count($retData['timePts']);
+      $calcEnd = $retData['timePts'][$timeCount-1];
 
-  } while ($calcEnd < $endTime);
+    } while (($calcEnd < $endTime) || ($timeCount < $numPts));
+
+  } else {
+    //Don't repeat
+    $retData = $calcData;
+  }
 
   //Truncate the data to start at startime and end at endtime.
   $newTimes = array();
@@ -197,7 +203,80 @@ function profileCalc($knownPts, $profRow, $startTime = 0, $endTime = 0)
 }
 
 
-function channelCalc($chanInfo, $chanValLim)
+function channelCalc($chanID, $numPts, $knownSrc=0, $knownFn=0, $knownPts=0, $knownProf=0, $knownCPS=0)
+{
+  //Function to calculate values for a channel
+  $profData['ids'] = array();
+
+  //Plan: similar to the source calc: go through our items, calculating, then all up all of our sources for the channel.
+  //TODO: add reaction, trigger work
+
+  foreach($knownCPS as $CPSRow) {
+    if($CPSRow['channel'] == $chanID && $CPSRow['source'] && $CPSRow['profile']) {
+      //This CPS belongs to the channel that we're calculating for.
+      //Add this profile ID to a list.
+      $profData['ids'][] = $CPSRow['profile'];
+    }
+  }
+
+  //We now have a list of profiles that we care about.
+  $profData['ids'] = array_unique($profData['ids']);
+
+  $timesFound = array();
+
+  $timeNow = time();
+
+  //Now go through and calculate for each profile.
+  foreach($knownProf as $profRow) {
+    if(in_array($profRow['id'], $profData['ids'])) {
+      $profData[$profRow['id']] = profileCalc($knownPts, $profRow, $timeNow, 0, $numPts);
+      $timesFound = array_merge($timesFound, $profData[$profRow['id']]['timePts']);
+    }
+  }
+
+  //Get unique points, sort, and slice.
+  $timesFound = array_unique($timesFound);
+  sort($timesFound);
+  $newTimes = array_slice($timesFound, 0, $numPts);
+  $newTimes = array_values($newTimes);
+
+  //Interpolate all of our profiles.
+  foreach($profData['ids'] as $profID) {
+    $newData[$profID] = \aqctrl\interpData($newTimes, $profData[$profID]['timePts'],
+      $profData[$profID]['data0']);
+  }
+
+  //Calculate our data.
+  $dataOut = array();
+
+  foreach($newTimes as $i => $timeStamp) {
+    $dataOut[$i] = 0;
+    foreach($knownSrc as $srcRow) {
+      $srcUsed = false;
+      $newVal = $srcRow['scale'];
+
+      foreach($knownCPS as $CPSRow) {
+        if(($CPSRow['source'] == $srcRow['id']) && ($CPSRow['channel'] == $chanID)
+          && ($CPSRow['profile'])) {
+
+          //Use this CPS.
+          $srcUsed = true;
+          $newVal *= $CPSRow['scale'];
+          $newVal *= $newData[$CPSRow['profile']][$i];
+        }
+      }
+
+      if($srcUsed) $dataOut[$i] += $newVal;
+    }
+  }
+
+  return array(
+    'timePts' => $newTimes,
+    'data0' => $dataOut);
+}
+
+
+function channelCalcOld($chanInfo, $chanValLim)
 {
   //TODO: rework
   //Function to create the return for a host
@@ -252,6 +331,7 @@ function sourceCalc($knownChan, $srcID, $knownFn, $knownPts, $knownProf, $knownC
   if(!count($retData['chans'])) return false;
 
   $retData['chanInfo'] = array();
+  $chanList = array_unique($chanList);
   $chanList = array_values($chanList);
 
   //Mine the channels for data we care about.
@@ -347,6 +427,7 @@ function sourceCalc($knownChan, $srcID, $knownFn, $knownPts, $knownProf, $knownC
       }
     }
   }
+
   //Return format to match plotData already queued up
   return($retData);
 }
@@ -383,7 +464,7 @@ function interpData($outX, $inX, $inY)
 }
 
 
-function plotData($plotData)
+function plotData($plotData, $fromNow = false)
 {
   /*Function to do the pChart plotting
   Expects the $plotData variable to be an array of arrays witht he following keys:
@@ -395,10 +476,20 @@ function plotData($plotData)
    'outName' - The desired name for the plot.
   */
 
+  $xLabel = "Time (sec)";
+
+  if($fromNow) {
+    $timeNow = time();
+    foreach($plotData['timePts'] as $i => $t) {
+      $plotData['timePts'][$i] = ($t - $timeNow)/60;
+    }
+    $xLabel = "Time (minutes from now)";
+  }
+
   $myData = new \pData();
 
   $myData->addPoints($plotData["timePts"], "Labels");
-  $myData->setAxisName(0,"Time");
+  $myData->setAxisName(0,$xLabel);
   $myData->setAxisXY(0,AXIS_X);
   $myData->setAxisPosition(0,AXIS_POSITION_BOTTOM);
 
@@ -425,11 +516,11 @@ function plotData($plotData)
   $myData->setAxisXY(1,AXIS_Y);
   $myData->setAxisPosition(1,AXIS_POSITION_LEFT);
 
-  $myPicture = new \pImage(400,200,$myData);
+  $myPicture = new \pImage(450,400,$myData);
 
   $myPicture->Antialias = FALSE;
 
-  $myPicture->drawFilledRectangle(0,0,399,199,array("R"=>9,"G"=>9,"B"=>9));
+  $myPicture->drawFilledRectangle(0,0,449,399,array("R"=>30,"G"=>30,"B"=>30));
 
   /* Write the chart title */
   $myPicture->drawText(10,30,$plotData["title"],array("FontSize"=>20,"Align"=>TEXT_ALIGN_BOTTOMLEFT,"R"=>102,"G"=>140,"B"=>255,"FontName"=>"chart/fonts/Forgotte.ttf"));
@@ -437,7 +528,7 @@ function plotData($plotData)
   /* Set the default font */
   $myPicture->setFontProperties(array("R"=>102,"G"=>140,"B"=>255,"FontName"=>"chart/fonts/Forgotte.ttf","FontSize"=>12));
 
-  $myPicture->setGraphArea(40,40,390,150);
+  $myPicture->setGraphArea(40,40,410,300);
 
   $myScatter = new \pScatter($myPicture, $myData);
   $myScatter->drawScatterScale(array("AxisR"=>90,"AxisG"=>90,"AxisB"=>90));
@@ -448,7 +539,7 @@ function plotData($plotData)
 
   if($i > 1) {
     // Draw a legend
-    $myScatter->drawScatterLegend(280,380,array("Mode"=>LEGEND_HORIZONTAL,"Style"=>LEGEND_NOBORDER));
+    $myScatter->drawScatterLegend(40,380,array("Mode"=>LEGEND_HORIZONTAL,"Style"=>LEGEND_NOBORDER));
   }
 
   $myPicture->Render("../static/" . $plotData["outName"] . ".png");

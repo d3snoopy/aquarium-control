@@ -133,7 +133,7 @@ function srcConfigForm($mysqli, $debug_mode)
         $knownCPS, $srcRow['scale'], $srcRow['name'], 0, 0); //Update last number for duration.
         
       if($plotData) {
-        \aqctrl\plotData($plotData);
+        \aqctrl\plotData($plotData, true);
         echo "<img src='../static/" . $plotData['outName'] . ".png' />\n";
       } else {
         echo "Configure some channels and profiles";
@@ -143,7 +143,7 @@ function srcConfigForm($mysqli, $debug_mode)
 
       foreach($assocProf as $profID) {
         echo "<td>\n";
-        \aqctrl\plotData($plotData['profData'][$profID]);
+        \aqctrl\plotData($plotData['profData'][$profID], true);
         echo "<img src='../static/" . $plotData['profData'][$profID]['outName'] . ".png' />\n";
         echo "</td>\n";
         
@@ -306,8 +306,42 @@ function chanConfigForm($mysqli, $debug_mode)
   echo "</table>\n";
   echo "</h3>\n";
 
-  //TODO
+  // Grab our data and plot (for now don't provide editing.
+  $knownChan = mysqli_query($mysqli, "SELECT id, name, type, variable, active, max, min, color, units FROM channel WHERE input=0 AND active=1");
 
+  $numChan = mysqli_num_rows($knownChan);
+
+  if(!$numChan) {
+    echo "<p>No Channels Known.</p>\n";
+    return;
+  }
+
+  $knownSrc = mysqli_query($mysqli, "SELECT id, name, scale, type FROM source ORDER BY type, id");
+  $knownFn = mysqli_query($mysqli, "SELECT id,name FROM function");
+  $knownPts = mysqli_query($mysqli, "SELECT id,value,timeAdj,timeType,timeSE,function FROM point ORDER BY function, timeSE, timeAdj");
+  $knownReact = mysqli_query($mysqli, "SELECT id, action, scale, channel, react FROM reaction");
+  $knownProf = mysqli_query($mysqli, "SELECT id, name, UNIX_TIMESTAMP(start), UNIX_TIMESTAMP(end), refresh, reaction, function FROM profile");
+  $knownCPS = mysqli_query($mysqli, "SELECT id, scale, channel, profile, source FROM cps ORDER BY source, channel, profile");
+
+
+  //Create a plot for each channel.
+  foreach($knownChan as $chanRow) {
+    echo "<br>\n";
+    $plotData = \aqctrl\channelCalc($chanRow['id'], 100, $knownSrc, $knownFn, $knownPts,
+      $knownProf, $knownCPS);
+
+    $plotData['color0'] = $chanRow['color'];
+    $plotData['label0'] = $chanRow['name'];
+    $plotData['title'] = $chanRow['name'];
+    $plotData['outName'] = "chanChart" . $chanRow['id'];
+
+    if(count($plotData['timePts'])) {
+      \aqctrl\plotData($plotData, true);
+      echo "<img src='../static/" . $plotData['outName'] . ".png' />\n";
+    } else {
+      echo $chanRow['name'] . " - No data Found";
+    }
+  }
 }
 
 
