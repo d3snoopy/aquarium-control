@@ -353,7 +353,7 @@ function sourceCalc($knownChan, $srcID, $knownFn, $knownPts, $knownProf, $knownC
   }
 
   //Jump out if we didn't get any matches (catch early work with no profiles assoc)
-  if(!count($retData['chans'])) return false;
+  if(!isset($retData['chans']) || !count($retData['chans'])) return false;
 
   $retData['chanInfo'] = array();
   $chanList = array_unique($chanList);

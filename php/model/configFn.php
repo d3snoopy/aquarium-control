@@ -136,15 +136,19 @@ function srcConfigForm($mysqli, $debug_mode)
         \aqctrl\plotData($plotData, true);
         echo "<img src='../static/" . $plotData['outName'] . ".png' />\n";
       } else {
-        echo "Configure some channels and profiles";
+        echo "Configure some channels and profiles.\n";
       }
       echo "</td>\n";
       echo "<td>\n=\n</td>\n";
 
       foreach($assocProf as $profID) {
         echo "<td>\n";
-        \aqctrl\plotData($plotData['profData'][$profID], true);
-        echo "<img src='../static/" . $plotData['profData'][$profID]['outName'] . ".png' />\n";
+        if($plotData['profData'][$profID]) {
+          \aqctrl\plotData($plotData['profData'][$profID], true);
+          echo "<img src='../static/" . $plotData['profData'][$profID]['outName'] . ".png' />\n";
+        } else {
+          echo "Add Channels to this profile.\n";
+        }
         echo "</td>\n";
         
         if($profID != end($assocProf)) echo "<td>\n*\n</td>\n";
@@ -159,7 +163,6 @@ function srcConfigForm($mysqli, $debug_mode)
       echo "<tr>\n<td>\n";
 
       //Populate a list of potential types
-      $chanRow = mysqli_fetch_array($knownChan);
       $knownTypes = array();
       $chanMatch = array();
 
@@ -194,12 +197,15 @@ function srcConfigForm($mysqli, $debug_mode)
 
       $j=0;
 
+      $chansSel = array();
+
       foreach ($chanMatch as $chanName => $chanID) {
         $chSel = "";
 
         foreach($knownCPS as $CPSRow) {
           if (($CPSRow['channel'] == $chanID) && ($CPSRow['source'] == $srcRow["id"])) {
             $chSel = "checked";
+            $chansSel[] = $CPSRow['channel'];
             break; //We're finished here, so don't bother finishing the iteration.
           }
         }
@@ -234,6 +240,9 @@ function srcConfigForm($mysqli, $debug_mode)
         foreach ($chanMatch as $chanName => $chanID) {
           //Go through our channels; they're not necessarily all mapped.
           $chanFound = "";
+
+          //First, check if this channel is selected for the source.
+          if(!in_array($chanID, $chansSel)) continue;
 
           foreach ($knownCPS as $CPSRow) {
             if(($CPSRow['source'] == $srcRow['id']) && ($CPSRow['profile'] == $profID) &&
