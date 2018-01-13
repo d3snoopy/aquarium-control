@@ -153,6 +153,8 @@ function profileCalc($knownPts, $profRow, $startTime = 0, $endTime = 0, $numPts 
 
   if($endTime < $startTime) $endTime = $startTime+86400;
 
+  if(!$numPts) $numPts = 100;
+
   //Calculate the base data.
   $calcData = \aqctrl\functionCalc($knownPts, $profRow['function'],
     $profRow['UNIX_TIMESTAMP(start)'], $profRow['UNIX_TIMESTAMP(end)']);
@@ -179,6 +181,8 @@ function profileCalc($knownPts, $profRow, $startTime = 0, $endTime = 0, $numPts 
       $timeCount = count($retData['timePts']);
       $calcEnd = $retData['timePts'][$timeCount-1];
 
+      if($timeCount > $numPts) break;
+
     } while (($calcEnd < $endTime) || ($timeCount < $numPts));
 
   } else {
@@ -203,10 +207,31 @@ function profileCalc($knownPts, $profRow, $startTime = 0, $endTime = 0, $numPts 
 }
 
 
-function channelCalc($chanID, $numPts, $knownSrc=0, $knownFn=0, $knownPts=0, $knownProf=0, $knownCPS=0)
+function channelCalc($chanID, $numPts, $mysqli, $knownSrc=0, $knownFn=0, $knownPts=0,
+   $knownProf=0, $knownCPS=0)
 {
   //Function to calculate values for a channel
   $profData['ids'] = array();
+
+  if(!$knownSrc) {
+    $knownSrc = mysqli_query($mysqli, "SELECT id, name, scale, type FROM source ORDER BY type, id");
+  }
+
+  if(!$knownFn) {
+    $knownFn = mysqli_query($mysqli, "SELECT id,name FROM function");
+  }
+
+  if(!$knownPts) {
+    $knownPts = mysqli_query($mysqli, "SELECT id,value,timeAdj,timeType,timeSE,function FROM point ORDER BY function, timeSE, timeAdj");
+  }
+
+  if(!$knownProf) {
+    $knownProf = mysqli_query($mysqli, "SELECT id, name, UNIX_TIMESTAMP(start), UNIX_TIMESTAMP(end), refresh, reaction, function FROM profile");
+  }
+
+  if(!$knownCPS) {
+    $knownCPS = mysqli_query($mysqli, "SELECT id, scale, channel, profile, source FROM cps ORDER BY source, channel, profile");
+  }
 
   //Plan: similar to the source calc: go through our items, calculating, then all up all of our sources for the channel.
   //TODO: add reaction, trigger work
