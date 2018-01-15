@@ -212,9 +212,11 @@ function profileCalc($knownPts, $profRow, $startTime = 0, $endTime = 0, $numPts 
 }
 
 
-function channelCalc($chanID, $numPts, $mysqli, $knownSrc=0, $knownFn=0, $knownPts=0,
+function channelCalc($chanRow, $numPts, $mysqli, $knownSrc=0, $knownFn=0, $knownPts=0,
    $knownProf=0, $knownCPS=0)
 {
+  $chanID = $chanRow['id'];
+
   //Function to calculate values for a channel
   $profData['ids'] = array();
 
@@ -298,6 +300,9 @@ function channelCalc($chanID, $numPts, $mysqli, $knownSrc=0, $knownFn=0, $knownP
 
       if($srcUsed) $dataOut[$i] += $newVal;
     }
+    //Test against min and max
+    $dataOut[$i] = max($chanRow['min'], min($chanRow['max'], $dataOut[$i]));
+    
   }
 
   return array(

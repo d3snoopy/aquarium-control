@@ -336,7 +336,7 @@ function chanConfigForm($mysqli, $debug_mode)
   //Create a plot for each channel.
   foreach($knownChan as $chanRow) {
     echo "<br>\n";
-    $plotData = \aqctrl\channelCalc($chanRow['id'], 100, $mysqli, $knownSrc, $knownFn, $knownPts,
+    $plotData = \aqctrl\channelCalc($chanRow, 100, $mysqli, $knownSrc, $knownFn, $knownPts,
       $knownProf, $knownCPS);
 
     $plotData['color0'] = $chanRow['color'];

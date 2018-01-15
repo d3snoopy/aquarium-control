@@ -209,7 +209,7 @@ function host_process($data_in, $data_out, $mysqli, $row)
       $data_out .= ';';
     } else {
     // Output channel; return data
-      $calcData = \aqctrl\channelCalc($chanInfo['id'], $chanValLim, $mysqli);
+      $calcData = \aqctrl\channelCalc($chanInfo, $chanValLim, $mysqli);
 
       foreach($calcData['timePts'] as $timePt) {
         $data_out .= "$timePt,";
