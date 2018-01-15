@@ -30,9 +30,14 @@ include 'header.php';
 
 // Pull in the models.
 include 'model.php';
+include 'statusFn.php';
 
 //Test the db connection and connect
 $mysqli = \aqctrl\db_connect();
+
+// Find out if we're in debug mode.
+$debug_mode = \aqctrl\debug_status();
+
 
 if(!$mysqli) {
     header("Location: quickstart.php");
@@ -51,15 +56,14 @@ if($QSrow["step"] <= $QSrow["numStep"]) {
     return;
 }
 
+echo "<h2>Aquarium Controller</h2>";
+
 echo "<p>\n";
 
-for ($i = 1; $i <= 200; $i++) {
-    echo "<br>$i";
-}
-?>
-</p>
+\aqctrl\statusForm($mysqli, $debug_mode, 1);
 
-<?php
+echo "</p>\n";
+
 
 
 

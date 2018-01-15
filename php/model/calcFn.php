@@ -20,6 +20,8 @@ along with Aqctrl.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 // calcFn.php
+// TODO: update the count
+// TODO: don't add end point if at number, filter grouped set down to limit#
 
 namespace aqctrl;
 
@@ -200,6 +202,9 @@ function profileCalc($knownPts, $profRow, $startTime = 0, $endTime = 0, $numPts 
   }
 
   $newTimes[] = $endTime;
+
+  //Slice the data to limit to our count.
+  if(count($newTimes) > $numPts) $newTimes = array_slice($newTimes, 0, $numPts);
 
   return array(
     'timePts' => $newTimes,
