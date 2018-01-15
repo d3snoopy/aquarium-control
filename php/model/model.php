@@ -236,6 +236,7 @@ function db_create()
     id INT(10) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     date DATETIME NOT NULL,
     value FLOAT(10,4) NOT NULL,
+    thinned INT(1) UNSIGNED,
     channel INT(6) UNSIGNED,
     FOREIGN KEY (channel) REFERENCES channel(id) ON DELETE CASCADE ON UPDATE CASCADE
     );";

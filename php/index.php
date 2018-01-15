@@ -65,8 +65,6 @@ echo "<p>\n";
 echo "</p>\n";
 
 
-
-
 // End do the footer
 include 'footer.php';
 ?>
