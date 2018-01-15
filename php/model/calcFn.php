@@ -508,6 +508,8 @@ function plotData($plotData, $fromNow = false)
 
   $xLabel = "Time (sec)";
 
+  if(isset($plotData['timeUnits'])) $xLabel = "Time (" . $plotData['timeUnits'] . ")";
+
   if($fromNow) {
     $timeNow = time();
     foreach($plotData['timePts'] as $i => $t) {
