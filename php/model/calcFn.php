@@ -409,6 +409,7 @@ function sourceCalc($knownChan, $srcID, $knownFn, $knownPts, $knownProf, $knownC
     //Next, calculate and stage our individual channel data; this will be usable later for plotting.
     $retData['profData'][$profKey]['title'] = $thisProf['name'];
     $retData['profData'][$profKey]['outName'] = 'profileChart' . $profKey . '_' . $srcID;
+    $retData['profData'][$profKey]['unitsY'] = $thisChan['units'];
 
     foreach($retData['chans'][$profKey] as $key => $chanID) {
       //Multiply by the channels scale.
@@ -432,6 +433,7 @@ function sourceCalc($knownChan, $srcID, $knownFn, $knownPts, $knownProf, $knownC
 
   $retData['title'] = $srcName;
   $retData['outName'] = 'srcChart' . $srcID;
+  $retData['unitsY'] = $thisChan['units'];
 
 
   //Seed the data with our overall source scale.
@@ -507,8 +509,10 @@ function plotData($plotData, $fromNow = false)
    'dataN' - Y-axis data, N starting at 0 and counting up, each element will be a different line plotted
    'colorN' - The color for the line for dataN (optional)
    'labelN' - The label for the line for dataN
+   'unitsY' - The units to display for the Y axis (optional)
    'title' - The title for the plot
    'outName' - The desired name for the plot.
+   'timeUnits' = The units to dosplay for the X axis (optional)
   */
 
   $xLabel = "Time (sec)";
@@ -522,6 +526,10 @@ function plotData($plotData, $fromNow = false)
     }
     $xLabel = "Time (minutes from now)";
   }
+
+  $yLabel = 'Value';
+
+  if(isset($plotData['unitsY'])) $yLabel = $plotData['unitsY'];
 
   $myData = new \pData();
 
@@ -537,6 +545,7 @@ function plotData($plotData, $fromNow = false)
     $myData->setSerieOnAxis("data$i",1);
     $myData->setScatterSerie("Labels","data$i",$i);
     $myData->setScatterSerieDescription($i,$plotData["label$i"]);
+
     if(isset($plotData["color$i"])) {
       $R = hexdec(substr($plotData["color$i"],0,2));
       $G = hexdec(substr($plotData["color$i"],2,2));
@@ -549,7 +558,7 @@ function plotData($plotData, $fromNow = false)
   $i++;
   }
 
-  $myData->setAxisName(1,"Value"); //TODO May want to make this configurable in the future
+  $myData->setAxisName(1,$yLabel);
   $myData->setAxisXY(1,AXIS_Y);
   $myData->setAxisPosition(1,AXIS_POSITION_LEFT);
 

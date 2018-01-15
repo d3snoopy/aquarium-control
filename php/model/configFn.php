@@ -343,6 +343,7 @@ function chanConfigForm($mysqli, $debug_mode)
     $plotData['label0'] = $chanRow['name'];
     $plotData['title'] = $chanRow['name'];
     $plotData['outName'] = "chanChart" . $chanRow['id'];
+    $plotData['unitsY'] = $chanRow['units'];
 
     if(count($plotData['timePts'])) {
       \aqctrl\plotData($plotData, true);
