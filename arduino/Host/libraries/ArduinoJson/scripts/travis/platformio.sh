@@ -1,10 +1,1 @@
-#!/bin/sh -eux
-
-pip install --user platformio
-
-rm -r test
-
-for EXAMPLE in $PWD/examples/*/*.ino; 
-do
-	platformio ci $EXAMPLE -l '.' -b $BOARD
-done
+/home/d3snoopy/Arduino/lib-old/ArduinoJson/scripts/travis/platformio.sh

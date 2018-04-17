@@ -1,12 +1,23 @@
 Top TODO:
 
-Do a rewite in php;  Don't worry too much about mucking with the whole django thing - slim the effort down.
+- Implement non-variable channels
+- Add in host IP and callback
+- Implement Reactions
+- Implement Triggers
+- Update/Complete Help
+- Update Configure page to add profile editing.
+- Update LEGO lights to be lux @ 23"
+- Colorpicker for the color
+- Facilitate time picking
+- Improve look/format of index
+- Scheduler work (an app that updates profiles based on things like sunrise/sunset data)
+- Update host code to drop requests where an ID doesn't successfully come across
+- Add in section scrolls for the page so when you edit to goes there.
+- Update arduino code to provide a canned response upon ping
+- Home page improvement; lastping status, make charts take up less space
+- Check into how increating a new profile seriously breaks things by hitting enter
+- Error where future date sometimes results on host (but not channel)
 
-Add: "Total Power" plot for groups of channels.
-
-Mechanism to consume channels
-
-Add: are you sure dialog for the delete button.
 
 
 ****************************************************

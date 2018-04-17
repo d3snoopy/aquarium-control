@@ -181,6 +181,9 @@ function profileCalc($knownPts, $profRow, $startTime = 0, $endTime = 0, $numPts 
 
       $i++;
       $timeCount = count($retData['timePts']);
+
+      //if(!$timecount) break;
+
       $calcEnd = $retData['timePts'][$timeCount-1];
 
       if($timeCount > $numPts) break;

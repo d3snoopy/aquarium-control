@@ -1,8 +1,1 @@
-[
-  "hello",
-  'hello',
-  hello,
-  {"hello":"world"},
-  {'hello':'world'},
-  {hello:world}
-]
+/home/d3snoopy/Arduino/lib-old/ArduinoJson/fuzzing/seed_corpus/Strings.json

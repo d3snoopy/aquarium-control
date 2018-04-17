@@ -23,7 +23,6 @@ along with Aqctrl.  If not, see <http://www.gnu.org/licenses/>.
 
 // Module to handle interactions with the hosts
 
-// TODO: Update values given to not be random data
 // TODO: Add in a last known address portion so we can potentially call in to a host
 
 namespace aqctrl;
@@ -55,6 +54,20 @@ if(!$mysqli) {
   return;
 }
 
+if ($debug_mode) {
+  // Log our input for debugging purposes.
+  $stmt = $mysqli->prepare("INSERT INTO hostlog (host, value) VALUES (?, ?)");
+  $stmt-> bind_param("is", $fakeHost , $myQuery);
+
+  $fakeHost = 0;
+  $myQuery = var_export($_POST, true);
+
+  if(!$stmt->execute() && $debug_mode) {
+    echo "Execute failed: (" . $stmt->errno . ") " . $stmt->error;
+  }
+}
+
+
 // Explode the host data from the host.
 $data_in = explode(",", $_POST['host']);
 
@@ -77,8 +90,9 @@ if($hostFound) {
   // Update lastping if this is really a new ping.
 
   if((int)$data_in[2] >= (int)$lastPing) {
+    $timeNow = time();
     if(!mysqli_query($mysqli, "UPDATE host SET lastPing = FROM_UNIXTIME(
-      " . (int)$data_in[2] . ") WHERE id = "
+      " . $timeNow . ") WHERE id = "
       . $row['id'])) {
         if ($debug_mode) echo "Error updating ping: " . mysqli_error($mysqli);
         $data_out .= time() + 600;
@@ -92,7 +106,7 @@ if($hostFound) {
        $data_out .= ',60,60,;';
        mysqli_query($mysqli, "UPDATE host SET status =
          'Not Validated' WHERE id = " . $row['id']);
-    } else {
+    } elseif(isset($_POST['time']) && isset($_POST['data']) && isset($_POST['HMAC'])) {
       // We've also validated this host.
       // Check the hash.
       $hash_expected = hash_HMAC('sha256', $_POST['host'] . $_POST['time'] . $_POST['data'], $row['auth']);
@@ -112,6 +126,9 @@ if($hostFound) {
         mysqli_query($mysqli, "UPDATE host SET status =
           'Bad Key' WHERE id = " . $row['id']);
       }
+    } else {
+      mysqli_query($mysqli, "UPDATE host SET status =
+          'Malformed Message' WHERE id = " . $row['id']);
     }
 
   } else {
@@ -128,8 +145,10 @@ if($hostFound) {
 
   $data_out .= $HMAC;
 
-  echo "\r\n\r\n";
-  echo $data_out;
+  //echo "\r\n\r\n";
+  //echo $data_out;
+  $hostID = $row['id'];
+
 }
 
 // Test to see if we found this host.
@@ -138,9 +157,21 @@ if(!$hostFound && isset($_POST['host'])) {
   $row['auth'] = 0;
   $data_out .= time() + 600;
   $data_out .= ',60,60,;';
+  $hostID = 0;
 }
 
-$data_out .= ';';
+echo "\r\n\r\n";
+echo $data_out;
+
+if ($debug_mode) {
+  // Log our output for debugging purposes.
+  $stmt = $mysqli->prepare("INSERT INTO hostlog (host, value) VALUES (?, ?)");
+  $stmt-> bind_param("is", $hostID, $data_out);
+
+  if(!$stmt->execute() && $debug_mode) {
+    echo "Execute failed: (" . $stmt->errno . ") " . $stmt->error;
+  }
+}
 
 // Disconnect and return
 mysqli_close($mysqli);

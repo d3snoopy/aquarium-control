@@ -1,4 +1,6 @@
-Overall design:
+Overall design for communication:
+
+TODO: Add a 'trigger' section to the message.
 
 Server:
 Handles comms to each host

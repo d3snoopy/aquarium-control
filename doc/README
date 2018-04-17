@@ -7,61 +7,13 @@ flush privileges;
 
 Setup with Apache:
 
+Make sure you have php enabled & working
+Make sure you have your Mysql server working
 
+Security:
 
+- For each arduino: make sure you give it a unique ID and key; don't share the key with others
+- Make sure to change the Mysql password for the aqctrl user
+- Add your own wireless info for the arduino
+- Check and make sure that debug mode is off
 
-Add this to /etc/apache2/apache2.conf:
-
-# Set up the aq ctrl site
-WSGIScriptAlias / /aquarium-ctrl/aquarium_controller/wsgi.py
-
-
-<Directory /aquarium-ctrl/aquarium_controller>
-<Files wsgi.py>
-Order deny,allow
-Allow from all
-</Files>
-</Directory>
-
-# Set up the static area
-Alias /static /aquarium-ctrl/aquarium_controller/static
-
-<Directory /aquarium-ctrl/aquarium_controller/static>
-Order deny,allow
-Allow from all
-</Directory>
-
-Move apache to listen to port 80:
-vim /etc/apache2/port.conf
-
-add the line:
-Listen 80
-
-
-Disable the services the listen to port 80:
-systemctl disable bonescript.service              
-systemctl disable bonescript.socket
-systemctl disable bonescript-autorun.service
-
-
-Connections:
-P9_12 : 1Wire for Temp probes
-28-000005abd542 - BB Temp Probe
-28-0000054f0d80 - Water Temp Probe
-28-000005aad04d - Ambient Temp Probe
-
-
-Capes:
-Run backend/hardware_setup.sh
-To compile and copy the cape overlays
-
-To enable on boot:
-mkdir /mnt/card
-mount /dev/mmcblk0p1  /mnt/card
-vim /mnt/card/uEnv.txt
-
-Disable the HDMI cape:
-uncomment cape_disable=capemgr.disable_partno=BB-BONELT-HDMI,BB-BONELT-HDMIN
-
-
-Min signal with TLC59711, appears to be ~.02 - .03 (2-3%)

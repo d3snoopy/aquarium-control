@@ -66,11 +66,11 @@ const char * chanNames[] = {"Light1", "Light2", "Light3", "Light4", "Light5", "L
 const char * chanTypes[] = {"light", "light", "light", "light", "light", "light", "light", "light", "light", "light", "light", "light"};
 const boolean chanVars[] = {true, true, true, true, true, true, true, true, true, true, true, true};
 const boolean chanActives[] = {true, true, true, true, true, true, true, true, true, true, true, true};
-const float chanMaxs[] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
+const float chanMaxs[] = {63.62, 63.62, 63.62, 63.62, 63.62, 63.62, 63.62, 63.62, 63.62, 63.62, 63.62, 63.62};
 const float chanMins[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 const char * chanColors[] = {"FFFFFF", "FFFFFF", "FFFFFF", "FFFFFF", "FFFFFF", "FFFFFF", "FFFFFF", "FFFFFF", "FFFFFF", "FFFFFF", "FFFFFF", "FFFFFF"};
-const char * chanUnits[] = {"%", "%", "%", "%", "%", "%", "%", "%", "%", "%", "%", "%"};
-const float chanScales[] = {65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535};
+const char * chanUnits[] = {"Lumens", "Lumens", "Lumens", "Lumens", "Lumens", "Lumens", "Lumens", "Lumens", "Lumens", "Lumens", "Lumens", "Lumens"};
+const float chanScales[] = {1030, 1030, 1030, 1030, 1030, 1030, 1030, 1030, 1030, 1030, 1030, 1030};
 const float chanInits[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
 

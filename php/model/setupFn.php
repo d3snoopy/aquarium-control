@@ -147,6 +147,7 @@ function setupForm($mysqli, $debug_mode)
 <th>Units</th>
 <th>Last Ping</th>
 </tr>
+<script type="text/javascript" src="/static/jscolor.js"></script>
       
       <?php
 
@@ -182,7 +183,7 @@ function setupForm($mysqli, $debug_mode)
           echo "<td>" . $chan["hostChNum"] . "</td>\n";
           echo "<td><input type='number' name='max$i' value=" . $chan["max"] . " step='any'></td>\n";
           echo "<td><input type='number' name='min$i' value=" . $chan["min"] . " step='any'></td>\n";
-          echo "<td><input type='text' name='color$i' value='" . $chan["color"] . "'></td>\n"; //TODO: change to colorpicker
+          echo "<td><input type='text' class='color' name='color$i' value='" . $chan["color"] . "'></td>\n"; //TODO: change to colorpicker
           echo "<td>" . $chan["units"] . "</td>\n"; //TODO: Make sure units are alphanumeric
           echo "<td>" . \aqctrl\time_elapsed_string($chan["UNIX_TIMESTAMP(lastPing)"], $hostRow["pingInterval"]) .
             "</td>\n";
