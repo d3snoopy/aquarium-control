@@ -1,3 +1,4 @@
+
 //Copyright 2017 Stuart Asp: d3snoopy AT gmail
 
 //This file is part of Aqctrl.
@@ -50,7 +51,7 @@ unsigned long needPing[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 //Register to prevent replay attacks
 unsigned long chanPing[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 //Max number of readings to hold in memory reduce this if you get crashes.
-const unsigned int maxVals = 100;
+const int maxVals = 100;
 
 // Setup info for each channel
 // Names: the human-readible names for each channel
@@ -185,6 +186,12 @@ void loop() {
       "<!DOCTYPE HTML><html>Ok, Checking in</html>\r\n");
     client.stop();
     postData(-1);
+
+    //Hold here to avoid double pings
+    while(client) {
+      client.stop();
+      delay(100);
+    }
   }
 
 }
@@ -239,7 +246,8 @@ void readChannels() {
   // Measure temperature
   sensors.requestTemperatures();
 
-  int actChNum = 12;
+  int actChNum;
+  actChNum = 12;
 
   timeStamps[actChNum][chanReg[actChNum]] = Ltime;
   chanVals[actChNum][chanReg[actChNum]] = sensors.getTempFByIndex(0);
@@ -248,9 +256,11 @@ void readChannels() {
   Serial.println(chanVals[actChNum][chanReg[actChNum]]);
   
   chanReg[actChNum]++;
+  Serial.print("Reg Value: ");
+  Serial.println(chanReg[actChNum]);
 
   //See if we've reached the end of our input data.
-  if(chanReg[actChNum] == maxVals) {
+  if(chanReg[actChNum] >= maxVals) {
     needPing[actChNum] = 1;
     chanReg[actChNum] = 0;
   }
@@ -264,9 +274,11 @@ void readChannels() {
   Serial.println(chanVals[actChNum][chanReg[actChNum]]);
   
   chanReg[actChNum]++;
+  Serial.print("Reg Value: ");
+  Serial.println(chanReg[actChNum]);
 
   //See if we've reached the end of our input data.
-  if(chanReg[actChNum] == maxVals) {
+  if(chanReg[actChNum] >= maxVals) {
     needPing[actChNum] = 1;
     chanReg[actChNum] = 0;
   }
@@ -280,9 +292,11 @@ void readChannels() {
   Serial.println(chanVals[actChNum][chanReg[actChNum]]);
   
   chanReg[actChNum]++;
+  Serial.print("Reg Value: ");
+  Serial.println(chanReg[actChNum]);
 
   //See if we've reached the end of our input data.
-  if(chanReg[actChNum] == maxVals) {
+  if(chanReg[actChNum] >= maxVals) {
     needPing[actChNum] = 1;
     chanReg[actChNum] = 0;
   }
@@ -424,6 +438,13 @@ void postData(int i) {
 
   // Close the connection.
   client.stop();
+
+  // Pause 1sec.
+  delay(1000);
+
+  //Memory usage
+  Serial.print("Memory Free: ");
+  Serial.println(ESP.getFreeHeap());
 }
 
 
@@ -435,17 +456,7 @@ void sendPost(WiFiClient client, int i) {
   Serial.println("Sending request");
 
   //Buffer the floating point prints.
-  char buffer[20]; 
-
-  // Send the message
-  client.print("POST ");
-  client.print(url);
-  client.print(" HTTP/1.1\r\n");
-  client.print("Host: ");
-  client.print(serverAddr);
-  client.print("\r\nConnection: close\r\n");
-  client.print("Content-Type: application/x-www-form-urlencoded\r\n");
-  client.print("Content-length: ");
+  char buffer[14];
 
   // Calculate the length of our message.
   // Fixed numbers: 14 commas in "host" + 5 chars for "host=" + 6 chars for "&time=" +
@@ -455,19 +466,32 @@ void sendPost(WiFiClient client, int i) {
   int n=0;
   if (chanIn[i]) {
     //Count the number of elements we're going to send.
-    while (timeStamps[i][n] && n<maxVals) {
+    while ((timeStamps[i][n]) && (n < maxVals)) {
       n++;
     }
     dataLen = n*25; //10 int chars, 13 float chars, 2 commas
   } else {
     dataLen = 0;
   }
-  
+
+  Serial.print("Number of data points sent: ");
+  Serial.println(n);
+
+  Sha256.initHmac(key,20);
+
+  //Construct our message.
+  client.print("POST ");
+  client.print(url);
+  client.print(" HTTP/1.1\r\n");
+  client.print("Host: ");
+  client.print(serverAddr);
+  client.print("\r\nConnection: close\r\n");
+  client.print("Content-Type: application/x-www-form-urlencoded\r\n");
+  client.print("Content-length: ");
+
   client.print(187+strlen(hostID)+strlen(hostName)+strlen(chanNames[i])+strlen(chanTypes[i])
     +strlen(chanColors[i])+strlen(chanUnits[i])+dataLen);
     
-  Sha256.initHmac(key,20);
-  
   client.print("\r\n\r\n");
   client.print("host=");
 
@@ -558,14 +582,20 @@ void sendPost(WiFiClient client, int i) {
   }
 
   //Print the HMAC
-  uint8_t* hash = Sha256.resultHmac();
+  uint8_t *hash;
+  hash = Sha256.resultHmac();
   client.print("&HMAC=");
-  
 
+  char localHash[65];
+  
   for (int j=0; j<32; j++) {
-    client.print("0123456789abcdef"[hash[j]>>4]);
-    client.print("0123456789abcdef"[hash[j]&0xf]);
+    localHash[j*2] = ("0123456789abcdef"[hash[j]>>4]);
+    localHash[j*2+1] = ("0123456789abcdef"[hash[j]&0xf]);
   }
+
+  localHash[64] = '\0';
+
+  client.print(localHash);
 }
 
 
@@ -592,12 +622,13 @@ void rxPost(WiFiClient client, int i) {
 
   int wait=0;
 
-  // Wait for either a response or timeout (give it 5 seconds).
+  // Wait for either a response or timeout (give it 60 seconds).
   while (!client.available()) {
     delay(100);
     wait+=100;
-    if (wait>10000) {
+    if (wait>60000) {
       Serial.println(">>>Server Timeout!");
+      needPing[i] = 0;
       return;
     }
   }
@@ -773,13 +804,15 @@ void rxPost(WiFiClient client, int i) {
         
     }
     //Insert a slight delay - we were getting responses fragmented across requests.
-    //delay(1);
+    delay(1);
   }
 
   reads[count] = '\0';
 
   //Process our local hash
-  uint8_t* hash = Sha256.resultHmac();
+  uint8_t *hash;
+  hash = Sha256.resultHmac();
+  //uint8_t* hash = Sha256.resultHmac();
 
   char localHash[65];
   
@@ -841,6 +874,13 @@ void rxPost(WiFiClient client, int i) {
       for (int j=0; j<maxVals; j++) {
         timeStamps[i][j] = 0;
       }
+
+      //Print our data
+      for (int j=0; j<maxVals; j++) {
+        Serial.print(timeStamps[i][j]);
+        Serial.print("  ");
+        Serial.println(chanVals[i][j],6);
+      }
     }
 
     chanReg[i] = 0;
@@ -851,7 +891,7 @@ void rxPost(WiFiClient client, int i) {
   }
 
   needPing[i] = 0; //Reset our ping tracker for this channel whether we successfully pinged or not.
-  //This way we avoid contast ping spam, but set ourselves to potentially miss out on a full set of data.
+  //This way we avoid constant ping spam, but set ourselves to potentially miss out on a full set of data.
 
   Serial.print("NextPing: ");
   Serial.println(nextPing);

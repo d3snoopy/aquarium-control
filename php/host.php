@@ -88,9 +88,10 @@ if($hostFound) {
   // Check date against lastping, make sure we're not seeing a replay.
   $lastPing = $row["UNIX_TIMESTAMP(lastPing)"];
   // Update lastping if this is really a new ping.
+  $timeNow = time();
 
-  if((int)$data_in[2] >= (int)$lastPing) {
-    $timeNow = time();
+  if((int)$data_in[2] >= (int)$lastPing && (int)$data_in[2] <= ($timeNow+10)) { //Allow for 10 seconds drift
+    $timeNow = (int)$data_in[2];
     if(!mysqli_query($mysqli, "UPDATE host SET lastPing = FROM_UNIXTIME(
       " . $timeNow . ") WHERE id = "
       . $row['id'])) {
