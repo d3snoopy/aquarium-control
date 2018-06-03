@@ -206,7 +206,7 @@ function host_process($data_in, $data_out, $mysqli, $row)
   $chanValLim = (int)$data_in[3];
 
   // Set up the response array
-  $data_out .= time() + min($row['pingInterval'], $chanValLim*$row['inInterval']) . ",";
+  $data_out .= time() + $row['pingInterval'] . ",";
   $data_out .= $row['inInterval'] . ",";
   $data_out .= $row['outInterval'] . ",";
 

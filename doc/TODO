@@ -17,6 +17,7 @@ Top TODO:
 - Home page improvement; lastping status, make charts take up less space
 - Check into how increating a new profile seriously breaks things by hitting enter
 - Error where future date sometimes results on host (but not channel)
+- Adding a new profile adds all channels of type (not just ones that are associated)
 
 
 

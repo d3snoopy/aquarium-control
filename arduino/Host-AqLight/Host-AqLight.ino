@@ -94,6 +94,7 @@ unsigned long nextRead = 10;
 unsigned long nextWrite = 10;
 unsigned long inInterval = 60;
 unsigned long outInterval = 60;
+unsigned long defDelay = 120;
 
 // Initialize data for our channels.
 // If a channel is an output, this gets populated from the server on pings.
@@ -128,7 +129,7 @@ void setup() {
   postData(-1);
   
   // Run a second time in the first channel.
-  postData(0);
+  nextPing = postData(0);
 
 }
 
@@ -165,12 +166,18 @@ void loop() {
 
   //upload to the server if it's time
   if (Ltime >= nextPing) {
-    postData(-1);
+    Serial.println("Triggering global ping");
+    nextPing = postData(-1);
+
+    Serial.print("NextPing: ");
+    Serial.println(nextPing);
   }
 
   //Test our chanReg for maxing out size; if so, trigger a ping.
-  for (int i = 1; i < numChan; i++){
+  for (int i = 0; i < numChan; i++){
     if (needPing[i]) {
+      Serial.print("Triggering a ping for channel: ");
+      Serial.println(i);
       postData(i);
     }
   }
@@ -186,12 +193,6 @@ void loop() {
       "<!DOCTYPE HTML><html>Ok, Checking in</html>\r\n");
     client.stop();
     postData(-1);
-
-    //Hold here to avoid double pings
-    while(client) {
-      client.stop();
-      delay(100);
-    }
   }
 
 }
@@ -314,25 +315,34 @@ uint16_t PWMCalc(int i) {
   uint16_t calcAns;
   float intAns;
 
-  if(!timeStamps[i][chanReg[i]+1]) {
-    //We are at the end of our valid data, use the value from i without linear interpolation
-    //Note: this should catch blank data, too, since i and i+1 will be 0
-    intAns = _max(chanMins[i], _min(chanMaxs[i], chanVals[i][chanReg[i]]));
-  } else {
-    //Increment our chanReg to the right time.
-    while( (Ltime>timeStamps[i][chanReg[i]+1]) && (chanReg[i]<maxVals-2) ) {
-      chanReg[i]++;
-    }
-    //Do our linear interpolation and scale
+  //Increment our chanReg to the right time.
+  while( (Ltime>=timeStamps[i][chanReg[i]+1]) && (chanReg[i]<maxVals-2) && (timeStamps[i][chanReg[i]+1]) ) {
+    chanReg[i]++;
+  }
+
+  //Test for our linear interpolation queue; namely time[n+1] > Ltime
+  if(Ltime<timeStamps[i][chanReg[i]+1]) {
+    //We are good to do a linear interpolation.
+    //Do our linear interpolation and scale.
     float a;
     a = (chanVals[i][chanReg[i]+1]-chanVals[i][chanReg[i]])/(timeStamps[i][chanReg[i]+1]-timeStamps[i][chanReg[i]]);
 
     intAns = _max(chanMins[i], _min(chanMaxs[i], ((a*(Ltime-timeStamps[i][chanReg[i]]))+chanVals[i][chanReg[i]])));
-
-    //See if we've reached the end of our input data.
-    if(chanReg[i] == maxVals-2) {
-      needPing[i] = 1;
+  } else {
+    //Use the last value or default, depending on time[0].
+    if(!timeStamps[i][0]) {
+      //Special case: time[0] = 0 means we have blank data and want to just use the default.
+      intAns = chanInits[i];
+    } else {
+      intAns = _max(chanMins[i], _min(chanMaxs[i], chanVals[i][chanReg[i]]));
     }
+  }
+
+  //Decide about triggering a ping.
+  if( ((!timeStamps[i][chanReg[i]+1]) || (chanReg[i]>=maxVals-2)) && (timeStamps[i][0]) ) {
+    //We need to trigger a ping.
+    Serial.println("Triggering a ping to update channel data");
+    needPing[i] = 1;
   }
   
   //Do a max-ans to invert the answer
@@ -393,9 +403,11 @@ void startWIFI() {
 
 
 // Function to POST to the server; send a negative number to ping all channels.
-void postData(int i) {
+unsigned long postData(int i) {
   WiFiClient client;
 
+  unsigned long newPing;
+  
   if (i<0) {
     // Send and receive for each channel
     for(int j=0;j<numChan;j++) {
@@ -405,14 +417,14 @@ void postData(int i) {
       // Use WiFiClient class to create TCP connections
       if (!client.connect(serverAddr, httpPort)) {
         Serial.println("connection failed");
-        nextPing += 6000;
-        return;
+        // nextPing += 6000;
+        return Ltime + defDelay;
       }
   
       // Send and receive.
       sendPost(client, j);
       delay(100);
-      rxPost(client, j);
+      newPing = rxPost(client, j);
       // Pause 100ms.
       delay(100);
     }
@@ -424,13 +436,13 @@ void postData(int i) {
       // Use WiFiClient class to create TCP connections
       if (!client.connect(serverAddr, httpPort)) {
         Serial.println("connection failed");
-        nextPing += 6000;
-        return;
+        // nextPing += 6000;
+        return Ltime + defDelay;
       }
   
       // Send and receive.
       sendPost(client, i);
-      rxPost(client, i);
+      newPing = rxPost(client, i);
       // Pause 100ms.
       delay(100);
     }
@@ -445,6 +457,8 @@ void postData(int i) {
   //Memory usage
   Serial.print("Memory Free: ");
   Serial.println(ESP.getFreeHeap());
+
+  return newPing;
 }
 
 
@@ -464,11 +478,17 @@ void sendPost(WiFiClient client, int i) {
   // 6x10 = 60 int characters + 2*13 = 26 float characters = 187
   int dataLen;
   int n=0;
+
   if (chanIn[i]) {
     //Count the number of elements we're going to send.
-    while ((timeStamps[i][n]) && (n < maxVals)) {
-      n++;
+    for(int m=0; m<maxVals; m++) {
+      //Serial.println(m);
+      n = m;
+      if(!(timeStamps[i][m])) {
+        break;
+      }
     }
+
     dataLen = n*25; //10 int chars, 13 float chars, 2 commas
   } else {
     dataLen = 0;
@@ -599,7 +619,7 @@ void sendPost(WiFiClient client, int i) {
 }
 
 
-void rxPost(WiFiClient client, int i) {
+unsigned long rxPost(WiFiClient client, int i) {
   // Read all the lines of the reply from server.
   Serial.println("\r\nServer Response:");
 
@@ -629,7 +649,7 @@ void rxPost(WiFiClient client, int i) {
     if (wait>60000) {
       Serial.println(">>>Server Timeout!");
       needPing[i] = 0;
-      return;
+      return Ltime + defDelay;
     }
   }
 
@@ -732,6 +752,7 @@ void rxPost(WiFiClient client, int i) {
       //Test for transition to data
       if (c == ';') {
         for (int j=dataCount; j<maxVals; j++) {
+          //Serial.println(j);
           times[j] = 0;
         }
         section++;
@@ -767,6 +788,7 @@ void rxPost(WiFiClient client, int i) {
       //Test for transition to data
       if (c == ';') {
         for (int j=dataCount; j<maxVals; j++) {
+          //Serial.println(j);
           data[j] = chanInits[i];
         }
         section++;
@@ -854,7 +876,7 @@ void rxPost(WiFiClient client, int i) {
     chanPing[i] = newDate;
     Serial.print("Time Updated to: ");
     Serial.println(Ltime);
-    nextPing = newPing;
+    //nextPing = newPing;
     inInterval = newIn;
     outInterval = newOut;
     
@@ -887,17 +909,17 @@ void rxPost(WiFiClient client, int i) {
     
   } else {
     Serial.println("Hash Mismatch");
-    nextPing = Ltime + 120;
+    newPing = Ltime + defDelay;
   }
 
   needPing[i] = 0; //Reset our ping tracker for this channel whether we successfully pinged or not.
   //This way we avoid constant ping spam, but set ourselves to potentially miss out on a full set of data.
 
-  Serial.print("NextPing: ");
-  Serial.println(nextPing);
   Serial.println(" ");
   Serial.println("******End of Channel Query******");
   Serial.println(" ");
+
+  return newPing;
 }
 
 
