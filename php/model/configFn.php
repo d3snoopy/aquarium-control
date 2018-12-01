@@ -139,7 +139,7 @@ function srcConfigForm($mysqli, $debug_mode)
         echo "Configure some channels and profiles.\n";
       }
       echo "</td>\n";
-      echo "<td>\n=\n</td>\n";
+      echo "<td>\n<h1>=</h1>\n</td>\n";
 
       foreach($assocProf as $profID) {
         echo "<td>\n";
@@ -151,7 +151,7 @@ function srcConfigForm($mysqli, $debug_mode)
         }
         echo "</td>\n";
         
-        if($profID != end($assocProf)) echo "<td>\n*\n</td>\n";
+        if($profID != end($assocProf)) echo "<td>\n<h1>*</h1>\n</td>\n";
       }
 
       echo "</tr>\n";
@@ -353,7 +353,6 @@ function chanConfigForm($mysqli, $debug_mode)
     }
   }
 }
-
 
 
 function configRtn($mysqli, $debug_mode)
@@ -612,6 +611,17 @@ function configRtn($mysqli, $debug_mode)
       }
 
     }
+  }
+
+  //Do a callback to our affected hosts.
+  $hostsFound = mysqli_query($mysqli, "SELECT host FROM channel WHERE id IN ($srcChans)");
+
+  //Get the host ips.
+  $IPs = mysql_query($mysqli, "SELECT ip FROM host WHERE id IN ($hostsFound)");
+
+  //Pings the affected hosts.
+  foreach($IPs as $ip) {
+    $pingresult = exec("/bin/ping -n 3 $ip", $outcome, $status);
   }
 
   // Note: return is handled as a query string with checking, so don't return unchecked things from the wild

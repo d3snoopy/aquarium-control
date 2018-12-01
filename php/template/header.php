@@ -32,8 +32,8 @@ along with Aqctrl.  If not, see <http://www.gnu.org/licenses/>.
         <ul>
             <li><a href="index.php">Home</a></li>
             <li><a href="status.php">Status</a></li>
-            <li><a href="configure.php">Configure</a></li>
-            <li><a href="setup.php">Setup</a></li>
+            <li><a href="configure.php">Configure Schedules</a></li>
+            <li><a href="setup.php">Hardware Setup</a></li>
             <li><a href="help.php">Help</a></li>
         </ul>
     </div>

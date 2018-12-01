@@ -183,7 +183,7 @@ function setupForm($mysqli, $debug_mode)
           echo "<td>" . $chan["hostChNum"] . "</td>\n";
           echo "<td><input type='number' name='max$i' value=" . $chan["max"] . " step='any'></td>\n";
           echo "<td><input type='number' name='min$i' value=" . $chan["min"] . " step='any'></td>\n";
-          echo "<td><input type='text' class='color' name='color$i' value='" . $chan["color"] . "'></td>\n"; //TODO: change to colorpicker
+          echo "<td><input type='text' class='color' name='color$i' value='" . $chan["color"] . "'></td>\n";
           echo "<td>" . $chan["units"] . "</td>\n"; //TODO: Make sure units are alphanumeric
           echo "<td>" . \aqctrl\time_elapsed_string($chan["UNIX_TIMESTAMP(lastPing)"], $hostRow["pingInterval"]) .
             "</td>\n";
@@ -286,11 +286,11 @@ function time_elapsed_string($tm, $pInt) {
   $dif = $cur_tm - $tm;
 
   if($dif > 4*$pInt) {
-    $x = "<p style='color:red'>";
+    $x = "<span style='color:red'>";
   } elseif($dif > $pInt) {
-    $x = "<p style='color:yellow'>";
+    $x = "<span style='color:yellow'>";
   } else {
-    $x = "<p style='color:green'>";
+    $x = "<span style='color:green'>";
   }
 
   $pds = array('second','minute','hour','day','week','month','year','decade');
@@ -301,7 +301,7 @@ function time_elapsed_string($tm, $pInt) {
   if($no <> 1)
     $pds[$v] .='s';
   $x .= sprintf("%d %s ",$no,$pds[$v]);
-  $x .= " ago</p>";
+  $x .= " ago</span>";
   return $x;
 }
 

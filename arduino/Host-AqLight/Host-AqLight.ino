@@ -146,6 +146,11 @@ void loop() {
   
   Ltime = millis()/1000 + Toffset;
 
+  //Test to see if we've had a millis rollover.
+  if (Ltime < oldTime) {
+    Toffset = oldTime - millis()/1000;
+  }
+
   //read from our input channels if it's time
   if (Ltime >= nextRead) {
     Serial.print("Time: ");
@@ -921,6 +926,3 @@ unsigned long rxPost(WiFiClient client, int i) {
 
   return newPing;
 }
-
-
-

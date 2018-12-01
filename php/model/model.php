@@ -146,7 +146,8 @@ function db_create()
     inInterval INT(6) UNSIGNED,
     outInterval INT(6) UNSIGNED,
     pingInterval INT(6) UNSIGNED,
-    status VARCHAR(50) NOT NULL
+    status VARCHAR(50) NOT NULL,
+    ip VARCHAR(45)
     );";
 
   // Channel

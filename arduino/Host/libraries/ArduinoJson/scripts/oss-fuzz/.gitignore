@@ -1,1 +1,2 @@
-/home/d3snoopy/Arduino/lib-old/ArduinoJson/scripts/oss-fuzz/.gitignore
+/.vagrant/
+*.log

@@ -54,6 +54,7 @@ if(!$mysqli) {
   return;
 }
 
+/*
 if ($debug_mode) {
   // Log our input for debugging purposes.
   $stmt = $mysqli->prepare("INSERT INTO hostlog (host, value) VALUES (?, ?)");
@@ -66,6 +67,7 @@ if ($debug_mode) {
     echo "Execute failed: (" . $stmt->errno . ") " . $stmt->error;
   }
 }
+*/
 
 
 // Explode the host data from the host.
@@ -118,6 +120,8 @@ if($hostFound) {
         $data_out = \aqctrl\host_process($data_in, $data_out, $mysqli, $row);
         mysqli_query($mysqli, "UPDATE host SET status =
           'Success' WHERE id = " . $row['id']);
+        mysqli_query($mysqli, "UPDATE host SET ip = '" . $_SERVER['REMOTE_ADDR'] . "' WHERE id = "
+          . $row['id']);
 
       } else {
         // Hash failed
@@ -152,7 +156,7 @@ if($hostFound) {
 
 }
 
-// Test to see if we found this host.
+// Test to see if this is a new host.
 if(!$hostFound && isset($_POST['host'])) {
   \aqctrl\host_add($data_in, $mysqli);
   $row['auth'] = 0;

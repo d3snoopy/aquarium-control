@@ -31,6 +31,7 @@ include 'header.php';
 // Pull in the models.
 include 'model.php';
 include 'statusFn.php';
+include 'setupFn.php';
 
 //Test the db connection and connect
 $mysqli = \aqctrl\db_connect();
@@ -56,11 +57,25 @@ if($QSrow["step"] <= $QSrow["numStep"]) {
     return;
 }
 
-echo "<h2>Aquarium Controller</h2>";
+echo "<h2>Aquarium Controller</h2>\n";
 
 echo "<p>\n";
 
+echo "<h3>Data:</h3>\n";
 \aqctrl\statusForm($mysqli, $debug_mode, 1);
+
+echo "</p>\n<p>\n";
+echo "<h3>Host Last Ping:</h3>\n";
+
+$knownHosts = mysqli_query($mysqli, "SELECT id,ident,name,auth,UNIX_TIMESTAMP(lastPing),inInterval,
+  outInterval,pingInterval,status FROM host");
+
+foreach($knownHosts as $hostRow) {
+  echo "<br>\n";
+  echo $hostRow["name"] . ": \n";
+  echo \aqctrl\time_elapsed_string($hostRow["UNIX_TIMESTAMP(lastPing)"], $hostRow["pingInterval"]) .
+        "\n";
+}
 
 echo "</p>\n";
 

@@ -167,9 +167,19 @@ function statusForm($mysqli, $debug_mode, $indexRef = 0)
     $stageData[$dataRow['channel']]['timePts'][] = $timeCalc;
   }
 
+  $indexCnt = 0;
+
   //Go through each channel and plot.
   foreach($knownChan as $chanRow) {
-    echo "<br>\n";
+    if (!$indexRef) {
+      echo "<br>\n";
+    } else {
+      $indexCnt++;
+      if ($indexCnt > 3) {
+        echo "<br>\n";
+        $indexCnt = 0;
+      }
+    }
     $plotData = $stageData[$chanRow['id']];
 
     $plotData['color0'] = $chanRow['color'];
@@ -183,7 +193,7 @@ function statusForm($mysqli, $debug_mode, $indexRef = 0)
       \aqctrl\plotData($plotData);
       echo "<img src='../static/" . $plotData['outName'] . ".png' />\n";
     } else {
-      echo $chanRow['name'] . " - No data Found";
+      if (!$indexRef) echo $chanRow['name'] . " - No data Found";
     }
   }
 

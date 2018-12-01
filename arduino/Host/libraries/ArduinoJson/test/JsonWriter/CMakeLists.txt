@@ -1,1 +1,11 @@
-/home/d3snoopy/Arduino/lib-old/ArduinoJson/test/JsonWriter/CMakeLists.txt
+# ArduinoJson - arduinojson.org
+# Copyright Benoit Blanchon 2014-2018
+# MIT License
+
+add_executable(JsonWriterTests 
+	writeFloat.cpp
+	writeString.cpp
+)
+
+target_link_libraries(JsonWriterTests catch)
+add_test(JsonWriter JsonWriterTests)
