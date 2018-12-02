@@ -621,7 +621,10 @@ function configRtn($mysqli, $debug_mode)
 
   //Pings the affected hosts.
   foreach($IPs as $ip) {
-    $pingresult = exec("/bin/ping -c 1 " . $ip['ip']);
+    $curl_handle = curl_init();
+    curl_setopt( $curl_handle, CURLOPT_URL, $ip['ip'] );
+    curl_exec( $curl_handle ); // Execute the request
+    curl_close( $curl_handle );
   }
 
   // Note: return is handled as a query string with checking, so don't return unchecked things from the wild
