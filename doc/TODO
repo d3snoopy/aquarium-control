@@ -1,24 +1,18 @@
 Top TODO:
 
-- add in intro helpers: if cfg file not found, display a tip for that; if default pass used, display a tip to force a change.
-- Drop bad temp readings
 - Implement non-variable channels
-- Add in host IP and callback
 - Implement Reactions
 - Implement Triggers
 - Update/Complete Help
 - Update Configure page to add profile editing.
-- Update LEGO lights to be lux @ 23"
-- Colorpicker for the color
 - Facilitate time picking
-- Improve look/format of index
 - Scheduler work (an app that updates profiles based on things like sunrise/sunset data)
 - Update host code to drop requests where an ID doesn't successfully come across
 - Add in section scrolls for the page so when you edit to goes there.
-- Home page improvement; lastping status, make charts take up less space; driven channel status
+- Home page improvement; driven channel status (one grouped plot per host?)
 - Check into how increating a new profile seriously breaks things by hitting enter
-- Error where future date sometimes results on host (but not channel)
-- Adding a new profile adds all channels of type (not just ones that are associated)
+- Error where future date sometimes results on host (but not channel) ???? Don't remember/document error better
+- Adding a new profile adds all channels of type (not just ones that are associated)  ???? Don't remember/document error better
 
 
 

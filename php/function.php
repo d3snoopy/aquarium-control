@@ -23,6 +23,9 @@ along with Aqctrl.  If not, see <http://www.gnu.org/licenses/>.
 
 set_include_path("template:model");
 
+$title = "Function Editing";
+
+include 'header.php';
 include 'model.php';
 include 'functionFn.php';
 
@@ -32,12 +35,9 @@ $mysqli = \aqctrl\db_connect();
 // Find out if we're in debug mode.
 $debug_mode = \aqctrl\debug_status();
 
-$title = "Function Editing";
-
 // Do my content here
 if(!$mysqli) {
   //Complain about not being able to connect and give up.
-  include 'header.php';
   echo "<p>Could not connect to dB, check /etc/aqctrl.ini</p>\n";
   echo "<p>Or, try going to the <a href=quickstart.php>quickstart page.</a></p>\n";
   include 'footer.php';
@@ -82,8 +82,6 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
 
 } else {
   //Show the form.
-  include 'header.php';
-
   echo "<h1>Edit a Profile</h1>\n";
 
   //Show the form

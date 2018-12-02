@@ -23,6 +23,9 @@ along with Aqctrl.  If not, see <http://www.gnu.org/licenses/>.
 
 set_include_path("template:model");
 
+$title = "Status";
+
+include 'header.php';
 include 'model.php';
 include 'statusFn.php';
 
@@ -37,7 +40,6 @@ $title = "Status";
 // Do my content here
 if(!$mysqli) {
   //Complain about not being able to connect and give up.
-  include 'header.php';
   echo "<p>Could not connect to dB, check /etc/aqctrl.ini</p>\n";
   echo "<p>Or, try going to the <a href=quickstart.php>quickstart page.</a></p>\n";
   include 'footer.php';
@@ -58,7 +60,6 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
   \aqctrl\retGen(0, 0, 0, $newOpt, 1);
 
 } else {
-  include 'header.php';
   //Show the form
 
   $newUrl = \aqctrl\retGen();

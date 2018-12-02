@@ -58,6 +58,10 @@ if(!$config) {
   return;
 }
 
+if(!isset($config["sql_pass"]) || $config["sql_pass"] == "aqctrl_pass") {
+  die("<h1>INI File (/etc/aqctrl.ini) has default SQL database password configured; please change to continue.</h1>");
+}
+
 set_include_path("template:model");
 
 function debug_status()

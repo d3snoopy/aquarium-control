@@ -75,6 +75,7 @@ foreach($knownHosts as $hostRow) {
   echo $hostRow["name"] . ": \n";
   echo \aqctrl\time_elapsed_string($hostRow["UNIX_TIMESTAMP(lastPing)"], $hostRow["pingInterval"]) .
         "\n";
+  echo ", Status: " . $hostRow["status"];
 }
 
 echo "</p>\n";

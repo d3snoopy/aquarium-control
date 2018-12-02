@@ -25,11 +25,11 @@ namespace aqctrl;
 
 set_include_path("template:model");
 
+$title = "Help";
+include 'header.php';
+include 'model.php';
+
 if(strpos($_SERVER['REQUEST_URI'], 'help.php') !== false) {
-
-  $title = "Help";
-
-  include 'header.php';
   echo "<h1>Help</h1>\n";
   \aqctrl\helpIntro();
   include 'footer.php';
