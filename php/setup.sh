@@ -21,3 +21,7 @@
 
 
 mysql -u root -p </srv/code/aquarium/php/aq.sql
+cp /srv/code/aquarium/php/aqctrl.ini /etc/
+
+
+echo "Database Set Up, password for aqctrl user set to aqctrl_pass; make sure to change this in SQL and in the /etc/aqctrl.ini file before continuing!"
