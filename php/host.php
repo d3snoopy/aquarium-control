@@ -118,10 +118,6 @@ if($hostFound) {
         // We have a valid message.
 
         $data_out = \aqctrl\host_process($data_in, $data_out, $mysqli, $row);
-        mysqli_query($mysqli, "UPDATE host SET status =
-          'Success' WHERE id = " . $row['id']);
-        mysqli_query($mysqli, "UPDATE host SET ip = '" . $_SERVER['REMOTE_ADDR'] . "' WHERE id = "
-          . $row['id']);
 
       } else {
         // Hash failed
@@ -230,8 +226,17 @@ function host_process($data_in, $data_out, $mysqli, $row)
 
       $stmt-> bind_param("idi", $insTime, $insValue, $insChan);
 
+      $dataDropped = 0;
+
       foreach($times as $i => $timeStamp) {
         // Add data for this channel.
+        // Enforce the min, max specified for the channel; drop the data if it's out of range.
+
+        if($values[$i]>$chanRes['max'] || $values[$i]<$chanRes['min']) {
+          $dataDropped = 1;
+          continue;
+        }
+
         $insTime = $timeStamp;
         $insValue = $values[$i];
         $insChan = $chanInfo['id'];
@@ -271,6 +276,17 @@ function host_process($data_in, $data_out, $mysqli, $row)
     if ($debug_mode) echo "Channel Inactive or replay.\n";
     $data_out .= ';';
   }
+
+  //Update the last status
+  $statusMsg = 'Success';
+
+  if ($dataDropped) $statusMsg = $statusMsg . ", Some Data Dropped.";
+
+  mysqli_query($mysqli, "UPDATE host SET status =
+    $statusMsg  WHERE id = " . $row['id']);
+
+  mysqli_query($mysqli, "UPDATE host SET ip = '" . $_SERVER['REMOTE_ADDR'] . "' WHERE id = "
+    . $row['id']);
 
   return $data_out;
 }
