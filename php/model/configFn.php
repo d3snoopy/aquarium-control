@@ -596,6 +596,7 @@ function configRtn($mysqli, $debug_mode)
     }
   }
 
+
   //Check and make sure we have all channels desired, if not, add some with NULL for profile.
   $stmt = $mysqli->prepare("INSERT INTO cps (scale, source, channel) VALUES (1, ?, ?)");
   $stmt-> bind_param("ii", $SrcID, $ChanID);
@@ -614,14 +615,13 @@ function configRtn($mysqli, $debug_mode)
   }
 
   //Do a callback to our affected hosts.
-  $hostsFound = mysqli_query($mysqli, "SELECT host FROM channel WHERE id IN ($srcChans)");
-
+  
   //Get the host ips.
-  $IPs = mysql_query($mysqli, "SELECT ip FROM host WHERE id IN ($hostsFound)");
+  $IPs = mysqli_query($mysqli, "SELECT DISTINCT ip FROM host WHERE id IN (SELECT DISTINCT host FROM channel WHERE id IN (".implode(',', $srcChans)."))");
 
   //Pings the affected hosts.
   foreach($IPs as $ip) {
-    $pingresult = exec("/bin/ping -n 3 $ip", $outcome, $status);
+    $pingresult = exec("/bin/ping -c 1 " . $ip['ip']);
   }
 
   // Note: return is handled as a query string with checking, so don't return unchecked things from the wild
