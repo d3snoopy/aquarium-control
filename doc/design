@@ -34,7 +34,7 @@ string "chanunits", #human readable representation of units (units in which it e
 int chanIn, #Input/output status of the channel; 1 = input (sensor), 0 = output (driven)
 
 
-# "time" POST string: #Timestamps for data for the channel we're working tih
+# "time" POST string: #Timestamps for data for the channel we're working with
 int time1,
 int time2,
 ...

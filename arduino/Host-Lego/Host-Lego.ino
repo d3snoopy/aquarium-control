@@ -21,7 +21,6 @@
 #include <ESP8266WiFi.h>
 #include "sha256.h"
 #include "Adafruit_TLC59711.h"
-#include <SPI.h>
 
 
 // Info about connecting: our wireless access point, server hostname
@@ -44,7 +43,7 @@ const boolean chanIn[] = {false, false, false, false, false, false, false, false
 //Register tracker to log which value applies next (init at all 0's)
 unsigned int chanReg[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 //Data return register tracker: this allows us to overwrite data and still return everything.
-unsigned long needPing[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+unsigned long needPing[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 //Register to prevent replay attacks
 unsigned long chanPing[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 //Max number of readings to hold in memory reduce this if you get crashes.
