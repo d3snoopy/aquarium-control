@@ -1,1 +1,0 @@
-/home/d3snoopy/Arduino/lib-old/Adafruit_TSL2591_Library/README.txt

@@ -202,6 +202,9 @@ function host_process($data_in, $data_out, $mysqli, $row)
     $chanInfo = mysqli_fetch_assoc($chanRes);
   }
 
+  // Track if data is dropped
+  $dataDropped = 0;
+
   // Get how many values to limit to
   $chanValLim = (int)$data_in[3];
 
@@ -226,13 +229,11 @@ function host_process($data_in, $data_out, $mysqli, $row)
 
       $stmt-> bind_param("idi", $insTime, $insValue, $insChan);
 
-      $dataDropped = 0;
-
       foreach($times as $i => $timeStamp) {
         // Add data for this channel.
         // Enforce the min, max specified for the channel; drop the data if it's out of range.
 
-        if($values[$i]>$chanRes['max'] || $values[$i]<$chanRes['min']) {
+        if($values[$i]>$chanInfo['max'] || $values[$i]<$chanInfo['min']) {
           $dataDropped = 1;
           continue;
         }

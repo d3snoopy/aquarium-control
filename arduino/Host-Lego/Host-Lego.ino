@@ -24,8 +24,6 @@
 #include <SPI.h>
 
 
-
-
 // Info about connecting: our wireless access point, server hostname
 const char ssid[]     = "wireless1";
 const char password[] = "f10b5403c12645c4a50a1a6cf84789ad";
@@ -46,6 +44,8 @@ const boolean chanIn[] = {false, false, false, false, false, false, false, false
 //Register tracker to log which value applies next (init at all 0's)
 unsigned int chanReg[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 //Data return register tracker: this allows us to overwrite data and still return everything.
+unsigned long needPing[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+//Register to prevent replay attacks
 unsigned long chanPing[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 //Max number of readings to hold in memory reduce this if you get crashes.
 const unsigned int maxVals = 100;
@@ -66,13 +66,13 @@ const char * chanNames[] = {"Light1", "Light2", "Light3", "Light4", "Light5", "L
 const char * chanTypes[] = {"light", "light", "light", "light", "light", "light", "light", "light", "light", "light", "light", "light"};
 const boolean chanVars[] = {true, true, true, true, true, true, true, true, true, true, true, true};
 const boolean chanActives[] = {true, true, true, true, true, true, true, true, true, true, true, true};
-const float chanMaxs[] = {63.62, 63.62, 63.62, 63.62, 63.62, 63.62, 63.62, 63.62, 63.62, 63.62, 63.62, 63.62};
+const float chanMaxs[] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
 const float chanMins[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 const char * chanColors[] = {"FFFFFF", "FFFFFF", "FFFFFF", "FFFFFF", "FFFFFF", "FFFFFF", "FFFFFF", "FFFFFF", "FFFFFF", "FFFFFF", "FFFFFF", "FFFFFF"};
-const char * chanUnits[] = {"Lumens", "Lumens", "Lumens", "Lumens", "Lumens", "Lumens", "Lumens", "Lumens", "Lumens", "Lumens", "Lumens", "Lumens"};
-const float chanScales[] = {1030, 1030, 1030, 1030, 1030, 1030, 1030, 1030, 1030, 1030, 1030, 1030};
+const char * chanUnits[] = {"%", "%", "%", "%", "%", "%", "%", "%", "%", "%", "%", "%"};
+const float chanScales[] = {65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535};
 const float chanInits[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-
+const boolean chanInverts[] = {false, false, false, false, false, false, false, false, false, false, false, false};
 
 
 // Also, setup our hardware needs
@@ -88,6 +88,7 @@ unsigned long nextRead = 10;
 unsigned long nextWrite = 10;
 unsigned long inInterval = 60;
 unsigned long outInterval = 60;
+unsigned long defDelay = 120;
 
 // Initialize data for our channels.
 // If a channel is an output, this gets populated from the server on pings.
@@ -101,10 +102,12 @@ float chanVals[numChan][maxVals];
 
 void setup() {
   Serial.begin(115200);
-  delay(1000);
+  delay(100);
 
   // Start the hardware
   startChannels();
+
+  delay(1000);
 
   // Connect to the WiFi network
   startWIFI();
@@ -116,10 +119,10 @@ void setup() {
   Toffset = 0;
 
   // Bootstrap our info
-  postData();
+  postData(-1);
   
   // Run a second time to make sure we init our channels.
-  postData();
+  nextPing = postData(0);
 
 }
 
@@ -136,12 +139,15 @@ void loop() {
   
   Ltime = millis()/1000 + Toffset;
 
-  if(oldTime != Ltime) {
-    Serial.println(Ltime);
+  //Test to see if we've had a millis rollover.
+  if (Ltime < oldTime) {
+    Toffset = oldTime - millis()/1000;
   }
 
   //read from our input channels if it's time
   if (Ltime >= nextRead) {
+    Serial.print("Time: ");
+    Serial.println(Ltime);
     Serial.println("Reading:");
     readChannels();
     nextRead = Ltime + inInterval;
@@ -149,6 +155,8 @@ void loop() {
 
   //write to our output channels if it's time
   if (Ltime >= nextWrite) {
+    Serial.print("Time: ");
+    Serial.println(Ltime);
     Serial.println("Writing:");
     writeChannels();
     nextWrite = Ltime + outInterval;
@@ -156,27 +164,33 @@ void loop() {
 
   //upload to the server if it's time
   if (Ltime >= nextPing) {
-    postData();
+    Serial.println("Triggering global ping");
+    nextPing = postData(-1);
+
+    Serial.print("NextPing: ");
+    Serial.println(nextPing);
   }
 
-  boolean full = false;
   //Test our chanReg for maxing out size; if so, trigger a ping.
-  for (int i = 1; i < numChan; i++){
-    if (chanReg[i] == maxVals) {
-      full = true;
+  for (int i = 0; i < numChan; i++){
+    if (needPing[i]) {
+      Serial.print("Triggering a ping for channel: ");
+      Serial.println(i);
+      postData(i);
     }
-  }
-
-  if (full){
-    postData();
   }
 
   WiFiClient client = server.available();
   if (client)
   {
     Serial.println("Someone is pinging");
+    client.println("HTTP/1.1 200 OK\r\n"
+      "Content-Type: text/html\r\n"
+      "Connection: close\r\n"
+      "\r\n"
+      "<!DOCTYPE HTML><html>Ok, Checking in</html>\r\n");
     client.stop();
-    postData();
+    postData(-1);
   }
 
 }
@@ -184,12 +198,26 @@ void loop() {
 
 // Function to start the hardware
 void startChannels() {
+  // Start the LED output
   pinMode(14, OUTPUT);
   pinMode(13, OUTPUT);
   tlc.begin();
   tlc.write();
-}
 
+  Serial.println("Initiating channels");
+
+  // Set the init value for our outputs
+  for (int i=0; i<numChan; i+=1) {
+    for (int j=0; j<maxVals; j+=1) {
+      chanVals[i][j] = chanInits[i];
+      timeStamps[i][j] = 0;
+    }
+  }
+
+  writeChannels();
+
+}
+  
 
 
 // Function to drive output hardware
@@ -210,6 +238,8 @@ void writeChannels() {
 // function to read input hardware
 void readChannels() {
   // Add actions for your input channels.
+  
+
 }
 
 
@@ -222,52 +252,57 @@ uint16_t PWMCalc(int i) {
   //3. Scale to the machine value
 
   uint16_t calcAns;
+  float intAns;
 
-  if(!timeStamps[i][chanReg[i]+1]) {
-    //We are at the end of our valid data, use the value from i without linear interpolation
-    //Note: this should catch blank data, too, since i and i+1 will be 0
-    calcAns = chanScales[i] * chanVals[i][chanReg[i]];
-  } else {
-    //Increment our chanReg to the right time.
-    while( (Ltime>timeStamps[i][chanReg[i]+1]) && (chanReg[i]<maxVals-1) ) {
-      chanReg[i]++;
-    }
-    //Do our linear interpolation and scale
+  //Increment our chanReg to the right time.
+  while( (Ltime>=timeStamps[i][chanReg[i]+1]) && (chanReg[i]<maxVals-2) && (timeStamps[i][chanReg[i]+1]) ) {
+    chanReg[i]++;
+  }
+
+  //Test for our linear interpolation queue; namely time[n+1] > Ltime
+  if(Ltime<timeStamps[i][chanReg[i]+1]) {
+    //We are good to do a linear interpolation.
+    //Do our linear interpolation and scale.
     float a;
     a = (chanVals[i][chanReg[i]+1]-chanVals[i][chanReg[i]])/(timeStamps[i][chanReg[i]+1]-timeStamps[i][chanReg[i]]);
 
-    float intAns;
     intAns = _max(chanMins[i], _min(chanMaxs[i], ((a*(Ltime-timeStamps[i][chanReg[i]]))+chanVals[i][chanReg[i]])));
-    
-    calcAns = chanScales[i] * intAns;
-    
-//    Serial.print("LED ");
-//    Serial.print(i);
-//    Serial.print(" chanReg: ");
-//    Serial.print(chanReg[i]);
-//    Serial.print(" %: ");
-//    Serial.print(intAns,6);
-//    Serial.print(" Value: ");
-//    Serial.print(calcAns);
-//    Serial.print(" Inputs: ");
-//    Serial.print(chanVals[i][chanReg[i]],6);
-//    Serial.print(" and ");
-//    Serial.print(chanVals[i][chanReg[i]+1],6);
-//    Serial.print(" Times: ");
-//    Serial.print(timeStamps[i][chanReg[i]]);
-//    Serial.print(" and ");
-//    Serial.print(timeStamps[i][chanReg[i]+1]);
-//    Serial.print(" a: ");
-//    Serial.println(a,6);
+  } else {
+    //Use the last value or default, depending on time[0].
+    if(!timeStamps[i][0]) {
+      //Special case: time[0] = 0 means we have blank data and want to just use the default.
+      intAns = chanInits[i];
+    } else {
+      intAns = _max(chanMins[i], _min(chanMaxs[i], chanVals[i][chanReg[i]]));
+    }
   }
+
+  //Decide about triggering a ping.
+  if( ((!timeStamps[i][chanReg[i]+1]) || (chanReg[i]>=maxVals-2)) && (timeStamps[i][0]) ) {
+    //We need to trigger a ping.
+    Serial.println("Triggering a ping to update channel data");
+    needPing[i] = 1;
+  }
+  
+  //Do a max-ans to invert the answer
+  if(chanInverts[i]) {
+    calcAns = chanScales[i] * (chanMaxs[i] - intAns);
+  } else {
+    calcAns = chanScales[i] * intAns;
+  }
+    
+    
+  Serial.print("LED ");
+  Serial.print(i);
+  Serial.print(" chanReg: ");
+  Serial.print(chanReg[i]);
+  Serial.print(" Input: ");
+  Serial.print(intAns,6);
+  Serial.print(" Raw Value: ");
+  Serial.println(calcAns);
 
   return calcAns;
 }
-
-
-
-
-
 
 
 
@@ -301,30 +336,63 @@ void startWIFI() {
 
 
 
-// Function to POST to the server
-void postData() {
+// Function to POST to the server; send a negative number to ping all channels.
+unsigned long postData(int i) {
   WiFiClient client;
 
-  Serial.print("connecting to ");
-  Serial.println(serverAddr);
+  unsigned long newPing;
+  
+  if (i<0) {
+    // Send and receive for each channel
+    for(int j=0;j<numChan;j++) {
+      Serial.print("connecting to ");
+      Serial.println(serverAddr);
 
-  // Use WiFiClient class to create TCP connections
-  if (!client.connect(serverAddr, httpPort)) {
-    Serial.println("connection failed");
-    return;
-  }
+      // Use WiFiClient class to create TCP connections
+      if (!client.connect(serverAddr, httpPort)) {
+        Serial.println("connection failed");
+        // nextPing += 6000;
+        return Ltime + defDelay;
+      }
+  
+      // Send and receive.
+      sendPost(client, j);
+      delay(100);
+      newPing = rxPost(client, j);
+      // Pause 100ms.
+      delay(100);
+    }
+  } else {
+    if (i<numChan) {
+      Serial.print("connecting to ");
+      Serial.println(serverAddr);
 
-  // Send and receive for each channel
-  for(int i=0;i<numChan;i++) {
-    // Send and receive.
-    sendPost(client, i);
-    rxPost(client, i);
-    // Pause 100ms.
-    delay(100);
+      // Use WiFiClient class to create TCP connections
+      if (!client.connect(serverAddr, httpPort)) {
+        Serial.println("connection failed");
+        // nextPing += 6000;
+        return Ltime + defDelay;
+      }
+  
+      // Send and receive.
+      sendPost(client, i);
+      newPing = rxPost(client, i);
+      // Pause 100ms.
+      delay(100);
+    }
   }
 
   // Close the connection.
   client.stop();
+
+  // Pause 1sec.
+  delay(1000);
+
+  //Memory usage
+  Serial.print("Memory Free: ");
+  Serial.println(ESP.getFreeHeap());
+
+  return newPing;
 }
 
 
@@ -336,34 +404,48 @@ void sendPost(WiFiClient client, int i) {
   Serial.println("Sending request");
 
   //Buffer the floating point prints.
-  char buffer[20]; 
-
-  // Send the message
-  client.print("POST ");
-  client.print(url);
-  client.print(" HTTP/1.1\r\n");
-  client.print("Host: ");
-  client.print(serverAddr);
-  client.print("\r\nConnection: keep-alive\r\n");
-  client.print("Content-Type: application/x-www-form-urlencoded\r\n");
-  client.print("Content-length: ");
+  char buffer[14];
 
   // Calculate the length of our message.
   // Fixed numbers: 14 commas in "host" + 5 chars for "host=" + 6 chars for "&time=" +
   // 6 chars for "&data=" + 6 chars for "&HMAC=" + 64 chars for HMAC + 
   // 6x10 = 60 int characters + 2*13 = 26 float characters = 187
   int dataLen;
+  int n=0;
+
   if (chanIn[i]) {
-    dataLen = (chanReg[i])*25; //10 int chars, 13 float chars, 2 commas
+    //Count the number of elements we're going to send.
+    for(int m=0; m<maxVals; m++) {
+      //Serial.println(m);
+      n = m;
+      if(!(timeStamps[i][m])) {
+        break;
+      }
+    }
+
+    dataLen = n*25; //10 int chars, 13 float chars, 2 commas
   } else {
     dataLen = 0;
   }
-  
+
+  Serial.print("Number of data points sent: ");
+  Serial.println(n);
+
+  Sha256.initHmac(key,20);
+
+  //Construct our message.
+  client.print("POST ");
+  client.print(url);
+  client.print(" HTTP/1.1\r\n");
+  client.print("Host: ");
+  client.print(serverAddr);
+  client.print("\r\nConnection: close\r\n");
+  client.print("Content-Type: application/x-www-form-urlencoded\r\n");
+  client.print("Content-length: ");
+
   client.print(187+strlen(hostID)+strlen(hostName)+strlen(chanNames[i])+strlen(chanTypes[i])
     +strlen(chanColors[i])+strlen(chanUnits[i])+dataLen);
     
-  Sha256.initHmac(key,20);
-  
   client.print("\r\n\r\n");
   client.print("host=");
 
@@ -431,11 +513,12 @@ void sendPost(WiFiClient client, int i) {
   client.print("&time=");
 
   if(chanIn[i]) {
-    for(int j=0;j<chanReg[i];j++){
+    for(int j=0;j<n;j++) {
       client.printf("%010d", timeStamps[i][j]);
       Sha256.printf("%010d", timeStamps[i][j]);
       client.print(",");
       Sha256.print(",");
+      j++;
     }
   }
 
@@ -443,7 +526,7 @@ void sendPost(WiFiClient client, int i) {
   client.print("&data=");
 
   if(chanIn[i]) {
-    for(int j=0;j<chanReg[i];j++){
+    for(int j=0;j<n;j++){
       dtostrf(chanVals[i][j],13,3, buffer);
       client.print(buffer);
       Sha256.print(buffer);
@@ -453,18 +536,24 @@ void sendPost(WiFiClient client, int i) {
   }
 
   //Print the HMAC
-  uint8_t* hash = Sha256.resultHmac();
+  uint8_t *hash;
+  hash = Sha256.resultHmac();
   client.print("&HMAC=");
-  
 
+  char localHash[65];
+  
   for (int j=0; j<32; j++) {
-    client.print("0123456789abcdef"[hash[j]>>4]);
-    client.print("0123456789abcdef"[hash[j]&0xf]);
+    localHash[j*2] = ("0123456789abcdef"[hash[j]>>4]);
+    localHash[j*2+1] = ("0123456789abcdef"[hash[j]&0xf]);
   }
+
+  localHash[64] = '\0';
+
+  client.print(localHash);
 }
 
 
-void rxPost(WiFiClient client, int i) {
+unsigned long rxPost(WiFiClient client, int i) {
   // Read all the lines of the reply from server.
   Serial.println("\r\nServer Response:");
 
@@ -487,17 +576,18 @@ void rxPost(WiFiClient client, int i) {
 
   int wait=0;
 
-  // Wait for either a response or timeout (give it 5 seconds).
+  // Wait for either a response or timeout (give it 60 seconds).
   while (!client.available()) {
     delay(100);
     wait+=100;
-    if (wait>5000) {
+    if (wait>60000) {
       Serial.println(">>>Server Timeout!");
-      return;
+      needPing[i] = 0;
+      return Ltime + defDelay;
     }
   }
 
-  delay(10);
+  //delay(10);
   
   while(client.available()){
     char c = client.read();
@@ -505,8 +595,10 @@ void rxPost(WiFiClient client, int i) {
     switch (section) {
     case 0:
       {
-      Serial.write(c);
       // We have not reached the data yet.
+
+      Serial.write(c);
+      
       if(lastByte == '\n' && c == '\r'){
         // We have found an empty line
         if(count > 0) {
@@ -574,11 +666,11 @@ void rxPost(WiFiClient client, int i) {
             break;
         }
       } else {
-        //Skip newlines and carriage feeds
-        if (c != '\r' && c != '\n') {
-        //Update our reads.
-        reads[count] = c;
-        count++;
+        //Skip newlines, carriage feeds, and characters past the 64th.
+        if (c != '\r' && c != '\n' && count < 64) {
+          //Update our reads.
+          reads[count] = c;
+          count++;
         }
       }
       }
@@ -594,6 +686,7 @@ void rxPost(WiFiClient client, int i) {
       //Test for transition to data
       if (c == ';') {
         for (int j=dataCount; j<maxVals; j++) {
+          //Serial.println(j);
           times[j] = 0;
         }
         section++;
@@ -610,8 +703,10 @@ void rxPost(WiFiClient client, int i) {
           count = 0;
         } else {
           //Update the reads.
-          reads[count] = c;
-          count++;
+          if (count < 64) {
+            reads[count] = c;
+            count++;
+          }
         }
       }
       }
@@ -627,9 +722,9 @@ void rxPost(WiFiClient client, int i) {
       //Test for transition to data
       if (c == ';') {
         for (int j=dataCount; j<maxVals; j++) {
+          //Serial.println(j);
           data[j] = chanInits[i];
         }
-        //TODO Do something about default filling the rest of the data
         section++;
         count = 0;
         dataCount = 0;
@@ -637,13 +732,17 @@ void rxPost(WiFiClient client, int i) {
         if (c == ','){
           //Read the data in
           reads[count] = '\0';
-          data[dataCount] = atof(reads);
+          if (dataCount < maxVals){
+            data[dataCount] = atof(reads);
+          }
           dataCount++;
           count = 0;
         } else {
           //Update the reads.
-          reads[count] = c;
-          count++;
+          if (count < 64) {
+            reads[count] = c;
+            count++;
+          }
         }
       }
     }
@@ -652,7 +751,7 @@ void rxPost(WiFiClient client, int i) {
     case 4:
       {
       //HMAC
-      if (c != ';') {
+      if (c != ';' && count < 64) {
         reads[count] = c;
         count++;
       }
@@ -667,7 +766,9 @@ void rxPost(WiFiClient client, int i) {
   reads[count] = '\0';
 
   //Process our local hash
-  uint8_t* hash = Sha256.resultHmac();
+  uint8_t *hash;
+  hash = Sha256.resultHmac();
+  //uint8_t* hash = Sha256.resultHmac();
 
   char localHash[65];
   
@@ -692,6 +793,13 @@ void rxPost(WiFiClient client, int i) {
   Serial.print("This Channel Ping: ");
   Serial.println(newDate);
   Serial.println(" ");
+
+//  for (int j=0; j<maxVals; j++) {
+//    Serial.print("Time: ");
+//    Serial.print(times[j]);
+//    Serial.print(" Value: ");
+//    Serial.println(data[j],6);
+//  }
   
 
   if(!strcmp(reads, localHash) && newDate > chanPing[i]) {
@@ -702,34 +810,48 @@ void rxPost(WiFiClient client, int i) {
     chanPing[i] = newDate;
     Serial.print("Time Updated to: ");
     Serial.println(Ltime);
-    nextPing = newPing;
+    //nextPing = newPing;
     inInterval = newIn;
     outInterval = newOut;
+    
     if (!chanIn[i]) {
       memcpy(timeStamps[i], times, sizeof(times[0])*maxVals);
       memcpy(chanVals[i], data, sizeof(data[0])*maxVals);
       Serial.println("New Data Received");
-      //Serial.println("Time  Data");
+      Serial.println("Time  Data");
 
-      //for (int j=0; j<maxVals; j++) {
-      //  Serial.print(times[j]);
-      //  Serial.print("  ");
-      //  Serial.println(data[j]);
-      //}
+      for (int j=0; j<maxVals; j++) {
+        Serial.print(times[j]);
+        Serial.print("  ");
+        Serial.println(data[j],6);
+      }
+    } else {
+      //Zero out our read data.
+      for (int j=0; j<maxVals; j++) {
+        timeStamps[i][j] = 0;
+      }
+
+      //Print our data
+      for (int j=0; j<maxVals; j++) {
+        Serial.print(timeStamps[i][j]);
+        Serial.print("  ");
+        Serial.println(chanVals[i][j],6);
+      }
     }
+
+    chanReg[i] = 0;
+    
   } else {
     Serial.println("Hash Mismatch");
-    nextPing = Ltime + 120;
+    newPing = Ltime + defDelay;
   }
 
-  chanReg[i] = 0; //Reset our register for this channel whether we successfully pinged or not.
+  needPing[i] = 0; //Reset our ping tracker for this channel whether we successfully pinged or not.
+  //This way we avoid constant ping spam, but set ourselves to potentially miss out on a full set of data.
 
-  Serial.print("NextPing: ");
-  Serial.println(nextPing);
   Serial.println(" ");
   Serial.println("******End of Channel Query******");
   Serial.println(" ");
+
+  return newPing;
 }
-
-
-
