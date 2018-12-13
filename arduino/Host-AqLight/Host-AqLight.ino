@@ -72,11 +72,10 @@ const boolean chanActives[] = {true, true, true, true, false, false, false, fals
 const float chanMaxs[] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
 const float chanMins[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 const char * chanColors[] = {"FFFFFF", "FFFFFF", "FFFFFF", "FFFFFF", "FFFFFF", "FFFFFF", "FFFFFF", "FFFFFF", "FFFFFF", "FFFFFF", "FFFFFF", "FFFFFF", "FFFFFF", "FFFFFF", "FFFFFF"};
-const char * chanUnits[] = {"Lumens", "Lumens", "Lumens", "Lumens", "Lumens", "Lumens", "Lumens", "Lumens", "Lumens", "Lumens", "Lumens", "Lumens", "F", "F", "F"};
+const char * chanUnits[] = {"%", "%", "%", "%", "%", "%", "%", "%", "%", "%", "%", "%", "F", "F", "F"};
 const float chanScales[] = {65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 1, 1, 1};
 const float chanInits[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 const boolean chanInverts[] = {true, true, true, true, true, true, true, true, true, true, true, true, false, false, false};
-
 
 
 // Also, setup our hardware needs
@@ -108,7 +107,6 @@ float chanVals[numChan][maxVals];
 
 void setup() {
   Serial.begin(115200);
-
   delay(100);
   
   // Start the hardware
