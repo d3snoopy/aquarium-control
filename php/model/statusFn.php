@@ -156,7 +156,7 @@ function statusForm($mysqli, $debug_mode, $indexRef = 0)
   //Get the data.
   $knownData = mysqli_query($mysqli, "SELECT id, UNIX_TIMESTAMP(date), value, channel FROM data 
     WHERE date >= FROM_UNIXTIME($startTime) AND date <= FROM_UNIXTIME($endTime)
-    ORDER BY date, channel");
+    ORDER BY date, channel LIMIT 100000");
 
   $stageData = array();
 
@@ -166,6 +166,7 @@ function statusForm($mysqli, $debug_mode, $indexRef = 0)
     $timeCalc = ((double)$dataRow['UNIX_TIMESTAMP(date)'] - $endTime)/$scale;
     $stageData[$dataRow['channel']]['timePts'][] = $timeCalc;
   }
+  
 
   $indexCnt = 0;
 
@@ -207,10 +208,10 @@ function statusForm($mysqli, $debug_mode, $indexRef = 0)
   mysqli_query($mysqli, "DELETE FROM data WHERE date < FROM_UNIXTIME($dropTime)");
 
   //2
-  $moTime = time() - 2592000;
+  $moTime = time() - 2592000; //1 month
   $moRet = mysqli_query($mysqli, "SELECT id, UNIX_TIMESTAMP(date), value, channel, thinned FROM data
     WHERE date < FROM_UNIXTIME($moTime) AND thinned IS NULL
-    ORDER BY date, channel");
+    ORDER BY channel, date LIMIT 100000");
 
   $logData = array();
   $currentIncr = 0;
@@ -255,6 +256,10 @@ function statusForm($mysqli, $debug_mode, $indexRef = 0)
     }
   }
 
+  ////////
+  //echo("\n<p>");
+  //echo(implode(",", $dropIDs));
+  //echo("\n</p>");
 
   //Drop all of the IDs from our drop list.
   mysqli_query($mysqli, "DELETE FROM data WHERE id IN (" . implode(",", $dropIDs) . ")");
@@ -263,7 +268,7 @@ function statusForm($mysqli, $debug_mode, $indexRef = 0)
   $yrTime = time() - 31536000;
   $yrRet = mysqli_query($mysqli, "SELECT id, UNIX_TIMESTAMP(date), value, channel, thinned FROM data
     WHERE date < FROM_UNIXTIME($yrTime) AND thinned IS NOT NULL
-    ORDER BY date, channel");
+    ORDER BY channel, date LIMIT 100000");
 
   $logData = array();
   $currentIncr = 0;
