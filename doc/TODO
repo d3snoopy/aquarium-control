@@ -1,5 +1,7 @@
 Top TODO:
 
+- Ping host on more than just "update"?
+- Bug: when removing profile from a source, profile is removed from all sources.
 - Implement non-variable channels
 - Implement Reactions
 - Implement Triggers

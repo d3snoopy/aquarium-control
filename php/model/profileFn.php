@@ -43,6 +43,74 @@ function profileForm($mysqli, $debug_mode)
   //Add some csrf/replay protection
   echo \aqctrl\token_insert($mysqli, $debug_mode);
 
+  //Add a units selection dropdown (and relative to now vs. absolute) because operating in seconds all the time is annoying.
+  if(isset($_GET['units'])) {
+
+    switch ($_GET['units']) {
+      case 'sec':
+        $scale = 1;
+        $unitsName = 'seconds';
+        break;
+      case 'min':
+        $scale = 60;
+        $unitsName = 'minutes';
+        break;
+      case 'hr':
+        $scale = 3600;
+        $unitsName = 'hours';
+        break;
+      case 'day':
+        $scale = 86400;
+        $unitsName = 'days';
+        break;
+      case 'mon':
+        $scale = 2592000;
+        $unitsName = 'months';
+        break;
+      case 'yr':
+        $scale = 31536000;
+        $unitsName = 'years';
+        break;
+      default:
+        $scale = 3600;
+        $unitsName = 'hours';
+    }
+
+    $unitsTitle = $_GET['units'];
+  } else {
+    $scale = 3600;
+    $unitsName = 'hours';
+    $unitsTitle = 'hr';
+  }
+
+  echo "<p>\n";
+  echo "Units to use: \n";
+  echo "<a href='" . \aqctrl\retGen(false, false, false, 'units=sec', false) . "'>seconds </a>\n";
+  echo "<a href='" . \aqctrl\retGen(false, false, false, 'units=min', false) . "'>minutes </a>\n";
+  echo "<a href='" . \aqctrl\retGen(false, false, false, 'units=hr', false) . "'>hours </a>\n";
+  echo "<a href='" . \aqctrl\retGen(false, false, false, 'units=day', false) . "'>days </a>\n";
+  echo "<a href='" . \aqctrl\retGen(false, false, false, 'units=mon', false) . "'>months </a>\n";
+
+
+  //Reset our start/end times based on the refresh times.
+  $refProf = mysqli_query($mysqli, "SELECT id, name, UNIX_TIMESTAMP(start), UNIX_TIMESTAMP(end), refresh,
+      reaction, function FROM profile");
+
+  $stmt = $mysqli->prepare("UPDATE profile SET start = FROM_UNIXTIME(?), end = FROM_UNIXTIME(?) WHERE id = ?");
+
+  $stmt-> bind_param("iii", $newStart, $newEnd, $profID);
+  $grabbedTime = time();
+
+  foreach($refProf as $profRow) {
+    $newStart = ($profRow['UNIX_TIMESTAMP(start)']-$grabbedTime)%max($profRow['refresh'],1)+$grabbedTime;
+    $newEnd = ($profRow['UNIX_TIMESTAMP(end)']-$profRow['UNIX_TIMESTAMP(start)'])+$newStart;
+    $profID = $profRow['id'];
+    
+    if(!$stmt->execute() && $debug_mode) {
+      echo "Execute failed: (" . $stmt->errno . ") " . $stmt->error;
+    }
+  }
+
   // Grab our existing data
   if(isset($_GET['mode']) && isset($_GET['edit']) && $_GET['mode'] == 'single') {
     $editID = (int)$_GET['edit'];
@@ -96,22 +164,23 @@ function profileForm($mysqli, $debug_mode)
     if(isset($_GET['edit']) && $_GET['edit'] == $profRow['id']) {
       //Give all of the controls
       echo "<input type='hidden' name='editID' value=" . $profRow["id"] . ">\n";
+      echo "<input type='hidden' name='scale' value=$scale>\n";
 
       echo "Name: \n";
       echo "<input type='text' name='name' value='" . $profRow["name"] . "'>\n<br>\n";
 
-      $tDelta = $profRow["UNIX_TIMESTAMP(start)"]-time();
+      $tDelta = ($profRow["UNIX_TIMESTAMP(start)"]-time())/$scale;
 
       echo "Start: \n";
-      echo "<input type='number' name='start' value='" . $tDelta . "' step='1'>\n seconds from save.\n<br>\n";
+      echo "<input type='number' name='start' value='" . $tDelta . "' step='any'>\n $unitsName from save.\n<br>\n";
 
-      $tDelta = $profRow["UNIX_TIMESTAMP(end)"]-time();
+      $tDelta = ($profRow["UNIX_TIMESTAMP(end)"]-time())/$scale;
 
       echo "End: \n";
-      echo "<input type='number' name='end' value='" . $tDelta . "' step='1'>\n seconds from save.\n<br>\n";
+      echo "<input type='number' name='end' value='" . $tDelta . "' step='any'>\n $unitsName from save.\n<br>\n";
 
       echo "Refresh: \n";
-      echo "<input type='number' name='refresh' value='" . $profRow["refresh"] . "' step='1'>\n seconds.\n<br>\n";
+      echo "<input type='number' name='refresh' value='" . ($profRow["refresh"]/$scale) . "' step='any'>\n $unitsName.\n<br>\n";
 
       //Define this as either function driven or reaction-driven.  Default to function-driven.
       echo "Type: \n";
@@ -156,7 +225,7 @@ function profileForm($mysqli, $debug_mode)
 
         //Edit link for the function.
         if ($profRow['function']) {
-          echo "<a href='" . \aqctrl\retGen('function.php', $profRow['function'], 'single', false, false) . "'>";
+          echo "<a href='" . \aqctrl\retGen('function.php', $profRow['function'], 'single', "units=$unitsTitle", false) . "'>";
           echo "edit</a>\n";
         }
 
@@ -169,14 +238,14 @@ function profileForm($mysqli, $debug_mode)
       //Just print the info
       echo "Name: " . $profRow["name"] . "\n<br>\n";
 
-      $tDelta = $profRow["UNIX_TIMESTAMP(start)"]-time();
+      $tDelta = ($profRow["UNIX_TIMESTAMP(start)"]-time())/$scale;
 
-      echo "Start: " . $tDelta . " seconds from now.\n<br>\n";
+      echo "Start: " . $tDelta . " $unitsName from now.\n<br>\n";
 
-      $tDelta = $profRow["UNIX_TIMESTAMP(end)"]-time();
+      $tDelta = ($profRow["UNIX_TIMESTAMP(end)"]-time())/$scale;
 
-      echo "End: " . $tDelta . " seconds from now.\n<br>\n";
-      echo "Refresh: " . $profRow["refresh"] . " seconds.\n<br>\n";
+      echo "End: " . $tDelta . " $unitsName from now.\n<br>\n";
+      echo "Refresh: " . ($profRow["refresh"]/$scale) . " $unitsName.\n<br>\n";
 
     }
 
@@ -194,7 +263,7 @@ function profileForm($mysqli, $debug_mode)
     } else {
       //Show an edit link
       echo "<p class='alignright'>\n";
-      echo "<a href='" . \aqctrl\retGen(false, $profRow["id"], false, false, false) . "'>";
+      echo "<a href='" . \aqctrl\retGen(false, $profRow["id"], false, "units=$unitsTitle", false) . "'>";
       echo "edit</a>\n";
     }
 
@@ -217,7 +286,15 @@ function profileRtn($mysqli, $debug_mode)
     return;
   }
 
+
   $profID = (int)$_POST['editID'];
+  $scale = (int)$_POST['scale'];
+
+  if(isset($_GET['units'])) {
+    $unitsId = $_GET['units'];
+  } else {
+    $unitsId = '';
+  }
 
   // First test for the "New Profile" button
   if(isset($_POST['new'])) {
@@ -229,7 +306,7 @@ function profileRtn($mysqli, $debug_mode)
     if(!mysqli_query($mysqli, $sql)) {
       if ($debug_mode) echo "<p>Error adding new profile" . mysqli_error($mysqli) . "\n</p>\n";
     }
-    return(['edit' => mysqli_insert_id($mysqli), 'loc' => 'profile.php']); //We can return
+    return(['edit' => mysqli_insert_id($mysqli)]); //We can return
   }
 
   // Next, test for the "Delete Source" button
@@ -282,13 +359,15 @@ function profileRtn($mysqli, $debug_mode)
     $stmt-> bind_param("siiii", $newName, $startTime, $endTime, $refreshVal, $profID);
 
     $newName = $_POST["name"];
-    $startTime = $_POST["start"] + time();
-    $endTime = $_POST["end"] + time();
-    $refreshVal = $_POST["refresh"];
+    $startTime = ($_POST["start"]*$scale) + time();
+    $endTime = ($_POST["end"]*$scale) + time();
+    $refreshVal = ($_POST["refresh"]*$scale);
 
     if(!$stmt->execute() && $debug_mode) {
       echo "Execute failed: (" . $stmt->errno . ") " . $stmt->error;
     }
+
+    $retArgs = ['other' => "units=$unitsId"];
 
   } else {
     //We have a function type.
@@ -308,6 +387,8 @@ function profileRtn($mysqli, $debug_mode)
       //Associate existing function with this profile.
       //Flag to update the function.
       $fnID = $_POST['function'];
+
+      $retArgs = ['other' => "units=$unitsId"];
     }
 
     //Now, update the profile.
@@ -317,15 +398,15 @@ function profileRtn($mysqli, $debug_mode)
     $stmt-> bind_param("siiiii", $newName, $startTime, $endTime, $refreshVal, $fnID, $profID);
 
     $newName = $_POST["name"];
-    $startTime = $_POST["start"] + time();
-    $endTime = $_POST["end"] + time();
-    $refreshVal = $_POST["refresh"];
+    $startTime = ($_POST["start"]*$scale) + time();
+    $endTime = ($_POST["end"]*$scale) + time();
+    $refreshVal = ($_POST["refresh"]*$scale);
 
     if(!$stmt->execute() && $debug_mode) {
       echo "Execute failed: (" . $stmt->errno . ") " . $stmt->error;
     }
   }
 
-  //return($retArgs);
+  return($retArgs);
 }
 

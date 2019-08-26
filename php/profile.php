@@ -85,7 +85,14 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
   echo "<h1>Edit a Profile</h1>\n";
 
   //Show the form
-  $newUrl = \aqctrl\retGen();
+  if(isset($_GET['units'])) {
+    $unitsId = $_GET['units'];
+  } else {
+    $unitsId = '';
+  }
+
+
+  $newUrl = \aqctrl\retGen(false, false, false, "units=$unitsId", false);
   echo "<form action='$newUrl' method='post'>\n";
   \aqctrl\profileForm($mysqli, $debug_mode);
 

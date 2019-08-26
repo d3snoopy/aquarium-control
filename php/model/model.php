@@ -361,7 +361,7 @@ function retGen($newLoc = false, $newEdit = false, $newMode = false, $otherOpts 
   //Note: inhereted edit, ret, mode are all preserved; other opts are not.
   //Also note: this function doesn't do anything to sanitize inputs,
   //so make sure they're sanitized before passing them here. ***This includes urlencoding before this function***.
-  //Finally note: is $newRet is supplied, the assumption is that you want a new layer;
+  //Finally note: if $newRet is supplied, the assumption is that you want a new layer;
   //if it's false the assumption is that you don't want a new layer.
 
   //Seed with our new location.
