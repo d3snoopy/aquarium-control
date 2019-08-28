@@ -15,6 +15,9 @@ Top TODO:
 - Check into how increating a new profile seriously breaks things by hitting enter
 - Error where future date sometimes results on host (but not channel) ???? Don't remember/document error better
 - Adding a new profile adds all channels of type (not just ones that are associated)  ???? Don't remember/document error better
+- Implement grouping of channels
+- Fix the common data plot where it just does everything without groupings
+
 
 
 

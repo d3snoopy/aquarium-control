@@ -168,6 +168,7 @@ function statusForm($mysqli, $debug_mode, $indexRef = 0)
   }
   
 
+  /*
   $indexCnt = 0;
 
   //Go through each channel and plot.
@@ -197,6 +198,41 @@ function statusForm($mysqli, $debug_mode, $indexRef = 0)
       if (!$indexRef) echo $chanRow['name'] . " - No data Found";
     }
   }
+
+  */
+
+
+  //Do the plots on a single graph instead...
+  //In the long run, this will really only work for common groupings. TODO
+  $indexCnt = 0;
+
+  foreach($knownChan as $chanRow) {
+    if ($indexCnt == 0) {
+      $outXidx = $chanRow['id'];
+      $plotData['timePts'] = $stageData[$chanRow['id']]['timePts'];
+      $plotData['unitsY'] = $chanRow['units'];
+    }
+
+    $plotData["data$indexCnt"] = \aqctrl\interpData(
+      $stageData[$outXidx]['timePts'],
+      $stageData[$chanRow['id']]['timePts'],
+      $stageData[$chanRow['id']]['data0']);
+
+    $plotData["color$indexCnt"] = $chanRow['color'];
+    $plotData["label$indexCnt"] = $chanRow['name'];
+
+    $indexCnt++;
+
+  }
+
+  $plotData['title'] = 'Data';  //TODO: make it the grouping name
+  $plotData['outName'] = 'DataChart';
+  $plotData['timeUnits'] = $timeUnits;
+    
+  \aqctrl\plotData($plotData);
+  echo "<img src='../static/" . $plotData['outName'] . ".png' />\n";
+
+  //End of new code
 
   //Now, thin out our old data so we don't have a ton just hanging around.
   //First, drop any data from 2017 or older since the system wasn't up and running before 2018.
