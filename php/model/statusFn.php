@@ -20,20 +20,20 @@ along with Aqctrl.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 /*
-configFn.php
+statusFn.php
 
 
-Functions to support the configure.php page.
+Functions to support the status.php page.
 
-configForm - function to generate the form to fill out
+statusForm - function to generate the form to fill out
 
-configRtn - function to handle the return a POST of SetupForm
+statusRtn - function to handle the return a POST of statusForm
 
 */
 
 namespace aqctrl;
 
-include("calcFn.php");
+include_once("calcFn.php");
 
 
 function statusForm($mysqli, $debug_mode, $indexRef = 0)
@@ -45,7 +45,7 @@ function statusForm($mysqli, $debug_mode, $indexRef = 0)
   // Grab our existing data
 
   // First get sources and see if we have any
-  $knownChan = mysqli_query($mysqli, "SELECT id, name, type, variable, active, max, min, color, units FROM channel WHERE input=1 AND active=1");
+  $knownChan = mysqli_query($mysqli, "SELECT id, name, type, variable, active, max, min, color, units FROM channel WHERE input=1 AND active=1 ORDER BY type, id");
 
   $numChan = mysqli_num_rows($knownChan);
 
@@ -154,9 +154,13 @@ function statusForm($mysqli, $debug_mode, $indexRef = 0)
 
 
   //Get the data.
+
+  $PtsLim = 100000;
+
+
   $knownData = mysqli_query($mysqli, "SELECT id, UNIX_TIMESTAMP(date), value, channel FROM data 
     WHERE date >= FROM_UNIXTIME($startTime) AND date <= FROM_UNIXTIME($endTime)
-    ORDER BY date, channel LIMIT 100000");
+    ORDER BY date, channel LIMIT $PtsLim");
 
   $stageData = array();
 
@@ -167,6 +171,8 @@ function statusForm($mysqli, $debug_mode, $indexRef = 0)
     $stageData[$dataRow['channel']]['timePts'][] = $timeCalc;
   }
   
+
+  \aqctrl\plotChanByType($stageData, $knownChan, "Data", $timeUnits, $PtsLim);
 
   /*
   $indexCnt = 0;
@@ -199,24 +205,25 @@ function statusForm($mysqli, $debug_mode, $indexRef = 0)
     }
   }
 
-  */
-
 
   //Do the plots on a single graph instead...
   //In the long run, this will really only work for common groupings. TODO
   $indexCnt = 0;
+  $currentType = '';
 
   foreach($knownChan as $chanRow) {
     if ($indexCnt == 0) {
       $outXidx = $chanRow['id'];
       $plotData['timePts'] = $stageData[$chanRow['id']]['timePts'];
       $plotData['unitsY'] = $chanRow['units'];
+      $currentType = $chanRow['type'];
     }
 
-    $plotData["data$indexCnt"] = \aqctrl\interpData(
-      $stageData[$outXidx]['timePts'],
-      $stageData[$chanRow['id']]['timePts'],
-      $stageData[$chanRow['id']]['data0']);
+    if ($currentType == $chanRow['type']) {
+      $plotData["data$indexCnt"] = \aqctrl\interpData(
+        $stageData[$outXidx]['timePts'],
+        $stageData[$chanRow['id']]['timePts'],
+        $stageData[$chanRow['id']]['data0']);
 
     $plotData["color$indexCnt"] = $chanRow['color'];
     $plotData["label$indexCnt"] = $chanRow['name'];
@@ -233,6 +240,8 @@ function statusForm($mysqli, $debug_mode, $indexRef = 0)
   echo "<img src='../static/" . $plotData['outName'] . ".png' />\n";
 
   //End of new code
+
+  */
 
   //Now, thin out our old data so we don't have a ton just hanging around.
   //First, drop any data from 2017 or older since the system wasn't up and running before 2018.

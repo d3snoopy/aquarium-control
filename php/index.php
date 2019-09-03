@@ -32,6 +32,7 @@ include 'header.php';
 include 'model.php';
 include 'statusFn.php';
 include 'setupFn.php';
+include 'configFn.php';
 
 //Test the db connection and connect
 $mysqli = \aqctrl\db_connect();
@@ -61,8 +62,14 @@ echo "<h2>Aquarium Controller</h2>\n";
 
 echo "<p>\n";
 
-echo "<h3>Data:</h3>\n";
+// echo "<h3>Data:</h3>\n";
+echo "<a href='status.php'>\n";
 \aqctrl\statusForm($mysqli, $debug_mode, 1);
+echo "</a>\n";
+
+echo "<a href='configure.php'>\n";
+\aqctrl\configIndex($mysqli, $debug_mode);
+echo "</a>\n";
 
 echo "</p>\n<p>\n";
 echo "<h3>Host Last Ping:</h3>\n";

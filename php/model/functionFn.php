@@ -34,7 +34,7 @@ functionInit - function to create some model functions on start
 
 namespace aqctrl;
 
-include("calcFn.php");
+include_once("calcFn.php");
 
 
 function functionForm($mysqli, $debug_mode)

@@ -314,6 +314,7 @@ function channelCalc($chanRow, $numPts, $mysqli, $knownSrc=0, $knownFn=0, $known
 }
 
 
+/*
 function channelCalcOld($chanInfo, $chanValLim)
 {
   //TODO: rework
@@ -338,6 +339,7 @@ function channelCalcOld($chanInfo, $chanValLim)
 
   return $retInfo;
 }
+*/
 
 
 function sourceCalc($knownChan, $srcID, $knownFn, $knownPts, $knownProf, $knownCPS, $srcScale = 1,
@@ -593,5 +595,112 @@ function plotData($plotData, $fromNow = false)
 
   $myPicture->Render("../static/" . $plotData["outName"] . ".png");
 
+}
+
+
+function plotChanByType($stageData, $knownChan, $label, $timeUnits, $numPts = 1000)
+{
+  //Plot channel data, grouped by types.
+  //This function is used to generate the index plots
+  //$stageData: staged data, array of data with keys which are the index of each channel; within which will be a 'timePts' array with x-axis points and a 'data0' array with y axis points.
+  //$knownChan: SQL query result with channel info; note that there needs be a $stageData element for each element in this dataset.  Also, needs to be ordered by type if you want predictably grouped plots.
+  //$label: a prefix label to put in the plot header
+  //$numPts: the number of points limit for our plots.
+
+  //Develop our list of types
+  $knownTypes = array();
+  $typeTimePts = array();
+  $typeMins = array();
+  $typeMaxes = array();
+
+  foreach($knownChan as $chanRow) {
+    $knownTypes[] = $chanRow['type'];
+    if (!array_key_exists($chanRow['type'], $typeTimePts)) {
+      $typeTimePts[$chanRow['type']] = $stageData[$chanRow['id']]['timePts'];
+    } else {
+    $typeTimePts[$chanRow['type']] = array_merge($typeTimePts[$chanRow['type']],
+      $stageData[$chanRow['id']]['timePts']);
+    }
+    
+    $typeMins[$chanRow['type']][] = min($stageData[$chanRow['id']]['timePts']);
+    $typeMaxes[$chanRow['type']][] = max($stageData[$chanRow['id']]['timePts']);
+  }
+
+  //Develop supersets of all of our timepts, by group.
+  $knownTypes = array_unique($knownTypes);
+  foreach($knownTypes as $currentType) {
+    $typeTimePts[$currentType] = array_unique($typeTimePts[$currentType]);
+    sort($typeTimePts[$currentType]);
+
+    //slice the data, if necessary
+    $typeTimePts["new$currentType"] = array();
+    for($i = 0;
+      (($i < count($typeTimePts[$currentType])) &&
+      ($typeTimePts[$currentType][$i] <= min($typeMaxes[$currentType])));
+      $i++) {
+      //Test to see if we have reached our max number of points
+      if (count($typeTimePts["new$currentType"]) >= $numPts) break;
+
+      //Add this point if it isn't too small
+      if ($typeTimePts[$currentType][$i] >= max($typeMins[$currentType])) $typeTimePts["new$currentType"][] = $typeTimePts[$currentType][$i];
+
+    }
+  }
+  
+  // Now, stage the data for the plot function, by group.
+  $indexCnt = 0;
+  $currentType = '';
+
+  foreach($knownChan as $chanRow) {
+    if ($indexCnt == 0) {
+      //We have a new type set; this will really only execute the first time through the loop
+      $plotData = array();
+      $currentType = $chanRow['type'];
+      $plotData['timePts'] = $typeTimePts["new$currentType"];
+      $plotData['unitsY'] = $chanRow['units'];
+      $plotData['title'] = "$label - $currentType";
+      $plotData['outName'] = preg_replace("/[^a-zA-Z0-9]+/", "", "$label$currentType");  //filtered to only alphanumeric characters
+      $plotData['timeUnits'] = $timeUnits;
+    }
+
+    if ($currentType == $chanRow['type']) {
+      //More data from the type that we are on.
+      $plotData["data$indexCnt"] = \aqctrl\interpData(
+        $typeTimePts["new$currentType"],
+        $stageData[$chanRow['id']]['timePts'],
+        $stageData[$chanRow['id']]['data0']);
+      
+      $plotData["color$indexCnt"] = $chanRow['color'];
+      $plotData["label$indexCnt"] = $chanRow['name'];
+
+      $indexCnt++;
+    } else {
+      //We have a new type set, plot, reset, and seed.
+
+      //plot
+      \aqctrl\plotData($plotData);
+      echo "<img src='../static/" . $plotData['outName'] . ".png' />\n";
+
+      //reset
+      $plotData = array();
+      $indexCnt = 0;
+      $currentType = $chanRow['type'];
+
+      //reseed
+      $plotData = array();
+      $plotData['timePts'] = $typeTimePts["new$currentType"];
+      $plotData['unitsY'] = $chanRow['units'];
+      $plotData['title'] = "$label - $currentType";
+      $plotData['outName'] = preg_replace("/[^a-zA-Z0-9]+/", "", "$label$currentType");  //filtered to only alphanumeric characters
+      $plotData['timeUnits'] = $timeUnits;
+
+    }
+  }
+
+  //Do a trailing plot for our last type.
+  //var_dump($plotData);
+
+  \aqctrl\plotData($plotData);
+  echo "<img src='../static/" . $plotData['outName'] . ".png' />\n";
 }
 

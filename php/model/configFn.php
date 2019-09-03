@@ -33,7 +33,7 @@ configRtn - function to handle the return a POST of SetupForm
 
 namespace aqctrl;
 
-include("calcFn.php");
+include_once("calcFn.php");
 
 
 function configForm($mysqli, $debug_mode)
@@ -352,6 +352,88 @@ function chanConfigForm($mysqli, $debug_mode)
       echo $chanRow['name'] . " - No data Found";
     }
   }
+}
+
+function configIndex($mysqli, $debug_mode)
+{
+  // Grab our data and plot (for now don't provide editing.
+  $knownChan = mysqli_query($mysqli, "SELECT id, name, type, variable, active, max, min, color, units FROM channel WHERE input=0 AND active=1 ORDER BY type, id");
+
+  $numChan = mysqli_num_rows($knownChan);
+
+  if(!$numChan) {
+    echo "<p>No Channels Known.</p>\n";
+    return;
+  }
+
+  $knownSrc = mysqli_query($mysqli, "SELECT id, name, scale, type FROM source ORDER BY type, id");
+  $knownFn = mysqli_query($mysqli, "SELECT id,name FROM function");
+  $knownPts = mysqli_query($mysqli, "SELECT id,value,timeAdj,timeType,timeSE,function FROM point ORDER BY function, timeSE, timeAdj");
+  $knownReact = mysqli_query($mysqli, "SELECT id, action, scale, channel, react FROM reaction");
+  $knownProf = mysqli_query($mysqli, "SELECT id, name, UNIX_TIMESTAMP(start), UNIX_TIMESTAMP(end), refresh, reaction, function FROM profile");
+  $knownCPS = mysqli_query($mysqli, "SELECT id, scale, channel, profile, source FROM cps ORDER BY source, channel, profile");
+
+
+  $stageData = array();
+  $numPts = 100;
+
+  
+  //Go through and gather our data.
+  foreach($knownChan as $chanRow) {
+    $stageData[$chanRow['id']] = \aqctrl\channelCalc($chanRow, $numPts, $mysqli, $knownSrc, $knownFn, $knownPts,
+      $knownProf, $knownCPS);
+    //Convert our timePts to minutes from now.
+    $timeNow = time();
+
+    foreach($stageData[$chanRow['id']]['timePts'] as $i => $v) {
+      $stageData[$chanRow['id']]['timePts'][$i] = ($v-$timeNow)/3600;
+    }
+  }
+
+
+  /*
+  //Now, find supersets of all of our timepts, by group.
+  $stageTypes = array_unique($stageTypes);
+  foreach($stageTypes as $currentType) {
+    $stageData[$currentType] = array_unique($stageData[$currentType]);
+    sort($stageData[$currentType]);
+    $stageData["new$currentType"] = array_slice($stageData[$currentType], 0, $numPts);
+    $stageData["new$currentType"] = array_values($stageData["new$currentType"]);
+  }
+
+  //Now, interpolate all of our data to the right times.
+  //Also, stage our plot data and plot.
+  $indexCnt = 0;
+  $currentType = '';
+
+  foreach($knownChan as $chanRow) {
+
+
+  //Create a plot for each channel.
+  foreach($knownChan as $chanRow) {
+    echo "<br>\n";
+    $plotData = \aqctrl\channelCalc($chanRow, 100, $mysqli, $knownSrc, $knownFn, $knownPts,
+      $knownProf, $knownCPS);
+
+    $plotData['color0'] = $chanRow['color'];
+    $plotData['label0'] = $chanRow['name'];
+    $plotData['title'] = $chanRow['name'];
+    $plotData['outName'] = "chanChart" . $chanRow['id'];
+    $plotData['unitsY'] = $chanRow['units'];
+
+    if(count($plotData['timePts'])) {
+      \aqctrl\plotData($plotData, true);
+      echo "<img src='../static/" . $plotData['outName'] . ".png' />\n";
+    } else {
+      echo $chanRow['name'] . " - No data Found";
+    }
+  }
+
+  */
+
+  \aqctrl\plotChanByType($stageData, $knownChan, "Schedule", "Hours from now", $numPts);
+
+
 }
 
 
