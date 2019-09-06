@@ -102,6 +102,7 @@ unsigned long defDelay = 120;
 // Data arrays.
 unsigned long timeStamps[numChan][maxVals];
 float chanVals[numChan][maxVals];
+DeviceAddress temp1, temp2, temp3;
 
 // Startup Function.
 
@@ -211,6 +212,14 @@ void startChannels() {
 
   // Start the Temperature sensors
   sensors.begin();
+  sensors.setResolution(12);
+
+  // Get the addresses
+  sensors.getAddress(temp1, 0);
+  sensors.getAddress(temp2, 1);
+  sensors.getAddress(temp3, 2);
+
+  
 
   Serial.println("Initiating channels");
 
@@ -246,15 +255,15 @@ void writeChannels() {
 // function to read input hardware
 void readChannels() {
   // Add actions for your input channels.
-  
-  // Measure temperature
+
   sensors.requestTemperatures();
+  delay(100);
 
   int actChNum;
   actChNum = 12;
 
   timeStamps[actChNum][chanReg[actChNum]] = Ltime;
-  chanVals[actChNum][chanReg[actChNum]] = sensors.getTempFByIndex(0);
+  chanVals[actChNum][chanReg[actChNum]] = sensors.getTempF(temp1);
 
   Serial.print("Temperature: ");
   Serial.println(chanVals[actChNum][chanReg[actChNum]]);
@@ -272,7 +281,7 @@ void readChannels() {
   actChNum = 13;
 
   timeStamps[actChNum][chanReg[actChNum]] = Ltime;
-  chanVals[actChNum][chanReg[actChNum]] = sensors.getTempFByIndex(1);
+  chanVals[actChNum][chanReg[actChNum]] = sensors.getTempF(temp2);
 
   Serial.print("Temperature: ");
   Serial.println(chanVals[actChNum][chanReg[actChNum]]);
@@ -290,7 +299,7 @@ void readChannels() {
   actChNum = 14;
 
   timeStamps[actChNum][chanReg[actChNum]] = Ltime;
-  chanVals[actChNum][chanReg[actChNum]] = sensors.getTempFByIndex(2);
+  chanVals[actChNum][chanReg[actChNum]] = sensors.getTempF(temp3);
 
   Serial.print("Temperature: ");
   Serial.println(chanVals[actChNum][chanReg[actChNum]]);

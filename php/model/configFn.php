@@ -159,6 +159,7 @@ function srcConfigForm($mysqli, $debug_mode)
 
     if(isset($_GET['edit']) && $_GET['edit'] == $srcRow["id"]) {
       //Give all of the controls
+      echo "<div id='edit'>\n";
       echo "<input type='hidden' name='editID' value=" . $srcRow["id"] . ">\n";
       echo "<tr>\n<td>\n";
 
@@ -278,6 +279,7 @@ function srcConfigForm($mysqli, $debug_mode)
       echo "</table>\n";
       echo "<p class='alignright'>\n";
       echo "<input type='submit' name='update' value='Update' />\n";
+      echo "</div>\n";
     } else {
       //Show an edit link
       echo "</table>\n";
@@ -475,7 +477,7 @@ function configRtn($mysqli, $debug_mode)
   while(isset($_POST["prof$i"])) {
     if(isset($_POST["delProf$i"])) {
       //We want to delete this profile association.
-      $sql = "DELETE FROM cps WHERE profile = " . (int)$_POST["prof$i"];
+      $sql = "DELETE FROM cps WHERE profile = " . (int)$_POST["prof$i"] . " AND source = " . (int)$_POST['editID'] ;
 
       if(!mysqli_query($mysqli, $sql)) {
         if ($debug_mode) echo "<p>Error deleting profile CPSes " . mysqli_error($mysqli) . "\n</p>\n";

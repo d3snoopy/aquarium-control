@@ -104,6 +104,7 @@ function setupForm($mysqli, $debug_mode)
 
       ?>
 
+<div id='edit'>
 <h3>Host Edit</h3>
 <table>
 <tr>
@@ -194,6 +195,7 @@ function setupForm($mysqli, $debug_mode)
       }
 
     echo "</table>\n";
+    echo "</div>\n";
     break;
     }
   }

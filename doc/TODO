@@ -1,23 +1,16 @@
 Top TODO:
 
 - Ping host on more than just "update"?
-- Bug: when removing profile from a source, profile is removed from all sources.
 - Implement non-variable channels
 - Implement Reactions
 - Implement Triggers
 - Update/Complete Help
-- Update Configure page to add profile editing.
-- Facilitate time picking
+- Update Configure page to add channel-wise profile time offset.
 - Scheduler work (an app that updates profiles based on things like sunrise/sunset data)
 - Update host code to drop requests where an ID doesn't successfully come across
-- Add in section scrolls for the page so when you edit to goes there.
-- Home page improvement; driven channel status (one grouped plot per host?)
-- Check into how increating a new profile seriously breaks things by hitting enter
+- Check into how in creating a new profile seriously breaks things by hitting enter
 - Error where future date sometimes results on host (but not channel) ???? Don't remember/document error better
 - Adding a new profile adds all channels of type (not just ones that are associated)  ???? Don't remember/document error better
-- Implement grouping of channels
-- Fix the common data plot where it just does everything without groupings
-
 
 
 

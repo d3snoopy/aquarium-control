@@ -429,6 +429,7 @@ function retGen($newLoc = false, $newEdit = false, $newMode = false, $otherOpts 
     if($layerFound) {
       $i++;
     } else {
+      $newUrl .= "#edit";
       break;
     }
   }
