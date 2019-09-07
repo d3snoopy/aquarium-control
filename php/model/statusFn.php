@@ -66,7 +66,7 @@ function statusForm($mysqli, $debug_mode, $indexRef = 0)
 
   // Parse our GET parameters.
   if(isset($_GET['units'])) {
-    $timeUnits = $_GET['units']. " from end";
+    $timeUnits = $_GET['units']. " from now";
 
     switch ($_GET['units']) {
       case 'sec':
@@ -163,85 +163,29 @@ function statusForm($mysqli, $debug_mode, $indexRef = 0)
     ORDER BY date, channel LIMIT $PtsLim");
 
   $stageData = array();
+  $timeData = array();
+  $chanIds = array();
 
   //Go through the data, staging it.
+  $timeNow = time();
+
   foreach($knownData as $dataRow) {
-    $stageData[$dataRow['channel']]['data0'][] = $dataRow['value'];
-    $timeCalc = ((double)$dataRow['UNIX_TIMESTAMP(date)'] - $endTime)/$scale;
-    $stageData[$dataRow['channel']]['timePts'][] = $timeCalc;
+    $stageData['Cdata'][$dataRow['channel']][] = $dataRow['value'];
+    $timeCalc = ((double)$dataRow['UNIX_TIMESTAMP(date)'] - $timeNow)/$scale;
+    $timeData[$dataRow['channel']][] = $timeCalc;
+    $chanIDs[] = $dataRow['channel'];
+  }
+
+  //Now we need to interpolate our data to get to a common timescale.
+  $chanIDs = array_values(array_unique($chanIDs));
+  $stageData['timePts'] = $timeData[$chanIDs[0]];
+
+  foreach($chanIDs as $cID) {
+    $stageData['Cdata'][$cID] = \aqctrl\interpData($stageData['timePts'], $timeData[$cID], $stageData['Cdata'][$cID]);
   }
   
-
   \aqctrl\plotChanByType($stageData, $knownChan, "Data", $timeUnits, $PtsLim);
 
-  /*
-  $indexCnt = 0;
-
-  //Go through each channel and plot.
-  foreach($knownChan as $chanRow) {
-    if (!$indexRef) {
-      echo "<br>\n";
-    } else {
-      $indexCnt++;
-      if ($indexCnt > 3) {
-        echo "<br>\n";
-        $indexCnt = 0;
-      }
-    }
-    $plotData = $stageData[$chanRow['id']];
-
-    $plotData['color0'] = $chanRow['color'];
-    $plotData['label0'] = $chanRow['name'];
-    $plotData['title'] = $chanRow['name'];
-    $plotData['outName'] = "chanChart" . $chanRow['id'];
-    $plotData['timeUnits'] = $timeUnits;
-    $plotData['unitsY'] = $chanRow['units'];
-
-    if(count($plotData['timePts'])) {
-      \aqctrl\plotData($plotData);
-      echo "<img src='../static/" . $plotData['outName'] . ".png' />\n";
-    } else {
-      if (!$indexRef) echo $chanRow['name'] . " - No data Found";
-    }
-  }
-
-
-  //Do the plots on a single graph instead...
-  //In the long run, this will really only work for common groupings. TODO
-  $indexCnt = 0;
-  $currentType = '';
-
-  foreach($knownChan as $chanRow) {
-    if ($indexCnt == 0) {
-      $outXidx = $chanRow['id'];
-      $plotData['timePts'] = $stageData[$chanRow['id']]['timePts'];
-      $plotData['unitsY'] = $chanRow['units'];
-      $currentType = $chanRow['type'];
-    }
-
-    if ($currentType == $chanRow['type']) {
-      $plotData["data$indexCnt"] = \aqctrl\interpData(
-        $stageData[$outXidx]['timePts'],
-        $stageData[$chanRow['id']]['timePts'],
-        $stageData[$chanRow['id']]['data0']);
-
-    $plotData["color$indexCnt"] = $chanRow['color'];
-    $plotData["label$indexCnt"] = $chanRow['name'];
-
-    $indexCnt++;
-
-  }
-
-  $plotData['title'] = 'Data';  //TODO: make it the grouping name
-  $plotData['outName'] = 'DataChart';
-  $plotData['timeUnits'] = $timeUnits;
-    
-  \aqctrl\plotData($plotData);
-  echo "<img src='../static/" . $plotData['outName'] . ".png' />\n";
-
-  //End of new code
-
-  */
 
   //Now, thin out our old data so we don't have a ton just hanging around.
   //First, drop any data from 2017 or older since the system wasn't up and running before 2018.
@@ -300,11 +244,6 @@ function statusForm($mysqli, $debug_mode, $indexRef = 0)
       $logData['ids'][] = $moRow['id'];
     }
   }
-
-  ////////
-  //echo("\n<p>");
-  //echo(implode(",", $dropIDs));
-  //echo("\n</p>");
 
   //Drop all of the IDs from our drop list.
   mysqli_query($mysqli, "DELETE FROM data WHERE id IN (" . implode(",", $dropIDs) . ")");

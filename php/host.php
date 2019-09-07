@@ -250,8 +250,11 @@ function host_process($data_in, $data_out, $mysqli, $row)
       // This is an input channel, so we don't need to return any data.
       $data_out .= ';';
     } else {
-    // Output channel; return data
-      $calcData = \aqctrl\channelCalc($chanInfo, $chanValLim, $mysqli);
+      // Output channel; return data
+      //reset the result pointer
+      mysqli_data_seek($chanRes, 0);
+
+      $calcData = \aqctrl\channelCalc($mysqli, $chanRes, 0, 0, 0, 0, 0, $chanValLim);
 
       foreach($calcData['timePts'] as $timePt) {
         $data_out .= "$timePt,";

@@ -228,6 +228,7 @@ function db_create()
   $mQuery .= "CREATE TABLE cps (
     id INT(6) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     scale FLOAT(10,4) NOT NULL,
+    offset FLOAT(10,4) NOT NULL,
     channel INT(6) UNSIGNED,
     profile INT(6) UNSIGNED,
     source INT(6) UNSIGNED,

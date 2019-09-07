@@ -93,13 +93,22 @@ function srcConfigForm($mysqli, $debug_mode)
   $knownReact = mysqli_query($mysqli, "SELECT id, action, scale, channel, react FROM reaction");
   $knownChan = mysqli_query($mysqli, "SELECT id, name, type, variable, active, max, min, color, units FROM channel WHERE input=0 AND active=1");
   $knownProf = mysqli_query($mysqli, "SELECT id, name, UNIX_TIMESTAMP(start), UNIX_TIMESTAMP(end), refresh, reaction, function FROM profile");
-  $knownCPS = mysqli_query($mysqli, "SELECT id, scale, channel, profile, source FROM cps ORDER BY source, channel, profile");
+  $knownCPS = mysqli_query($mysqli, "SELECT id, scale, offset, channel, profile, source FROM cps ORDER BY source, channel, profile");
 
   // Warn if we don't know about any channels
   if(!mysqli_num_rows($knownChan)) {
     echo "<h3>Warning: no channels found.</h3>\n";
     echo "<p>Channels are created to connecting hardware hosts via the setup page, you can't manually create channels.</p>\n";
     echo "<p>You won't be able to properly configure sources until the hardware hosts connect and inform the system about their channels. Click <a href=./setup.php>here</a> to go to the setup page.</p>\n";
+  }
+
+  // Calculate our data.
+  $inputData = \aqctrl\doCalc($mysqli, $knownSrc, $knownChan, $knownFn, $knownPts, $knownProf, $knownCPS);
+
+  //Collect the profile names.
+  $profNames = array();
+  foreach($knownProf as $profRow) {
+    $profNames[$profRow['id']] = $profRow['name'];
   }
 
   // Cycle through all of our sources
@@ -129,26 +138,13 @@ function srcConfigForm($mysqli, $debug_mode)
     } else {
       // We found associations, do stuff!
       echo "<tr>\n<td>\n";
-      $plotData = \aqctrl\sourceCalc($knownChan, $srcRow["id"], $knownFn, $knownPts, $knownProf,
-        $knownCPS, $srcRow['scale'], $srcRow['name'], 0, 0); //Update last number for duration.
-        
-      if($plotData) {
-        \aqctrl\plotData($plotData, true);
-        echo "<img src='../static/" . $plotData['outName'] . ".png' />\n";
-      } else {
-        echo "Configure some channels and profiles.\n";
-      }
+      \aqctrl\sourcePlot($inputData, $srcRow, $knownChan);
       echo "</td>\n";
       echo "<td>\n<h1>=</h1>\n</td>\n";
 
       foreach($assocProf as $profID) {
         echo "<td>\n";
-        if($plotData['profData'][$profID]) {
-          \aqctrl\plotData($plotData['profData'][$profID], true);
-          echo "<img src='../static/" . $plotData['profData'][$profID]['outName'] . ".png' />\n";
-        } else {
-          echo "Add Channels to this profile.\n";
-        }
+        \aqctrl\profilePlot($inputData, $srcRow, $profID, $profNames[$profID], $knownChan);
         echo "</td>\n";
         
         if($profID != end($assocProf)) echo "<td>\n<h1>*</h1>\n</td>\n";
@@ -260,7 +256,11 @@ function srcConfigForm($mysqli, $debug_mode)
           if($chanFound) {
             echo " scale: \n";
             echo "<input type='number' name='scale$j' value='" . $CPSRow['scale'] .
-              "' step='any'>\n";
+              "' step='any' size='1'>\n";
+            echo "& offset: \n";
+            echo "<input type='number' name='offset$j' value='" . $CPSRow['offset'] .
+              "' step='any' size='1'>\n";
+            echo " sec.\n";
           }
           $j++;
         }
@@ -318,42 +318,7 @@ function chanConfigForm($mysqli, $debug_mode)
   echo "</h3>\n";
 
   // Grab our data and plot (for now don't provide editing.
-  $knownChan = mysqli_query($mysqli, "SELECT id, name, type, variable, active, max, min, color, units FROM channel WHERE input=0 AND active=1");
-
-  $numChan = mysqli_num_rows($knownChan);
-
-  if(!$numChan) {
-    echo "<p>No Channels Known.</p>\n";
-    return;
-  }
-
-  $knownSrc = mysqli_query($mysqli, "SELECT id, name, scale, type FROM source ORDER BY type, id");
-  $knownFn = mysqli_query($mysqli, "SELECT id,name FROM function");
-  $knownPts = mysqli_query($mysqli, "SELECT id,value,timeAdj,timeType,timeSE,function FROM point ORDER BY function, timeSE, timeAdj");
-  $knownReact = mysqli_query($mysqli, "SELECT id, action, scale, channel, react FROM reaction");
-  $knownProf = mysqli_query($mysqli, "SELECT id, name, UNIX_TIMESTAMP(start), UNIX_TIMESTAMP(end), refresh, reaction, function FROM profile");
-  $knownCPS = mysqli_query($mysqli, "SELECT id, scale, channel, profile, source FROM cps ORDER BY source, channel, profile");
-
-
-  //Create a plot for each channel.
-  foreach($knownChan as $chanRow) {
-    echo "<br>\n";
-    $plotData = \aqctrl\channelCalc($chanRow, 100, $mysqli, $knownSrc, $knownFn, $knownPts,
-      $knownProf, $knownCPS);
-
-    $plotData['color0'] = $chanRow['color'];
-    $plotData['label0'] = $chanRow['name'];
-    $plotData['title'] = $chanRow['name'];
-    $plotData['outName'] = "chanChart" . $chanRow['id'];
-    $plotData['unitsY'] = $chanRow['units'];
-
-    if(count($plotData['timePts'])) {
-      \aqctrl\plotData($plotData, true);
-      echo "<img src='../static/" . $plotData['outName'] . ".png' />\n";
-    } else {
-      echo $chanRow['name'] . " - No data Found";
-    }
-  }
+  \aqctrl\configIndex($mysqli, $debug_mode);
 }
 
 function configIndex($mysqli, $debug_mode)
@@ -368,74 +333,15 @@ function configIndex($mysqli, $debug_mode)
     return;
   }
 
-  $knownSrc = mysqli_query($mysqli, "SELECT id, name, scale, type FROM source ORDER BY type, id");
-  $knownFn = mysqli_query($mysqli, "SELECT id,name FROM function");
-  $knownPts = mysqli_query($mysqli, "SELECT id,value,timeAdj,timeType,timeSE,function FROM point ORDER BY function, timeSE, timeAdj");
-  $knownReact = mysqli_query($mysqli, "SELECT id, action, scale, channel, react FROM reaction");
-  $knownProf = mysqli_query($mysqli, "SELECT id, name, UNIX_TIMESTAMP(start), UNIX_TIMESTAMP(end), refresh, reaction, function FROM profile");
-  $knownCPS = mysqli_query($mysqli, "SELECT id, scale, channel, profile, source FROM cps ORDER BY source, channel, profile");
+  $stageData = \aqctrl\doCalc($mysqli, 0, $knownChan);
 
-
-  $stageData = array();
-  $numPts = 100;
-
-  
-  //Go through and gather our data.
-  foreach($knownChan as $chanRow) {
-    $stageData[$chanRow['id']] = \aqctrl\channelCalc($chanRow, $numPts, $mysqli, $knownSrc, $knownFn, $knownPts,
-      $knownProf, $knownCPS);
-    //Convert our timePts to minutes from now.
-    $timeNow = time();
-
-    foreach($stageData[$chanRow['id']]['timePts'] as $i => $v) {
-      $stageData[$chanRow['id']]['timePts'][$i] = ($v-$timeNow)/3600;
-    }
+  //Convert our timePts to hours from now.
+  $timeNow = time();
+  foreach($stageData['timePts'] as $i => $v) {
+    $stageData['timePts'][$i] = ($v-$timeNow)/3600;
   }
 
-
-  /*
-  //Now, find supersets of all of our timepts, by group.
-  $stageTypes = array_unique($stageTypes);
-  foreach($stageTypes as $currentType) {
-    $stageData[$currentType] = array_unique($stageData[$currentType]);
-    sort($stageData[$currentType]);
-    $stageData["new$currentType"] = array_slice($stageData[$currentType], 0, $numPts);
-    $stageData["new$currentType"] = array_values($stageData["new$currentType"]);
-  }
-
-  //Now, interpolate all of our data to the right times.
-  //Also, stage our plot data and plot.
-  $indexCnt = 0;
-  $currentType = '';
-
-  foreach($knownChan as $chanRow) {
-
-
-  //Create a plot for each channel.
-  foreach($knownChan as $chanRow) {
-    echo "<br>\n";
-    $plotData = \aqctrl\channelCalc($chanRow, 100, $mysqli, $knownSrc, $knownFn, $knownPts,
-      $knownProf, $knownCPS);
-
-    $plotData['color0'] = $chanRow['color'];
-    $plotData['label0'] = $chanRow['name'];
-    $plotData['title'] = $chanRow['name'];
-    $plotData['outName'] = "chanChart" . $chanRow['id'];
-    $plotData['unitsY'] = $chanRow['units'];
-
-    if(count($plotData['timePts'])) {
-      \aqctrl\plotData($plotData, true);
-      echo "<img src='../static/" . $plotData['outName'] . ".png' />\n";
-    } else {
-      echo $chanRow['name'] . " - No data Found";
-    }
-  }
-
-  */
-
-  \aqctrl\plotChanByType($stageData, $knownChan, "Schedule", "Hours from now", $numPts);
-
-
+  \aqctrl\plotChanByType($stageData, $knownChan, "Schedule", "hr from now");
 }
 
 
@@ -488,6 +394,7 @@ function configRtn($mysqli, $debug_mode)
     $i++;
   }
 
+
   // Next, test for the "Add a profile" button
   if(isset($_POST['profAdd'])) {
     $retArgs = false;
@@ -504,7 +411,7 @@ function configRtn($mysqli, $debug_mode)
 
       $addID = mysqli_insert_id($mysqli);
 
-      $sql = "INSERT INTO cps (scale, profile, source) VALUES (1, " . $addID
+      $sql = "INSERT INTO cps (scale, offset, profile, source) VALUES (1, 0, " . $addID
         . ", " . (int)$_POST['editID'] . ")";
 
       if(!mysqli_query($mysqli, $sql)) {
@@ -518,7 +425,7 @@ function configRtn($mysqli, $debug_mode)
       //Associate existing profile with this source.
       $addID = (int)$_POST['profSel'];
 
-      $sql = "INSERT INTO cps (scale, profile, source) VALUES (1, " . $addID
+      $sql = "INSERT INTO cps (scale, offset, profile, source) VALUES (1, 0, " . $addID
         . ", " . (int)$_POST['editID'] . ")";
 
       if(!mysqli_query($mysqli, $sql)) {
@@ -548,7 +455,7 @@ function configRtn($mysqli, $debug_mode)
     $assocChan = array_unique($assocChan);
 
     foreach($assocChan as $thisChan) {
-      $sql = "INSERT INTO cps (scale, profile, channel, source) VALUES (1, $addID, $thisChan, "
+      $sql = "INSERT INTO cps (scale, offset, profile, channel, source) VALUES (1, 0, $addID, $thisChan, "
         . (int)$_POST['editID'] . ")";
 
       if(!mysqli_query($mysqli, $sql)) {
@@ -560,7 +467,7 @@ function configRtn($mysqli, $debug_mode)
     if($retArgs) return($retArgs);
   }
 
-  // Next, test for a change in type; if so, clear all CPS associated with this source
+  // Next, test for a change in type; if so, clear all CPS with a channel associated with this source
   $sql = "SELECT id, name, scale, type FROM source WHERE id = " . (int)$_POST['editID'];
 
   $srcRet = mysqli_query($mysqli, $sql);
@@ -572,7 +479,7 @@ function configRtn($mysqli, $debug_mode)
   $srcInfo = mysqli_fetch_array($srcRet);
 
   if($srcInfo["type"] != $_POST["srcType"]) {
-    $sql = "DELETE FROM cps WHERE source =" . $srcInfo['id'];
+    $sql = "DELETE FROM cps WHERE source =" . $srcInfo['id'] . " AND channel IS NOT NULL";
     
     if(!mysqli_query($mysqli, $sql)) {
       if ($debug_mode) echo "<p>Error deleting CPSes" . mysqli_error($mysqli) . "\n</p>\n";
@@ -596,7 +503,7 @@ function configRtn($mysqli, $debug_mode)
 
   // Next, check and update our channel maps
   // Get all CPSes associated with this source
-  $sql = "SELECT id, scale, channel, profile, source FROM cps WHERE source = " . $srcInfo['id']
+  $sql = "SELECT id, scale, offset, channel, profile, source FROM cps WHERE source = " . $srcInfo['id']
      . " ORDER BY channel, profile";
 
   $selCPS = mysqli_query($mysqli, $sql);
@@ -614,11 +521,11 @@ function configRtn($mysqli, $debug_mode)
   }
 
   // Prepare the three queries: update, delete, add
-  $stmtUpdate = $mysqli->prepare("UPDATE cps SET scale = ? WHERE id = ?");
+  $stmtUpdate = $mysqli->prepare("UPDATE cps SET scale = ?, offset = ? WHERE id = ?");
   $stmtDel = $mysqli->prepare("DELETE FROM cps WHERE id = ?");
-  $stmtAdd = $mysqli->prepare("INSERT INTO cps (scale, source, profile, channel) VALUES (1, ?, ?, ?)");
+  $stmtAdd = $mysqli->prepare("INSERT INTO cps (scale, offset, source, profile, channel) VALUES (1, 0, ?, ?, ?)");
   
-  $stmtUpdate-> bind_param("di", $scaleNum, $CPSID);
+  $stmtUpdate-> bind_param("ddi", $scaleNum, $offsetNum, $CPSID);
   $stmtDel-> bind_param("i", $CPSID);
   $stmtAdd-> bind_param("iii", $SrcID, $ProfID, $ChanID);
 
@@ -652,7 +559,7 @@ function configRtn($mysqli, $debug_mode)
     //We have four things to do:
     //1. See if the channel for this CPS is checked for the source, if it isn't delete it.
     //2. See if the channel, profile combo for this CPS is checked, if not delete it.
-    //3. If we meet both criteria to keep it, update the scale.
+    //3. If we meet both criteria to keep it, update the scale and offset.
     //4. Check for missing CPSes that should be there (criteria 1 and 2 met, but the CPS is missing)
     //   and add the missing ones.
     //   This can be done by checking for check$i that exists but ID$i and scale$i don't.
@@ -664,6 +571,7 @@ function configRtn($mysqli, $debug_mode)
     if(in_array($CPSRow['channel'], $srcChans) && $checkFound !== false) {
       //3. Need to update the CPS
       $scaleNum = $_POST["scale$checkFound"];
+      $offsetNum = $_POST["offset$checkFound"];
       $CPSID = $CPSRow['id'];
 
       if(!$stmtUpdate->execute() && $debug_mode) {
@@ -682,7 +590,7 @@ function configRtn($mysqli, $debug_mode)
 
 
   //Check and make sure we have all channels desired, if not, add some with NULL for profile.
-  $stmt = $mysqli->prepare("INSERT INTO cps (scale, source, channel) VALUES (1, ?, ?)");
+  $stmt = $mysqli->prepare("INSERT INTO cps (scale, offset, source, channel) VALUES (1, 0, ?, ?)");
   $stmt-> bind_param("ii", $SrcID, $ChanID);
   $SrcID = $_POST['editID'];
 
@@ -704,11 +612,13 @@ function configRtn($mysqli, $debug_mode)
   $IPs = mysqli_query($mysqli, "SELECT DISTINCT ip FROM host WHERE id IN (SELECT DISTINCT host FROM channel WHERE id IN (".implode(',', $srcChans)."))");
 
   //Pings the affected hosts.
-  foreach($IPs as $ip) {
-    $curl_handle = curl_init();
-    curl_setopt( $curl_handle, CURLOPT_URL, $ip['ip'] );
-    curl_exec( $curl_handle ); // Execute the request
-    curl_close( $curl_handle );
+  if(mysqli_num_rows($IPs)) {
+    foreach($IPs as $ip) {
+      $curl_handle = curl_init();
+      curl_setopt( $curl_handle, CURLOPT_URL, $ip['ip'] );
+      curl_exec( $curl_handle ); // Execute the request
+      curl_close( $curl_handle );
+    }
   }
 
   // Note: return is handled as a query string with checking, so don't return unchecked things from the wild

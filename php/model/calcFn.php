@@ -172,7 +172,6 @@ function profileCalc($knownPts, $profRow, $startTime = 0, $endTime = 0, $numPts 
     $retData['data0'] = array();
 
     do {
-      $newTimes = array();
       //Shift the time data as necessary.
       foreach($calcData['timePts'] as $key => $value) {
         $retData['timePts'][] = $value+($i*$profRow['refresh']);
@@ -181,8 +180,6 @@ function profileCalc($knownPts, $profRow, $startTime = 0, $endTime = 0, $numPts 
 
       $i++;
       $timeCount = count($retData['timePts']);
-
-      //if(!$timecount) break;
 
       $calcEnd = $retData['timePts'][$timeCount-1];
 
@@ -215,16 +212,49 @@ function profileCalc($knownPts, $profRow, $startTime = 0, $endTime = 0, $numPts 
 }
 
 
-function channelCalc($chanRow, $numPts, $mysqli, $knownSrc=0, $knownFn=0, $knownPts=0,
-   $knownProf=0, $knownCPS=0)
+function CPSCalc($CPS, $profileData)
 {
-  $chanID = $chanRow['id'];
+  //Function to calculate data for a CPS.
+  //This will be used by channelCalc and sourceCalc to agegate and give a final answer.
+  $newTimes = array();
+  $newData = array();
 
-  //Function to calculate values for a channel
-  $profData['ids'] = array();
+  //Update the scale and the time for our CPS.
+  foreach($profileData['timePts'] as $timePt) {
+    $newTimes[] = $timePt+$CPS['offset'];
+  }
+  foreach($profileData['data0'] as $dataPt) {
+    $newData[] = $dataPt*$CPS['scale'];
+  }
+      
+  //We're done here, return without bothering to finish the loop.
+  return array(
+    'timePts' => $newTimes,
+    'data0' => $newData,
+    'channel' => $CPS['channel'],
+    'source' => $CPS['source'],
+    'profile' => $CPS['profile']);
+}
 
+
+
+function doCalc($mysqli, $knownSrc=0, $knownChan=0, $knownFn=0, $knownPts=0, $knownProf=0, $knownCPS=0, $numPts = 1000, $startTime=0, $endTime=0)
+{
+  //Function to do the actual calculations.  Works for both channel calc and source calc.
+  //Hand this function $knownSrc and/or $knownChan in the dimensionality that you care about.
+  //I.E. If you want calculations for a single channel, then hand it a single knownChan (sqli result within an array).
+  //If you want calculations for a single source, then hand it a single knownSrc (sqli result within an array).
+  //Outputs CPS Calcs, CS Calcs, C Calcs.  It's then up to the calling function to re-organize as desired.
+  //Note: Outputs all data on a global
+
+
+  //First, if we haven't been handed query data, go get it.  (Careful, this will end up calculating everything for everthing!)
   if(!$knownSrc) {
     $knownSrc = mysqli_query($mysqli, "SELECT id, name, scale, type FROM source ORDER BY type, id");
+  }
+
+  if(!$knownChan) {
+    $knownChan = mysqli_query($mysqli, "SELECT id, name, type, variable, active, max, min, color, units FROM channel WHERE input=0 AND active=1 ORDER BY type, id");
   }
 
   if(!$knownFn) {
@@ -240,238 +270,247 @@ function channelCalc($chanRow, $numPts, $mysqli, $knownSrc=0, $knownFn=0, $known
   }
 
   if(!$knownCPS) {
-    $knownCPS = mysqli_query($mysqli, "SELECT id, scale, channel, profile, source FROM cps ORDER BY source, channel, profile");
+    $knownCPS = mysqli_query($mysqli, "SELECT id, scale, offset, channel, profile, source FROM cps ORDER BY source, channel, profile");
   }
 
-  //Plan: similar to the source calc: go through our items, calculating, then all up all of our sources for the channel.
-  //TODO: add reaction, trigger work
+  //Make our source, channel single element arrays if necessary so later logic can just flow.
+  //if(!is_countable($knownSrc)) $knownSrc = array($knownSrc);
+  //if(!is_countable($knownChan)) $knownChan = array($knownChan);
 
+
+  //Next, filter down to applicable data that we actually care about.
+  $relevantCPS = array();
+  $srcIDs = array();
+  $chanIDs = array();
+  $profIDs = array();
+
+  //Find our relevant source and channel IDs
+  foreach($knownSrc as $srcRow) {
+    $srcIDs[] = $srcRow['id'];
+  }
+
+  foreach($knownChan as $chanRow) {
+    $chanIDs[] = $chanRow['id'];
+  }
+
+  //Find the profile IDs that we care about and gather relevant CPSes in a new array.
   foreach($knownCPS as $CPSRow) {
-    if($CPSRow['channel'] == $chanID && $CPSRow['source'] && $CPSRow['profile']) {
-      //This CPS belongs to the channel that we're calculating for.
-      //Add this profile ID to a list.
-      $profData['ids'][] = $CPSRow['profile'];
+    if(in_array($CPSRow['channel'], $chanIDs) && in_array($CPSRow['source'], $srcIDs) && $CPSRow['profile']) {
+      //This is a CPS that's relevant to us.
+      $profIDs[] = $CPSRow['profile'];
+      $relevantCPS[] = $CPSRow;
     }
   }
 
-  //We now have a list of profiles that we care about.
-  $profData['ids'] = array_unique($profData['ids']);
+  $profIDs = array_unique($profIDs);
 
-  $timesFound = array();
 
-  $timeNow = time();
-
-  //Now go through and calculate for each profile.
+  //Now go through and calculate each profile that we care about.
+  $profData = array();
   foreach($knownProf as $profRow) {
-    if(in_array($profRow['id'], $profData['ids'])) {
-      $profData[$profRow['id']] = profileCalc($knownPts, $profRow, $timeNow, 0, $numPts);
-      $timesFound = array_merge($timesFound, $profData[$profRow['id']]['timePts']);
+    if(in_array($profRow['id'], $profIDs)) {
+      $profData[$profRow['id']] = profileCalc($knownPts, $profRow, $startTime, $endTime, $numPts);
     }
   }
 
-  //Get unique points, sort, and slice.
+  //Collect all of the source scales that we care about.
+  $srcScales = array();
+  foreach($knownSrc as $srcRow) {
+    if(in_array($srcRow['id'], $srcIDs)) $srcScales[$srcRow['id']] = $srcRow['scale'];
+  }
+
+  //Calculate all of the relevant CPS data.
+  $CPSdata = array();
+  $timesFound = array();
+  foreach($relevantCPS as $CPSRow) {
+    $CPSdata[] = \aqctrl\CPSCalc($CPSRow, $profData[$CPSRow['profile']]);
+    $timesFound = array_merge($timesFound, end($CPSdata)['timePts']);
+  }
+
+  //Get unique time points, sort, and slice.
   $timesFound = array_unique($timesFound);
   sort($timesFound);
   $newTimes = array_slice($timesFound, 0, $numPts);
   $newTimes = array_values($newTimes);
 
-  //Interpolate all of our profiles.
-  foreach($profData['ids'] as $profID) {
-    $newData[$profID] = \aqctrl\interpData($newTimes, $profData[$profID]['timePts'],
-      $profData[$profID]['data0']);
+  //Interpolate all of our CPSes, also arrange the data for calling function's consumption.
+  $CPSfinal = array();
+  foreach($CPSdata as $i => $dataSet) {
+    $CPSdata[$i]['data0'] = \aqctrl\interpData($newTimes, $dataSet['timePts'], $dataSet['data0']);
+    $CPSfinal[$dataSet['channel']][$dataSet['source']][$dataSet['profile']] = $CPSdata[$i]['data0'];
   }
 
-  //Calculate our data.
-  $dataOut = array();
+  //Now, all CPS data is in a common timeset.  From here, all math can be done element-wise.
+  
+  //Calculate our CS (Channel Source) data now.
+  $Cfinal = array();
+  $CSfinal = array();
 
-  foreach($newTimes as $i => $timeStamp) {
-    $dataOut[$i] = 0;
-    foreach($knownSrc as $srcRow) {
-      $srcUsed = false;
-      $newVal = $srcRow['scale'];
+  //CPSfinal[channel][src][prof] = profile*CPS scale, shift
+  //CSfinal[channel][src] = src*cps*cps*cps...
+  //Cfinal[channel] = sum(CS data[channel])
 
-      foreach($knownCPS as $CPSRow) {
-        if(($CPSRow['source'] == $srcRow['id']) && ($CPSRow['channel'] == $chanID)
-          && ($CPSRow['profile'])) {
+  foreach($CPSdata as $CPSset) {
+    //Test to see if the channel key exists yet.
+    if(!array_key_exists($CPSset['channel'],$Cfinal)) {
+      $Cfinal[$CPSset['channel']] = array_fill(0,count($newTimes),0);
+    }
 
-          //Use this CPS.
-          $srcUsed = true;
-          $newVal *= $CPSRow['scale'];
-          $newVal *= $newData[$CPSRow['profile']][$i];
+    //Test to see if the array key exists in the CS array.
+    if(!array_key_exists($CPSset['channel'],$CSfinal) ||
+      !array_key_exists($CPSset['source'],$CSfinal[$CPSset['channel']]))
+    {
+      //Need to seed the source array with the source scale
+      $CSfinal[$CPSset['channel']][$CPSset['source']] = array_fill(0,count($newTimes),$srcScales[$CPSset['source']]);
+    }
+
+    //The keys exist, need to multiply through our source calculation.
+    foreach($CPSset['data0'] as $i => $dataPt) {
+      $CSfinal[$CPSset['channel']][$CPSset['source']][$i] *= $dataPt;
+    }
+  }
+
+  //Now, need to do our final additions to get Cfinal.
+  foreach($CSfinal as $chanID => $srcSet) {
+    foreach($srcSet as $srcData) {
+      //Need to add through for this data.
+      //In the previous round we created all of our keys and seeded with 0's.
+      foreach($srcData as $i => $dataPt) {
+        $Cfinal[$chanID][$i] += $dataPt;
+      }
+    }
+  }
+
+  //Bounce the Cfinal data against the channel max, min, variable statuses.
+  foreach($knownChan as $chanRow) {
+    if(array_key_exists($chanRow['id'],$Cfinal)) { //Catch the case where we have some channels with no CPS data.
+      foreach($Cfinal[$chanRow['id']] as $i => $dataPt) {
+        //Filter this through our min, max, variable status.
+        if(!$chanRow['variable']) {
+          $a = $dataPt - $chanRow['min'];
+          $b = $chanRow['max'] - $chanRow['min'];
+          $r = (bool)round($a/$b);
+          $Cfinal[$chanRow['id']][$i] = ($r*$b)+$chanRow['min'];
+        } else {
+          $Cfinal[$chanRow['id']][$i] = max($chanRow['min'], min($chanRow['max'], $dataPt));
         }
       }
-
-      if($srcUsed) $dataOut[$i] += $newVal;
     }
-    //Test against min and max
-    $dataOut[$i] = max($chanRow['min'], min($chanRow['max'], $dataOut[$i]));
-    
   }
 
+  //We have all of our relevant data calculated.
   return array(
     'timePts' => $newTimes,
-    'data0' => $dataOut);
+    'CPSdata' => $CPSfinal,
+    'CSdata' => $CSfinal,
+    'Cdata' => $Cfinal);
 }
 
 
-/*
-function channelCalcOld($chanInfo, $chanValLim)
+function channelCalc($mysqli, $chanRet, $knownSrc=0, $knownFn=0, $knownPts=0,
+   $knownProf=0, $knownCPS=0, $numPts = 1000)
 {
-  //TODO: rework
-  //Function to create the return for a host
-  global $debug_mode;
+  //Function to calculate values for a channel
+  //About all that calls this at this point is the host.
+  //Note: assumed that you have a single channel in chanRet.
 
-  $retInfo = "";
+  //Leverage the doCalc function
+  $dataIn = \aqctrl\doCalc($mysqli, $knownSrc, $chanRet, $knownFn, $knownPts, $knownProf, $knownCPS, $numPts);
 
-  $now = time();
-
-  for($i=0;$i<$chanValLim;$i++) {
-    $t = $now + ($i*100);
-    $retInfo .= "$t,";
-  }
-
-  $retInfo .= ';';
-
-  for($i=0;$i<$chanValLim;$i++) {
-    $v = mt_rand() / mt_getrandmax();
-    $retInfo .= "$v,";
-  }
-
-  return $retInfo;
-}
-*/
-
-
-function sourceCalc($knownChan, $srcID, $knownFn, $knownPts, $knownProf, $knownCPS, $srcScale = 1,
-   $srcName = 'No Name', $duration = 0)
-{
-  //Calculate values for our source.
-  //We're given a source ID: $srcID that needs to be calculated.
-  //Go through our CPSes - these give us access to the associated profiles.
-  //Assemble the data all into an array that plotdata likes.
-  $retData = array();
-  $chanList = array();
-
-  //Mine the CPSes for data we care about.
-  foreach($knownCPS as $thisCPS) {
-    if($thisCPS['source'] == $srcID && $thisCPS['profile'] && $thisCPS['channel']) {
-      //This CPS belongs to the source we're calculating for.
-      $profKey = $thisCPS['profile'];
-
-      //Add this channel and CPS scale info to the array.
-      $retData['chans'][$profKey][] = $thisCPS['channel'];
-      $retData['scales'][$profKey][] = $thisCPS['scale'];
-
-      //Add this channel to our running channel list.
-      $chanList[] = $thisCPS['channel'];
-    }
-  }
-
-  //Jump out if we didn't get any matches (catch early work with no profiles assoc)
-  if(!isset($retData['chans']) || !count($retData['chans'])) return false;
-
-  $retData['chanInfo'] = array();
-  $chanList = array_unique($chanList);
-  $chanList = array_values($chanList);
-
-  //Mine the channels for data we care about.
-  foreach($knownChan as $thisChan) {
-    if(in_array($thisChan['id'], $chanList)) {
-      //Add this channel info to our list
-      $retData['chanInfo'][$thisChan['id']] = [
-        'color' => $thisChan['color'],
-        'name' => $thisChan['name'],
-      ];
-    }
-  }
-
-  //Time point tracker - for the future.
-  $timePtsSeen = array();
-
-  //Now, go through the profiles, calculating along the way.
-  foreach($knownProf as $thisProf) {
-    //We have CPS and chann data tee'd up for us in the $retData variable
-    $profKey = $thisProf['id'];
-
-    //If the profile isn't used, move on to the next profile.
-    if(!array_key_exists($profKey, $retData['scales'])) continue;
-
-    //Get our profile points.
-    $retData['profData'][$profKey] = array();
-    $retData['profData'][$profKey]['timePts'] = array();
-    $retData['profData'][$profKey]['dataPts'] = array();
-    
-    //Calculate data for this profile.
-    $calcData = \aqctrl\profileCalc($knownPts, $thisProf);
-
-    $retData['profData'][$profKey]['timePts'] = $calcData['timePts'];
-    $retData['profData'][$profKey]['dataPts'] = $calcData['data0'];
-
-    //Log that we've seen these time points.
-    $timePtsSeen = array_merge($timePtsSeen, $calcData['timePts']);
-
-    //Now, we have a set of function points for this profile.
-    //Next, calculate and stage our individual channel data; this will be usable later for plotting.
-    $retData['profData'][$profKey]['title'] = $thisProf['name'];
-    $retData['profData'][$profKey]['outName'] = 'profileChart' . $profKey . '_' . $srcID;
-    $retData['profData'][$profKey]['unitsY'] = $thisChan['units'];
-
-    foreach($retData['chans'][$profKey] as $key => $chanID) {
-      //Multiply by the channels scale.
-      foreach($retData['profData'][$profKey]['dataPts'] as $inData) {
-        $retData['profData'][$profKey]["data$key"][] = $retData['scales'][$profKey][$key] * $inData;
-      }
-
-      //Stage the color, label, etc.
-      $retData['profData'][$profKey]["color$key"] = $retData['chanInfo'][$chanID]['color'];
-      $retData['profData'][$profKey]["label$key"] = $retData['chanInfo'][$chanID]['name'];
-
-    }
-  }
-
-  //Now, calculate the product of the profiles.
-  //Make sure to remember to map channels (they don't necessarily correlate)
-  //Also make sure to remember to interpolate so everything is on the same time points.
+  //TODO: add reaction, trigger work
   
-  $retData['timePts'] = array_unique($timePtsSeen);
-  sort($retData['timePts']);
+  //reset the result pointer, just in case.
+  mysqli_data_seek($chanRet, 0);
+  $chanInfo = mysqli_fetch_array($chanRet);
 
-  $retData['title'] = $srcName;
-  $retData['outName'] = 'srcChart' . $srcID;
-  $retData['unitsY'] = $thisChan['units'];
+  return array(
+    'timePts' => $dataIn['timePts'],
+    'data0' => $dataIn['Cdata'][$chanInfo['id']]);
+}
 
 
-  //Seed the data with our overall source scale.
-  foreach($chanList as $i => $chanID) {
-    $retData["data$i"] = array_fill(0, count($retData['timePts']), $srcScale);
-    $retData["color$i"] = $retData['chanInfo'][$chanID]['color'];
-    $retData["label$i"] = $retData['chanInfo'][$chanID]['name'];
+function sourcePlot($calcData, $srcRow, $knownChan)
+{
+  //Plot the data for a source.
+  
+  //Stage our channel names and colors
+  $chanNames = array();
+  $chanColors = array();
+
+  foreach($knownChan as $chanRow) {
+    $chanNames[$chanRow['id']] = $chanRow['name'];
+    $chanColors[$chanRow['id']] = $chanRow['color'];
   }
 
-  //Channel mapping for our source data: from $chanList.
-  //Channel mapping for each proflie: $retData['chans'][$profKey]
 
-  foreach($retData['profData'] as $profKey => $profData) {
+  //Go through our data and set it up for the plot.
+  $stageData = array();
+  $stageData['timePts'] = $calcData['timePts'];
+  $stageData['title'] = $srcRow['name'];
+  $stageData['outName'] = 'srcChart' . $srcRow['id'];
 
-    foreach($chanList as $i => $chanID) {
-      //Find this chanID in our profData.
-      $PCKey = array_search($chanID, $retData['chans'][$profKey]);
+  $i = 0;
 
-      if($PCKey === false) continue; //This chanID not used in this profile.
+  foreach($calcData['CSdata'] as $chan => $data) {
+    if(array_key_exists($srcRow['id'], $data)) {
+      //This source has data for this channel.
+      $stageData["data$i"] = $data[$srcRow['id']];
+      $stageData["color$i"] = $chanColors[$chan];
+      $stageData["label$i"] = $chanNames[$chan];
+      $i++;
+    }
+  }
 
-      //The chanID was found.
-      $newData = \aqctrl\interpData($retData['timePts'], $profData['timePts'],
-        $profData["data$PCKey"]);
+  if(array_key_exists('data0', $stageData)) {
+    \aqctrl\plotData($stageData, true);
+    echo "<img src='../static/" . $stageData['outName'] . ".png' />\n";
+  } else {
+    echo "Configure some channels and profiles.\n";
+  }
+}
 
-      //Multiply through.
-      foreach($newData as $j => $newPt) {
-        $retData["data$i"][$j] *= $newPt;
+
+function profilePlot($calcData, $srcRow, $profID, $profName, $knownChan)
+{
+  //Plot the data for a profile within a source.
+
+  //Stage our channel names and colors
+  $chanNames = array();
+  $chanColors = array();
+
+  foreach($knownChan as $chanRow) {
+    $chanNames[$chanRow['id']] = $chanRow['name'];
+    $chanColors[$chanRow['id']] = $chanRow['color'];
+  }
+
+
+  //Go through our data and set it up for the plot.
+  $stageData = array();
+  $stageData['timePts'] = $calcData['timePts'];
+  $stageData['title'] = $profName;
+  $stageData['outName'] = 'profileChart' . $profID . '_' . $srcRow['id'];
+
+  $i = 0;
+
+  foreach($calcData['CPSdata'] as $chan => $PSdata) {
+    if(array_key_exists($srcRow['id'], $PSdata)) {
+      //This source has data for this channel.
+      if(array_key_exists($profID, $PSdata[$srcRow['id']])) {
+        //We have data for this Profile in this Source.
+        $stageData["data$i"] = $PSdata[$srcRow['id']][$profID];
+        $stageData["color$i"] = $chanColors[$chan];
+        $stageData["label$i"] = $chanNames[$chan];
+        $i++;
       }
     }
   }
 
-  //Return format to match plotData already queued up
-  return($retData);
+  if(array_key_exists('data0', $stageData)) {
+    \aqctrl\plotData($stageData, true);
+    echo "<img src='../static/" . $stageData['outName'] . ".png' />\n";
+  } else {
+    echo "Add Channels to this profile.\n";
+  }
 }
 
 
@@ -527,9 +566,9 @@ function plotData($plotData, $fromNow = false)
   if($fromNow) {
     $timeNow = time();
     foreach($plotData['timePts'] as $i => $t) {
-      $plotData['timePts'][$i] = ($t - $timeNow)/60;
+      $plotData['timePts'][$i] = ($t - $timeNow)/3600;
     }
-    $xLabel = "Time (minutes from now)";
+    $xLabel = "Time (hr from now)";
   }
 
   $yLabel = 'Value';
@@ -602,52 +641,13 @@ function plotChanByType($stageData, $knownChan, $label, $timeUnits, $numPts = 10
 {
   //Plot channel data, grouped by types.
   //This function is used to generate the index plots
-  //$stageData: staged data, array of data with keys which are the index of each channel; within which will be a 'timePts' array with x-axis points and a 'data0' array with y axis points.
-  //$knownChan: SQL query result with channel info; note that there needs be a $stageData element for each element in this dataset.  Also, needs to be ordered by type if you want predictably grouped plots.
+  //$stageData: staged data, "CData" array of data with keys which are the index of each channel.
+  //$knownChan: SQL query result with channel info; note that there needs be a $stageData['Cdata'] element for each element in this dataset.  Also, needs to be ordered by type if you want predictably grouped plots.
   //$label: a prefix label to put in the plot header
   //$numPts: the number of points limit for our plots.
 
-  //Develop our list of types
-  $knownTypes = array();
-  $typeTimePts = array();
-  $typeMins = array();
-  $typeMaxes = array();
 
-  foreach($knownChan as $chanRow) {
-    $knownTypes[] = $chanRow['type'];
-    if (!array_key_exists($chanRow['type'], $typeTimePts)) {
-      $typeTimePts[$chanRow['type']] = $stageData[$chanRow['id']]['timePts'];
-    } else {
-    $typeTimePts[$chanRow['type']] = array_merge($typeTimePts[$chanRow['type']],
-      $stageData[$chanRow['id']]['timePts']);
-    }
-    
-    $typeMins[$chanRow['type']][] = min($stageData[$chanRow['id']]['timePts']);
-    $typeMaxes[$chanRow['type']][] = max($stageData[$chanRow['id']]['timePts']);
-  }
-
-  //Develop supersets of all of our timepts, by group.
-  $knownTypes = array_unique($knownTypes);
-  foreach($knownTypes as $currentType) {
-    $typeTimePts[$currentType] = array_unique($typeTimePts[$currentType]);
-    sort($typeTimePts[$currentType]);
-
-    //slice the data, if necessary
-    $typeTimePts["new$currentType"] = array();
-    for($i = 0;
-      (($i < count($typeTimePts[$currentType])) &&
-      ($typeTimePts[$currentType][$i] <= min($typeMaxes[$currentType])));
-      $i++) {
-      //Test to see if we have reached our max number of points
-      if (count($typeTimePts["new$currentType"]) >= $numPts) break;
-
-      //Add this point if it isn't too small
-      if ($typeTimePts[$currentType][$i] >= max($typeMins[$currentType])) $typeTimePts["new$currentType"][] = $typeTimePts[$currentType][$i];
-
-    }
-  }
-  
-  // Now, stage the data for the plot function, by group.
+  // Stage the data for the plot function, by group.
   $indexCnt = 0;
   $currentType = '';
 
@@ -656,7 +656,7 @@ function plotChanByType($stageData, $knownChan, $label, $timeUnits, $numPts = 10
       //We have a new type set; this will really only execute the first time through the loop
       $plotData = array();
       $currentType = $chanRow['type'];
-      $plotData['timePts'] = $typeTimePts["new$currentType"];
+      $plotData['timePts'] = $stageData['timePts'];
       $plotData['unitsY'] = $chanRow['units'];
       $plotData['title'] = "$label - $currentType";
       $plotData['outName'] = preg_replace("/[^a-zA-Z0-9]+/", "", "$label$currentType");  //filtered to only alphanumeric characters
@@ -665,21 +665,23 @@ function plotChanByType($stageData, $knownChan, $label, $timeUnits, $numPts = 10
 
     if ($currentType == $chanRow['type']) {
       //More data from the type that we are on.
-      $plotData["data$indexCnt"] = \aqctrl\interpData(
-        $typeTimePts["new$currentType"],
-        $stageData[$chanRow['id']]['timePts'],
-        $stageData[$chanRow['id']]['data0']);
+      //Test to see if there's actually calculated data for this channel.
+      if(array_key_exists($chanRow['id'], $stageData['Cdata'])) {
+        $plotData["data$indexCnt"] = $stageData['Cdata'][$chanRow['id']];
       
-      $plotData["color$indexCnt"] = $chanRow['color'];
-      $plotData["label$indexCnt"] = $chanRow['name'];
+        $plotData["color$indexCnt"] = $chanRow['color'];
+        $plotData["label$indexCnt"] = $chanRow['name'];
 
-      $indexCnt++;
+        $indexCnt++;
+      }
     } else {
       //We have a new type set, plot, reset, and seed.
 
-      //plot
-      \aqctrl\plotData($plotData);
-      echo "<img src='../static/" . $plotData['outName'] . ".png' />\n";
+      //plot if we have data.
+      if(array_key_exists('data0', $plotData)) {
+        \aqctrl\plotData($plotData);
+        echo "<img src='../static/" . $plotData['outName'] . ".png' />\n";
+      }
 
       //reset
       $plotData = array();
@@ -688,19 +690,29 @@ function plotChanByType($stageData, $knownChan, $label, $timeUnits, $numPts = 10
 
       //reseed
       $plotData = array();
-      $plotData['timePts'] = $typeTimePts["new$currentType"];
+      $plotData['timePts'] = $stageData['timePts'];
       $plotData['unitsY'] = $chanRow['units'];
       $plotData['title'] = "$label - $currentType";
       $plotData['outName'] = preg_replace("/[^a-zA-Z0-9]+/", "", "$label$currentType");  //filtered to only alphanumeric characters
       $plotData['timeUnits'] = $timeUnits;
 
+      //add the first set of data.
+      if(array_key_exists($chanRow['id'], $stageData['Cdata'])) {
+        $plotData["data$indexCnt"] = $stageData['Cdata'][$chanRow['id']];
+
+        $plotData["color$indexCnt"] = $chanRow['color'];
+        $plotData["label$indexCnt"] = $chanRow['name'];
+
+        $indexCnt++;
+      }
+
     }
   }
 
   //Do a trailing plot for our last type.
-  //var_dump($plotData);
-
-  \aqctrl\plotData($plotData);
-  echo "<img src='../static/" . $plotData['outName'] . ".png' />\n";
+  if(array_key_exists('data0', $plotData)) {
+    \aqctrl\plotData($plotData);
+    echo "<img src='../static/" . $plotData['outName'] . ".png' />\n";
+  }
 }
 
