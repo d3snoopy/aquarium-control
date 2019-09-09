@@ -9,6 +9,7 @@ Top TODO:
 - Scheduler work (an app that updates profiles based on things like sunrise/sunset data)
 - Update host code to drop requests where an ID doesn't successfully come across
 - Check into how in creating a new profile seriously breaks things by hitting enter
+- Bugfix: non-variable channels with variable source inputs don't create new points to "toggle" at inflection point; instead each point is simply cast to min or max... so if there's a time delay between a min and a max it appears as a linear slope over the time.  Note: the host arduino code could take care of this... also, it doesn't make much sense to feed non-variable channels with variable inputs, but as of right now it behaves slightly diffferent then you would expect.
 
 
 ****************************************************

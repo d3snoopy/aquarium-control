@@ -19,7 +19,7 @@ You should have received a copy of the GNU General Public License
 along with Aqctrl.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-// setup.php
+// configure.php
 
 set_include_path("template:model");
 
@@ -28,6 +28,7 @@ $title = "Configure";
 include 'header.php';
 include 'model.php';
 include 'configFn.php';
+include 'statusFn.php';
 
 // Connect to the db.
 $mysqli = \aqctrl\db_connect();
@@ -52,6 +53,14 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
     return;
   }
 
+  //See if our scale control has been invoked.
+  if(isset($_POST['newTimes']) && $_POST['newTimes']) {
+    //We've used the top of the form, not the bottom.
+    $newOpt = \aqctrl\statusRtn($mysqli, $debug_mode);
+    \aqctrl\retGen(0, 0, 0, $newOpt, 1);
+    return;
+  }
+
   //Something else has been invoked, call the model function
   $procRtn = \aqctrl\configRtn($mysqli, $debug_mode);
 
@@ -65,17 +74,23 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
   if(isset($procRtn['mode'])) $newMode = $procRtn['mode'];
   if(isset($procRtn['other'])) $otherOpts = $procRtn['other'];
 
+  $otherOpts = \aqctrl\preserveMyTimes($otherOpts);
+
   \aqctrl\retGen($newLoc, $newEdit, $newMode, $otherOpts, true);
 
 
 } else {
   //Show the form
+  //First, show the form to control our scales
+  $otherOpts = \aqctrl\preserveMyTimes();
 
-  $newUrl = \aqctrl\retGen();
+
+  $newUrl = \aqctrl\retGen(false, false, false, $otherOpts);
 
   echo "<h1>Configure Channels</h1>\n";
   echo "<form action='$newUrl' method='post'>\n";
-  \aqctrl\configForm($mysqli, $debug_mode);
+  $myTimes = \aqctrl\createScaleOpts(false, true);
+  \aqctrl\configForm($mysqli, $debug_mode, $myTimes);
 
   mysqli_close($mysqli);
 

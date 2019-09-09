@@ -429,7 +429,7 @@ function channelCalc($mysqli, $chanRet, $knownSrc=0, $knownFn=0, $knownPts=0,
 }
 
 
-function sourcePlot($calcData, $srcRow, $knownChan)
+function sourcePlot($calcData, $srcRow, $knownChan, $scale, $timeUnits)
 {
   //Plot the data for a source.
   
@@ -448,6 +448,13 @@ function sourcePlot($calcData, $srcRow, $knownChan)
   $stageData['timePts'] = $calcData['timePts'];
   $stageData['title'] = $srcRow['name'];
   $stageData['outName'] = 'srcChart' . $srcRow['id'];
+  $stageData['timeUnits'] = $timeUnits;
+
+  //Convert our timePts from now.
+  $timeNow = time();
+  foreach($stageData['timePts'] as $i => $v) {
+    $stageData['timePts'][$i] = ($v-$timeNow)/$scale;
+  }
 
   $i = 0;
 
@@ -462,7 +469,7 @@ function sourcePlot($calcData, $srcRow, $knownChan)
   }
 
   if(array_key_exists('data0', $stageData)) {
-    \aqctrl\plotData($stageData, true);
+    \aqctrl\plotData($stageData);
     echo "<img src='../static/" . $stageData['outName'] . ".png' />\n";
   } else {
     echo "Configure some channels and profiles.\n";
@@ -470,7 +477,7 @@ function sourcePlot($calcData, $srcRow, $knownChan)
 }
 
 
-function profilePlot($calcData, $srcRow, $profID, $profName, $knownChan)
+function profilePlot($calcData, $srcRow, $profID, $profName, $knownChan, $scale, $timeUnits)
 {
   //Plot the data for a profile within a source.
 
@@ -489,6 +496,14 @@ function profilePlot($calcData, $srcRow, $profID, $profName, $knownChan)
   $stageData['timePts'] = $calcData['timePts'];
   $stageData['title'] = $profName;
   $stageData['outName'] = 'profileChart' . $profID . '_' . $srcRow['id'];
+  $stageData['timeUnits'] = $timeUnits;
+
+  //Convert our timePts from now.
+  $timeNow = time();
+  foreach($stageData['timePts'] as $i => $v) {
+    $stageData['timePts'][$i] = ($v-$timeNow)/$scale;
+  }
+
 
   $i = 0;
 
@@ -506,7 +521,7 @@ function profilePlot($calcData, $srcRow, $profID, $profName, $knownChan)
   }
 
   if(array_key_exists('data0', $stageData)) {
-    \aqctrl\plotData($stageData, true);
+    \aqctrl\plotData($stageData);
     echo "<img src='../static/" . $stageData['outName'] . ".png' />\n";
   } else {
     echo "Add Channels to this profile.\n";

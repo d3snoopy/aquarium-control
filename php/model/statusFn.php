@@ -56,102 +56,12 @@ function statusForm($mysqli, $debug_mode, $indexRef = 0)
 
   // If we got here, we do have at least one channel
 
-  $secSel = '';
-  $minSel = '';
-  $hrSel = '';
-  $daySel = '';
-  $monSel = '';
-  $yrSel = '';
-  $timeUnits = 'hr from now';
-
-  // Parse our GET parameters.
-  if(isset($_GET['units'])) {
-    $timeUnits = $_GET['units']. " from now";
-
-    switch ($_GET['units']) {
-      case 'sec':
-        $scale = 1;
-        $secSel = 'selected';
-        break;
-      case 'min':
-        $scale = 60;
-        $minSel = 'selected';
-        break;
-      case 'hr':
-        $scale = 3600;
-        $hrSel = 'selected';
-        break;
-      case 'day':
-        $scale = 86400;
-        $daySel = 'selected';
-        break;
-      case 'mon':
-        $scale = 2592000;
-        $monSel = 'selected';
-        break;
-      case 'yr':
-        $scale = 31536000;
-        $yrSel = 'selected';
-        break;
-      default:
-        $scale = 3600;
-        $hrSel = 'selected';
-    }
-  } else {
-    $scale = 3600;
-    $hrSel = 'selected';
-  }
-
-  //Calculate our values.
-  $timeNow = time();
-
-  if(isset($_GET['start'])) {
-    $startTime = $timeNow - (double)$_GET['start']*$scale;
-    $startDef = $_GET['start'];
-  } else {
-    $startTime = $timeNow - 24*$scale;
-    $startDef = 24;
-  }
-
-  if(isset($_GET['end'])) {
-    $endTime = $timeNow - (double)$_GET['end']*$scale;
-    $endDef = $_GET['end'];
-  } else {
-    $endTime = $timeNow;
-    $endDef = 0;
-  }
-
-  //Switch start and end if needed.
-  if($startTime > $endTime) {
-    $tempTime = $startTime;
-    $startTime = $endTime;
-    $endTime = $tempTime;
-  }
-
-  // Put in a form to control what data's shown.
-  if(!$indexRef) {
-    echo "<p>\n";
-    echo "Plot from: \n";
-    echo "<input type='number' name='start' value='$startDef' step='any'>\n";
-    echo "to: \n";
-    echo "<input type='number' name='end' value='$endDef' step='any'>\n";
-    echo "<select name='units'>\n";
-    echo "<option value='sec' $secSel>Seconds</option>\n";
-    echo "<option value='min' $minSel>Minutes</option>\n";
-    echo "<option value='hr' $hrSel>Hours</option>\n";
-    echo "<option value='day' $daySel>Days</option>\n";
-    echo "<option value='mon' $monSel>Months</option>\n";
-    echo "<option value='yr' $yrSel>Years</option>\n";
-    echo "</select>\n";
-    echo " before now.\n";
-
-    echo "<p class='alignright'>\n";
-    echo "<input type='submit' name='save' value='Update' />\n";
-    echo "<input type='submit' name='cancel' value='Cancel' />\n";
-    echo "</p>\n";
-    echo "<div style='clear: both;'></div>\n";
-  }
-
+  // Show scale controls
+  $myTimes = \aqctrl\createScaleOpts($indexRef);
+  $startTime = $myTimes['startTime'];
+  $endTime = $myTimes['endTime'];
+  $scale = $myTimes['scale'];
+  $timeUnits = $myTimes['timeUnits'];
 
   //Get the data.
 
@@ -311,8 +221,134 @@ function statusRtn($mysqli, $debug_mode)
   // All we're doing is assembling a new URL.
   $optString = 'start=' . urlencode($_POST['start']) . "&";
   $optString .= 'end=' . urlencode($_POST['end']) . "&";
-  $optString .= 'units=' . urlencode($_POST['units']);
+  $optString .= 'units=' . urlencode($_POST['units']) . "&";
 
   return($optString);
 
+}
+
+
+function createScaleOpts($indexRef, $future=0)
+{
+  //Function to create options to manipulate the scale of plots.
+  //Used by both the status page and the configure page.
+
+  $secSel = '';
+  $minSel = '';
+  $hrSel = '';
+  $daySel = '';
+  $monSel = '';
+  $yrSel = '';
+  $timeUnits = 'hr from now';
+
+  // Parse our GET parameters.
+  if(isset($_GET['units'])) {
+    $timeUnits = $_GET['units']. " from now";
+
+    switch ($_GET['units']) {
+      case 'sec':
+        $scale = 1;
+        $secSel = 'selected';
+        break;
+      case 'min':
+        $scale = 60;
+        $minSel = 'selected';
+        break;
+      case 'hr':
+        $scale = 3600;
+        $hrSel = 'selected';
+        break;
+      case 'day':
+        $scale = 86400;
+        $daySel = 'selected';
+        break;
+      case 'mon':
+        $scale = 2592000;
+        $monSel = 'selected';
+        break;
+      case 'yr':
+        $scale = 31536000;
+        $yrSel = 'selected';
+        break;
+      default:
+        $scale = 3600;
+        $hrSel = 'selected';
+    }
+  } else {
+    $scale = 3600;
+    $hrSel = 'selected';
+  }
+
+  //Calculate our values.
+  $timeNow = time();
+
+  if(isset($_GET['start'])) {
+    if($future) {
+      $startTime = $timeNow + (double)$_GET['start']*$scale;
+    } else {
+      $startTime = $timeNow - (double)$_GET['start']*$scale;
+    }
+    $startDef = $_GET['start'];
+  } else {
+    if($future) {
+      $startTime = $timeNow + 24*$scale;
+    } else {
+      $startTime = $timeNow - 24*$scale;
+    }
+    $startDef = 24;
+  }
+
+  if(isset($_GET['end'])) {
+    if($future) {
+    $endTime = $timeNow + (double)$_GET['end']*$scale;
+    } else {
+      $endTime = $timeNow - (double)$_GET['end']*$scale;
+    }
+    $endDef = $_GET['end'];
+  } else {
+    $endTime = $timeNow;
+    $endDef = 0;
+  }
+
+  //Switch start and end if needed.
+  if($startTime > $endTime) {
+    $tempTime = $startTime;
+    $startTime = $endTime;
+    $endTime = $tempTime;
+  }
+
+  // Put in a form to control what data's shown.
+  if(!$indexRef) {
+    echo "<p>\n";
+    echo "Plot from: \n";
+    echo "<input type='number' name='start' value='$startDef' step='any'>\n";
+    echo "to: \n";
+    echo "<input type='number' name='end' value='$endDef' step='any'>\n";
+    echo "<select name='units'>\n";
+    echo "<option value='sec' $secSel>Seconds</option>\n";
+    echo "<option value='min' $minSel>Minutes</option>\n";
+    echo "<option value='hr' $hrSel>Hours</option>\n";
+    echo "<option value='day' $daySel>Days</option>\n";
+    echo "<option value='mon' $monSel>Months</option>\n";
+    echo "<option value='yr' $yrSel>Years</option>\n";
+    echo "</select>\n";
+    if($future) {
+      echo " after now.\n";
+    } else {
+      echo " before now.\n";
+    }
+
+    echo "<p class='alignright'>\n";
+    echo "<input type='submit' name='newTimes' value='Update Times' />\n";
+    echo "<input type='submit' name='cancel' value='Cancel' />\n";
+    echo "</p>\n";
+    echo "<div style='clear: both;'></div>\n";
+  }
+
+
+  return array(
+    'startTime' => $startTime,
+    'endTime' => $endTime,
+    'scale' => $scale,
+    'timeUnits' => $timeUnits);
 }

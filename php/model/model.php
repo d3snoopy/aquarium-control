@@ -362,7 +362,7 @@ function retGen($newLoc = false, $newEdit = false, $newMode = false, $otherOpts 
   //Note: inhereted edit, ret, mode are all preserved; other opts are not.
   //Also note: this function doesn't do anything to sanitize inputs,
   //so make sure they're sanitized before passing them here. ***This includes urlencoding before this function***.
-  //Finally note: if $newRet is supplied, the assumption is that you want a new layer;
+  //Finally note: if $newLoc is supplied, the assumption is that you want a new layer;
   //if it's false the assumption is that you don't want a new layer.
 
   //Seed with our new location.
@@ -496,5 +496,26 @@ function retParse($useSelf = true)
 }
 
 
+function preserveMyTimes($otherOpts = false)
+{
+  //function to keep our start, end, units GET options
+  if(!$otherOpts) $otherOpts = '';
 
+  if(isset($_GET['start'])) {
+    $newStart = $_GET['start'];
+    $otherOpts .= "&start=$newStart&";
+  }
+
+  if(isset($_GET['end'])) {
+    $newEnd = $_GET['end'];
+    $otherOpts .= "end=$newEnd&";
+  }
+
+  if(isset($_GET['units'])) {
+    $newUnits = $_GET['units'];
+    $otherOpts .= "units=$newUnits&";
+  }
+
+  return $otherOpts;
+}
 

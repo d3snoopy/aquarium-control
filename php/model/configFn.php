@@ -36,7 +36,7 @@ namespace aqctrl;
 include_once("calcFn.php");
 
 
-function configForm($mysqli, $debug_mode)
+function configForm($mysqli, $debug_mode, $myTimes)
 {
 
   // Show the form
@@ -45,9 +45,9 @@ function configForm($mysqli, $debug_mode)
   // Determine how to organize the data
   // Organize either by source, channel, or profile
   if (isset($_GET["mode"]) && ($_GET["mode"] == "channel")) {
-    \aqctrl\chanConfigForm($mysqli, $debug_mode);
+    \aqctrl\chanConfigForm($mysqli, $debug_mode, $myTimes);
   } else {
-    \aqctrl\srcConfigForm($mysqli, $debug_mode);
+    \aqctrl\srcConfigForm($mysqli, $debug_mode, $myTimes);
   }
 
   echo "<p>\n<input type='submit' name='new' value='Create New Source'>\n</p>\n";
@@ -57,7 +57,7 @@ function configForm($mysqli, $debug_mode)
 }
 
 
-function srcConfigForm($mysqli, $debug_mode)
+function srcConfigForm($mysqli, $debug_mode, $myTimes)
 {
   //Paint the page organizing by source
   echo "<h3>\nSort By:\n";
@@ -102,8 +102,13 @@ function srcConfigForm($mysqli, $debug_mode)
     echo "<p>You won't be able to properly configure sources until the hardware hosts connect and inform the system about their channels. Click <a href=./setup.php>here</a> to go to the setup page.</p>\n";
   }
 
+  $startTime = $myTimes['startTime'];
+  $endTime = $myTimes['endTime'];
+  $scale = $myTimes['scale'];
+  $timeUnits = $myTimes['timeUnits'];
+
   // Calculate our data.
-  $inputData = \aqctrl\doCalc($mysqli, $knownSrc, $knownChan, $knownFn, $knownPts, $knownProf, $knownCPS);
+  $inputData = \aqctrl\doCalc($mysqli, $knownSrc, $knownChan, $knownFn, $knownPts, $knownProf, $knownCPS, 1000, $startTime, $endTime);
 
   //Collect the profile names.
   $profNames = array();
@@ -138,13 +143,13 @@ function srcConfigForm($mysqli, $debug_mode)
     } else {
       // We found associations, do stuff!
       echo "<tr>\n<td>\n";
-      \aqctrl\sourcePlot($inputData, $srcRow, $knownChan);
+      \aqctrl\sourcePlot($inputData, $srcRow, $knownChan, $scale, $timeUnits);
       echo "</td>\n";
       echo "<td>\n<h1>=</h1>\n</td>\n";
 
       foreach($assocProf as $profID) {
         echo "<td>\n";
-        \aqctrl\profilePlot($inputData, $srcRow, $profID, $profNames[$profID], $knownChan);
+        \aqctrl\profilePlot($inputData, $srcRow, $profID, $profNames[$profID], $knownChan, $scale, $timeUnits);
         echo "</td>\n";
         
         if($profID != end($assocProf)) echo "<td>\n<h1>*</h1>\n</td>\n";
@@ -284,7 +289,8 @@ function srcConfigForm($mysqli, $debug_mode)
       //Show an edit link
       echo "</table>\n";
       echo "<p class='alignright'>\n";
-      echo "<a href='" . \aqctrl\retGen(false, $srcRow["id"], false, false, false) . "'>";
+      $extraOpts = \aqctrl\preserveMyTimes();
+      echo "<a href='" . \aqctrl\retGen(false, $srcRow["id"], false, $extraOpts, false) . "'>";
       echo "edit</a>\n";
     }
 
@@ -299,7 +305,7 @@ function srcConfigForm($mysqli, $debug_mode)
 }
 
 
-function chanConfigForm($mysqli, $debug_mode)
+function chanConfigForm($mysqli, $debug_mode, $myTimes)
 {
   //Paint the page organizing by channel
   echo "<h3>\nSort By:\n";
@@ -318,10 +324,10 @@ function chanConfigForm($mysqli, $debug_mode)
   echo "</h3>\n";
 
   // Grab our data and plot (for now don't provide editing.
-  \aqctrl\configIndex($mysqli, $debug_mode);
+  \aqctrl\configIndex($mysqli, $debug_mode, $myTimes);
 }
 
-function configIndex($mysqli, $debug_mode)
+function configIndex($mysqli, $debug_mode, $myTimes=false)
 {
   // Grab our data and plot (for now don't provide editing.
   $knownChan = mysqli_query($mysqli, "SELECT id, name, type, variable, active, max, min, color, units FROM channel WHERE input=0 AND active=1 ORDER BY type, id");
@@ -333,15 +339,27 @@ function configIndex($mysqli, $debug_mode)
     return;
   }
 
-  $stageData = \aqctrl\doCalc($mysqli, 0, $knownChan);
+  if($myTimes) {
+    $startTime = $myTimes['startTime'];
+    $endTime = $myTimes['endTime'];
+    $scale = $myTimes['scale'];
+    $timeUnits = $myTimes['timeUnits'];
+  } else {
+    $startTime = false;
+    $endTime = false;
+    $scale = 3600;
+    $timeUnits = "hr from now";
+  }
+
+  $stageData = \aqctrl\doCalc($mysqli, 0, $knownChan, 0, 0, 0, 0, 1000, $startTime, $endTime);
 
   //Convert our timePts to hours from now.
   $timeNow = time();
   foreach($stageData['timePts'] as $i => $v) {
-    $stageData['timePts'][$i] = ($v-$timeNow)/3600;
+    $stageData['timePts'][$i] = ($v-$timeNow)/$scale;
   }
 
-  \aqctrl\plotChanByType($stageData, $knownChan, "Schedule", "hr from now");
+  \aqctrl\plotChanByType($stageData, $knownChan, "Schedule", $timeUnits);
 }
 
 
