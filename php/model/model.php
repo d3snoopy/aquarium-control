@@ -502,12 +502,12 @@ function preserveMyTimes($otherOpts = false)
   if(!$otherOpts) $otherOpts = '';
 
   if(isset($_GET['start'])) {
-    $newStart = $_GET['start'];
+    $newStart = (double)$_GET['start'];
     $otherOpts .= "&start=$newStart&";
   }
 
   if(isset($_GET['end'])) {
-    $newEnd = $_GET['end'];
+    $newEnd = (double)$_GET['end'];
     $otherOpts .= "end=$newEnd&";
   }
 
