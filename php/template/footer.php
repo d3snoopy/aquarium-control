@@ -26,6 +26,8 @@ along with Aqctrl.  If not, see <http://www.gnu.org/licenses/>.
 
 <div id="newHosts" class="footer"></div>
 
+<?php
+/*
 <script language="javascript" type="text/javascript">
 $(function worker() {
   $.ajaxSetup ({
@@ -38,6 +40,8 @@ $(function worker() {
   $("#newHosts").load('template/newHost.php');
 });
 </script>
+*/
+?>
 
 </body>
 </html>

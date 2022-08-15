@@ -65,17 +65,17 @@ const int maxVals = 100;
 // Scales: the scale to use to convert from "units" to whatever the hardware actually uses
 // Inits: the value to initiate to
 
-const char * chanNames[] = {"Light1", "Light2", "Light3", "Light4", "Unused", "Unused", "Unused", "Unused", "Light5", "Light6", "Light7", "Light8", "Temp1", "Temp2", "Temp3"};
+const char * chanNames[] = {"Light1", "Light2", "Light3", "Light4", "Light5", "Light6", "Light7", "Light8", "Light9", "Light10", "Light11", "Light12", "Temp1", "Temp2", "Temp3"};
 const char * chanTypes[] = {"light", "light", "light", "light", "light", "light", "light", "light", "light", "light", "light", "light", "temp", "temp", "temp"};
 const boolean chanVars[] = {true, true, true, true, true, true, true, true, true, true, true, true, true, true, true};
-const boolean chanActives[] = {true, true, true, true, false, false, false, false, true, true, true, true, true, true, true};
+const boolean chanActives[] = {true, true, true, true, true, true, true, true, true, true, true, true, true, true, true};
 const float chanMaxs[] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
 const float chanMins[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 const char * chanColors[] = {"FFFFFF", "FFFFFF", "FFFFFF", "FFFFFF", "FFFFFF", "FFFFFF", "FFFFFF", "FFFFFF", "FFFFFF", "FFFFFF", "FFFFFF", "FFFFFF", "FFFFFF", "FFFFFF", "FFFFFF"};
 const char * chanUnits[] = {"%", "%", "%", "%", "%", "%", "%", "%", "%", "%", "%", "%", "F", "F", "F"};
 const float chanScales[] = {65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 65535, 1, 1, 1};
 const float chanInits[] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-const boolean chanInverts[] = {true, true, true, true, true, true, true, true, true, true, true, true, false, false, false};
+const boolean chanInverts[] = {true, true, true, true, false, false, false, false, true, true, true, true, false, false, false};
 
 
 // Also, setup our hardware needs

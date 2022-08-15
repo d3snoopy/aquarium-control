@@ -24,7 +24,7 @@
 
 
 // Info about connecting: our wireless access point, server hostname
-const char ssid[]     = "wireless1";
+const char ssid[]     = "wireless2";
 const char password[] = "f10b5403c12645c4a50a1a6cf84789ad";
 const char serverAddr[] = "athena";
 const char url[] = "/php/host.php";
@@ -107,7 +107,6 @@ void setup() {
   startChannels();
 
   delay(1000);
-
   // Connect to the WiFi network
   startWIFI();
 

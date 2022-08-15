@@ -88,12 +88,12 @@ function srcConfigForm($mysqli, $debug_mode, $myTimes)
   }
 
   // If we got here, we do have at least one source
-  $knownFn = mysqli_query($mysqli, "SELECT id,name FROM function");
-  $knownPts = mysqli_query($mysqli, "SELECT id,value,timeAdj,timeType,timeSE,function FROM point ORDER BY function, timeSE, timeAdj");
-  $knownReact = mysqli_query($mysqli, "SELECT id, action, scale, channel, react FROM reaction");
-  $knownChan = mysqli_query($mysqli, "SELECT id, name, type, variable, active, max, min, color, units FROM channel WHERE input=0 AND active=1");
+  $knownFn = mysqli_query($mysqli, "SELECT * FROM function");
+  $knownPts = mysqli_query($mysqli, "SELECT * FROM point ORDER BY function, timeSE, timeAdj");
+  $knownReact = mysqli_query($mysqli, "SELECT * FROM reaction");
+  $knownChan = mysqli_query($mysqli, "SELECT * FROM channel WHERE input=0 AND active=1");
   $knownProf = mysqli_query($mysqli, "SELECT id, name, UNIX_TIMESTAMP(start), UNIX_TIMESTAMP(end), refresh, reaction, function FROM profile");
-  $knownCPS = mysqli_query($mysqli, "SELECT id, scale, offset, channel, profile, source FROM cps ORDER BY source, channel, profile");
+  $knownCPS = mysqli_query($mysqli, "SELECT * FROM cps ORDER BY source, channel, profile");
 
   // Warn if we don't know about any channels
   if(!mysqli_num_rows($knownChan)) {
@@ -429,7 +429,7 @@ function configRtn($mysqli, $debug_mode)
 
       $addID = mysqli_insert_id($mysqli);
 
-      $sql = "INSERT INTO cps (scale, offset, profile, source) VALUES (1, 0, " . $addID
+      $sql = "INSERT INTO cps (scale, 'offset', profile, source) VALUES (1, 0, " . $addID
         . ", " . (int)$_POST['editID'] . ")";
 
       if(!mysqli_query($mysqli, $sql)) {
@@ -443,7 +443,7 @@ function configRtn($mysqli, $debug_mode)
       //Associate existing profile with this source.
       $addID = (int)$_POST['profSel'];
 
-      $sql = "INSERT INTO cps (scale, offset, profile, source) VALUES (1, 0, " . $addID
+      $sql = "INSERT INTO cps (scale, `offset`, profile, source) VALUES (1, 0, " . $addID
         . ", " . (int)$_POST['editID'] . ")";
 
       if(!mysqli_query($mysqli, $sql)) {
@@ -473,7 +473,7 @@ function configRtn($mysqli, $debug_mode)
     $assocChan = array_unique($assocChan);
 
     foreach($assocChan as $thisChan) {
-      $sql = "INSERT INTO cps (scale, offset, profile, channel, source) VALUES (1, 0, $addID, $thisChan, "
+      $sql = "INSERT INTO cps (scale, `offset`, profile, channel, source) VALUES (1, 0, $addID, $thisChan, "
         . (int)$_POST['editID'] . ")";
 
       if(!mysqli_query($mysqli, $sql)) {
@@ -521,7 +521,7 @@ function configRtn($mysqli, $debug_mode)
 
   // Next, check and update our channel maps
   // Get all CPSes associated with this source
-  $sql = "SELECT id, scale, offset, channel, profile, source FROM cps WHERE source = " . $srcInfo['id']
+  $sql = "SELECT id, scale, 'offset', channel, profile, source FROM cps WHERE source = " . $srcInfo['id']
      . " ORDER BY channel, profile";
 
   $selCPS = mysqli_query($mysqli, $sql);
@@ -539,9 +539,9 @@ function configRtn($mysqli, $debug_mode)
   }
 
   // Prepare the three queries: update, delete, add
-  $stmtUpdate = $mysqli->prepare("UPDATE cps SET scale = ?, offset = ? WHERE id = ?");
+  $stmtUpdate = $mysqli->prepare("UPDATE cps SET scale = ?, `offset` = ? WHERE id = ?");
   $stmtDel = $mysqli->prepare("DELETE FROM cps WHERE id = ?");
-  $stmtAdd = $mysqli->prepare("INSERT INTO cps (scale, offset, source, profile, channel) VALUES (1, 0, ?, ?, ?)");
+  $stmtAdd = $mysqli->prepare("INSERT INTO cps (scale, `offset`, source, profile, channel) VALUES (1, 0, ?, ?, ?)");
   
   $stmtUpdate-> bind_param("ddi", $scaleNum, $offsetNum, $CPSID);
   $stmtDel-> bind_param("i", $CPSID);
@@ -608,7 +608,7 @@ function configRtn($mysqli, $debug_mode)
 
 
   //Check and make sure we have all channels desired, if not, add some with NULL for profile.
-  $stmt = $mysqli->prepare("INSERT INTO cps (scale, offset, source, channel) VALUES (1, 0, ?, ?)");
+  $stmt = $mysqli->prepare("INSERT INTO cps (scale, `offset`, source, channel) VALUES (1, 0, ?, ?)");
   $stmt-> bind_param("ii", $SrcID, $ChanID);
   $SrcID = $_POST['editID'];
 

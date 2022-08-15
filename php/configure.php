@@ -100,6 +100,7 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
   echo "</p>\n";
   echo "</form>\n";
   echo "<div style='clear: both;'></div>\n";
+  echo "<a href='profile.php'>Edit Profiles</a>\n<br><br><br>\n";
 
   include 'footer.php';
 

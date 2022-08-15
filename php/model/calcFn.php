@@ -270,7 +270,7 @@ function doCalc($mysqli, $knownSrc=0, $knownChan=0, $knownFn=0, $knownPts=0, $kn
   }
 
   if(!$knownCPS) {
-    $knownCPS = mysqli_query($mysqli, "SELECT id, scale, offset, channel, profile, source FROM cps ORDER BY source, channel, profile");
+    $knownCPS = mysqli_query($mysqli, "SELECT * FROM cps ORDER BY source, channel, profile");
   }
 
   //Make our source, channel single element arrays if necessary so later logic can just flow.
@@ -408,14 +408,14 @@ function doCalc($mysqli, $knownSrc=0, $knownChan=0, $knownFn=0, $knownPts=0, $kn
 
 
 function channelCalc($mysqli, $chanRet, $knownSrc=0, $knownFn=0, $knownPts=0,
-   $knownProf=0, $knownCPS=0, $numPts = 1000)
+   $knownProf=0, $knownCPS=0, $numPts = 1000, $startTime = 0)
 {
   //Function to calculate values for a channel
   //About all that calls this at this point is the host.
   //Note: assumed that you have a single channel in chanRet.
 
   //Leverage the doCalc function
-  $dataIn = \aqctrl\doCalc($mysqli, $knownSrc, $chanRet, $knownFn, $knownPts, $knownProf, $knownCPS, $numPts);
+  $dataIn = \aqctrl\doCalc($mysqli, $knownSrc, $chanRet, $knownFn, $knownPts, $knownProf, $knownCPS, $numPts, $startTime);
 
   //TODO: add reaction, trigger work
   

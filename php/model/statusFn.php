@@ -72,30 +72,34 @@ function statusForm($mysqli, $debug_mode, $indexRef = 0)
     WHERE date >= FROM_UNIXTIME($startTime) AND date <= FROM_UNIXTIME($endTime)
     ORDER BY date, channel LIMIT $PtsLim");
 
-  $stageData = array();
-  $timeData = array();
-  $chanIds = array();
+  //If we didn't get any data, skip any plotting.
+  if(mysqli_num_rows($knownData))
+  {
 
-  //Go through the data, staging it.
-  $timeNow = time();
+    $stageData = array();
+    $timeData = array();
+    $chanIds = array();
 
-  foreach($knownData as $dataRow) {
-    $stageData['Cdata'][$dataRow['channel']][] = $dataRow['value'];
-    $timeCalc = ((double)$dataRow['UNIX_TIMESTAMP(date)'] - $timeNow)/$scale;
-    $timeData[$dataRow['channel']][] = $timeCalc;
-    $chanIDs[] = $dataRow['channel'];
-  }
+    //Go through the data, staging it.
+    $timeNow = time();
 
-  //Now we need to interpolate our data to get to a common timescale.
-  $chanIDs = array_values(array_unique($chanIDs));
-  $stageData['timePts'] = $timeData[$chanIDs[0]];
+    foreach($knownData as $dataRow) {
+      $stageData['Cdata'][$dataRow['channel']][] = $dataRow['value'];
+      $timeCalc = ((double)$dataRow['UNIX_TIMESTAMP(date)'] - $timeNow)/$scale;
+      $timeData[$dataRow['channel']][] = $timeCalc;
+      $chanIDs[] = $dataRow['channel'];
+    }
 
-  foreach($chanIDs as $cID) {
-    $stageData['Cdata'][$cID] = \aqctrl\interpData($stageData['timePts'], $timeData[$cID], $stageData['Cdata'][$cID]);
-  }
+    //Now we need to interpolate our data to get to a common timescale.
+    $chanIDs = array_values(array_unique($chanIDs));
+    $stageData['timePts'] = $timeData[$chanIDs[0]];
+
+    foreach($chanIDs as $cID) {
+      $stageData['Cdata'][$cID] = \aqctrl\interpData($stageData['timePts'], $timeData[$cID], $stageData['Cdata'][$cID]);
+    }
   
-  \aqctrl\plotChanByType($stageData, $knownChan, "Data", $timeUnits, $PtsLim);
-
+    \aqctrl\plotChanByType($stageData, $knownChan, "Data", $timeUnits, $PtsLim);
+  }
 
   //Now, thin out our old data so we don't have a ton just hanging around.
   //First, drop any data from 2017 or older since the system wasn't up and running before 2018.
@@ -156,7 +160,7 @@ function statusForm($mysqli, $debug_mode, $indexRef = 0)
   }
 
   //Drop all of the IDs from our drop list.
-  mysqli_query($mysqli, "DELETE FROM data WHERE id IN (" . implode(",", $dropIDs) . ")");
+  \aqctrl\dropExtras($mysqli, $debug_mode, $dropIDs);
 
   //3
   $yrTime = time() - 31536000;
@@ -208,7 +212,7 @@ function statusForm($mysqli, $debug_mode, $indexRef = 0)
   }
 
   //Drop all of the IDs from our drop list.
-  mysqli_query($mysqli, "DELETE FROM data WHERE id IN (" . implode(",", $dropIDs) . ")");
+  \aqctrl\dropExtras($mysqli, $debug_mode, $dropIDs);
 
 
 }
@@ -351,4 +355,16 @@ function createScaleOpts($indexRef, $future=0)
     'endTime' => $endTime,
     'scale' => $scale,
     'timeUnits' => $timeUnits);
+}
+
+
+function dropExtras($mysqli, $debug_mode, $dropIDs)
+{
+if($dropIDs) {
+    //echo "DELETE FROM data WHERE id IN (" . implode(",", $dropIDs) . ")";
+
+    mysqli_query($mysqli, "DELETE FROM data WHERE id IN (" . implode(",", $dropIDs) . ")");
+  }
+
+
 }

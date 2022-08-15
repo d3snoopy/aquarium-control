@@ -98,8 +98,8 @@ if ($_SERVER['REQUEST_METHOD'] == "POST") {
     echo "<div style='clear: both;'></div>\n";
   }
 
-  echo "</p>\n";
   echo "</form>\n";
+  echo "</p>\n";
 
   include 'footer.php';
 

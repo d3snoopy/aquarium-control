@@ -204,19 +204,16 @@ function setupForm($mysqli, $debug_mode)
   echo \aqctrl\token_insert($mysqli, $debug_mode);
 
   //Add db reset option.
-  
-  ?>
-<p> <details>
-<summary>Reset the DB</summary>
-Resetting the DB will erase ALL of your settings and saved data, COMPLETELY resetting EVERYTHING.
-<br>
-Are you sure that you REALLY want to do this?<br>
-<input type="checkbox" name="okay" />Yes, I'm sure I want to do this.<br>
-<input type="submit" name="reset" value="Reset" />
-</details> </p>
-
-  <?php
-
+  if ($debug_mode) {  
+    echo"<p> <details>";
+    echo"<summary>Reset the DB</summary>";
+    echo"Resetting the DB will erase ALL of your settings and saved data, COMPLETELY resetting EVERYTHING.";
+    echo"<br>";
+    echo"Are you sure that you REALLY want to do this?<br>";
+    echo"<input type=\"checkbox\" name=\"okay\" />Yes, I'm sure I want to do this.<br>";
+    echo"<input type=\"submit\" name=\"reset\" value=\"Reset\" />";
+    echo"</details> </p>";
+  }
 }
 
 

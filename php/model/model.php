@@ -151,20 +151,29 @@ function db_create()
     outInterval INT(6) UNSIGNED,
     pingInterval INT(6) UNSIGNED,
     status VARCHAR(50) NOT NULL,
-    ip VARCHAR(45)
+    ip VARCHAR(45),
+    spiPinA INT(2) UNSIGNED,
+    spiPinB INT(2) UNSIGNED,
+    i2cPinA INT(2) UNSIGNED,
+    i2cPinB INT(2) UNSIGNED,
+    onewPin INT(2) UNSIGNED
     );";
 
   // Channel
   $mQuery .= "CREATE TABLE channel (
     id INT(6) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    ident VARCHAR(30),
     name VARCHAR(30),
     type VARCHAR(30),
     variable INT(1) UNSIGNED,
     active INT(1) UNSIGNED,
     input BOOLEAN,
+    invert BOOLEAN,
     hostChNum INT(6) UNSIGNED,
     max FLOAT(10,4),
     min FLOAT(10,4),
+    initial FLOAT(10,4),
+    scale FLOAT(10,4),
     color CHAR(6),
     units VARCHAR(30),
     lastPing DATETIME NOT NULL,
@@ -259,6 +268,16 @@ function db_create()
     id INT(6) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     t VARCHAR(32) NOT NULL,
     date DATETIME NOT NULL
+    );";
+
+  //Host Device Buildup Tracker
+  $mQuery .= "CREATE TABLE hostdevice (
+    id INT(6) UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    bustype INT(6) UNSIGNED,
+    devtype INT(6) UNSIGNED,
+    busorder INT(6) UNSIGNED,
+    host INT(6) UNSIGNED,
+    FOREIGN KEY (host) REFERENCES host(id) ON DELETE CASCADE ON UPDATE CASCADE
     );";
 
   //Do the mQuery
