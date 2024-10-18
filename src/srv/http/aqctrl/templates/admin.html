@@ -1,0 +1,76 @@
+{% extends "layout.html" %}
+{% block title %}Admin{% endblock %}
+{% block head %}
+  {{ super() }}
+{% endblock %}
+{% block content %}
+    <h1>User Administration</h1>
+    {% if config %}
+    <h2>Change Your Password:</h2>
+    <form action="{{ url_for('admin') }}" method="POST">
+    <label for="curPass">Current Password:</label>
+    <input type="password" id="currPass" name="currPass" required>
+    <br>
+    <label for="newPass1">New Password:</label>
+    <input type="password" id="newPass1" name="newPass1" minlength="6" required>
+    <br>
+    <label for="newPass1">Retype New Password:</label>
+    <input type="password" id="newPass2" name="newPass2" minlength="6" required>
+    <br>
+    <input type="submit" name="Change" value="Change Password">
+    </form>
+    {% endif %}
+    {% if admin %}
+    <form action="{{ url_for('admin') }}" method="POST">
+    <br><br>
+    <h2>Administer Users</h2>
+    <table>
+        <tr>
+            <th>User Name</th>
+	    <th>Pivilege Level</th>
+	    <th>New Password?</th>
+	    <th>Delete User?</th>
+        </tr>
+        {% if userList %}
+	{% for user in userList %}
+	<tr>
+	<td>{{ user.Name }}</td>
+	<td><select name="priv{{ user.Number }}" id="priv{{ user.Number }}">
+	    <option value="2" {% if user.Priv==2 %}selected{% endif %}>Schedule</option>
+	    <option value="3" {% if user.Priv==3 %}selected{% endif %}>Configure</option>
+	    <option value="4" {% if user.Priv==4 %}selected{% endif %}>Admin</option>
+	</select></td>
+	<td><input type="text" placeholder="Type here set a new password" id="pass{{ user.Number }}" name="pass{{ user.Number }}"></td>
+	<td><input type="checkbox" id="delete{{ user.Number }}" name="delete{{ user.Number }}"><label for="delete{{ user.Number }}">Delete User</label></td>
+	</tr>
+	{% endfor %}
+        {% endif %}
+    </table>
+    <br><br>
+    <h2>Create New User</h2>
+    <label for="newUsername">Username</label>
+    <input type="text" id="newUsername" name="newUsername">
+    <br>
+    <label for="newUserPass">Password</label>
+    <input type="text" id="newUserPass" name="newUserPass">
+    <br>
+    <label for="newUserPriv">Privilege level</label>
+    <select name="newUserPriv" id="newUserPriv">
+        <option value="2" selected>Schedule</option>
+        <option value="3">Configure</option>
+        <option value="4">Admin</option>
+    </select>
+    <br>
+    <input type="submit" value="Update">
+    </form>
+    <br>
+    <form action="{{ url_for('reboot') }}" method="POST">
+    <input type="submit" value="Reboot Controller">
+    </form>
+    <br>
+    <form action="{{ url_for('shutdown') }}" method="POST">
+    <input type="submit" value="Shut Down Controller">
+    </form>
+
+    {% endif %}
+{% endblock %}

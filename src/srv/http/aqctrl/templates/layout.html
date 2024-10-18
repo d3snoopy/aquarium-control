@@ -1,0 +1,40 @@
+<!doctype html>
+<html>
+  <head>
+     {% block head %}
+     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+     <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='favicon.ico') }}">
+     <title>{% block title %}{% endblock %} - AQctrl</title>
+     {% endblock %}
+  </head>
+  <body>
+    <div class="linkbar">
+        <ul>
+		<li><a href="{{ url_for('index') }}">Home</a></li>
+		<li><a href="{{ url_for('status') }}">Status</a></li>
+		<li><a href="{{ url_for('sched') }}">Schedule</a></li>
+		<li><a href="{{ url_for('setup') }}">Setup</a></li>
+		<li><a href="{{ url_for('admin') }}">Admin</a></li>
+	</ul>
+       {% block subbar %}{% endblock %}
+    </div>
+    <div class="content">
+       {% block content %}{% endblock %}
+    </div>
+    <div class="footer">
+      {% block footer %}
+      <p class="lefterr">{{ status }}
+      {% with messages = get_flashed_messages() %}
+          {% if messages %}
+      	    {% for message in messages %}
+              {{ message }}
+            {% endfor %}
+          {% endif %}
+       {% endwith %}
+       {% if numNew %}{{ numNew }} new log entries{% endif %}
+      </p>
+      <p class="alignright">Logged in as: {{ current_user.username }} <a href="{{ url_for('logout') }}">Logout</a></p>
+      {% endblock %}
+    </div>
+  </body>
+</html>

@@ -1,0 +1,48 @@
+{% macro onoff(var) -%}
+{% if var == None %}○
+{% elif var %}<span style='color:green'>●</span>
+{% else %}<span style='color:red'>●</span>
+{% endif %}
+{%- endmacro %}
+
+{% extends "layout.html" %}
+{% import 'plotMacros.html' as plots %}
+{% block title %}Home{% endblock %}
+{% block head %}
+  {{ super() }}
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+
+{% block content %}
+    <h1>Aquarium Controller</h1>
+    <br>
+    {% if seedVals.newdb %}
+    <p>New Database, head over to <a href={{ url_for('setup') }}>Setup</a> to start configuring host devices.</p>
+    {% else %}
+    {% if seedVals.plots %}<h2>Plots:</h2>
+      {{ plots.doPlot(seedVals.plots) }}
+    {% endif %}
+    {% if seedVals.currVals %}<h2>Current Values:</h2>
+    <table><tr><th>Channel Name</th><th>Out Value</th><th>In Value</th></tr>
+    {% for s in seedVals.currVals.values() %}
+      {% if s.variable %}
+      <tr><td>{{ s.name }}</td><td>{{ s.out }}</td><td>{{ s.in }}</td></tr>
+      {% else %}
+      <tr><td>{{ s.name }}</td><td>{{ onoff(s.out) }}</td><td>{{ onoff(s.in) }}</td></tr>
+      {% endif %}
+    {% endfor %}
+    </table>
+    {% endif %}
+
+    {% if seedVals.buttons %}
+    <h2>Button Actions:</h2>
+    <form method='POST' action='{{ url_for('doButton') }}'>
+    {% for b in seedVals.buttons %}
+      <input type='submit' name='button_{{ b.id|string }}' value='{{ b.name }}'><br>
+    {% endfor %}</form>{% endif %}
+
+<p><a href='{{ url_for('indexSetup') }}'>Configure Home Page</a></p>
+{{ seedVals.timing }}
+<br><br>
+{% endif %}
+{% endblock %}

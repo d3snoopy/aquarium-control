@@ -1,0 +1,34 @@
+{% extends "layout.html" %}
+{% import 'formsMacros.html' as forms %}
+{% import 'subBarMacro.html' as subBar %}
+{% block title %}Setup - Device Channels{% endblock %}
+{% block head %}
+  {{ super() }}
+{% endblock %}
+{% block subbar %}
+{{ subBar.subBar('Setup:',(('setup','General'),('chanTypes','Channel Types'),(False,'Device Channels')),(False, Falsei, True)) }}
+{% endblock %}
+
+{% block content %}
+  <h1>Channel Setup For Device: {{ seedVals.devID }}</h1>
+  <a href="{{ url_for('chanTypes') }}">Configure Channel Types</a>
+  <br>
+  <a href="{{ url_for('setup') }}">Return to Device Setup</a>
+  <form method="POST" action="{{ url_for('chanSetup', devID=devID) }}">
+    <table><tr>
+    <th>Type</th><th>Name</th><th>Active</th><th>Color</th>
+    </tr>
+    {% for t in seedVals.chanVals %}
+    <tr>
+    <td>{{- forms.selInput('type_'+t.rowid|string, t.type, '', seedVals.types) -}}</td>
+    <td>{{- forms.txtInput('name_'+t.rowid|string, t.name) -}}</td>
+    <td>{{- forms.checkBox('active_'+t.rowid|string, t.active, 'Active') -}}</td>
+    <td>{{- forms.colorBox('color_'+t.rowid|string, t.color) -}}</td>
+    </tr>
+    {% endfor %}
+    </table>
+    <br>
+    <input type="submit" name="update" value="Update Values">
+    <br><br>
+  </form>
+{% endblock %}

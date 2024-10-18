@@ -1,0 +1,49 @@
+{% extends "layout.html" %}
+{% import 'formsMacros.html' as forms %}
+{% import 'subBarMacro.html' as subBar %}
+{% block title %}Setup{% endblock %}
+{% block head %}
+  {{ super() }}
+{% endblock %}
+{% block subbar %}
+{{ subBar.subBar('Setup:',(('setup','General'),('chanTypes','Channel Types'),(False,'Device Channels')),(False, True, False)) }}
+{% endblock %}
+
+{% block content %}
+  <h2>Channel Types</h2>
+  <a href="{{ url_for('setup') }}">Back to Setup</a>
+  <form method="POST" action="{{ url_for('chanTypes') }}">
+    <table><tr>
+    <th>Name</th><th>Adjust Chans</th><th>Variable</th><th>Input</th><th>Output</th><th>Max Value</th><th>Min Value</th>
+    <th>Scale Factor</th><th>Initial Value</th><th>Invert Value</th><th>Hide Inversion From User</th><th>Units</th><th>Temperature Units</th><th>Delete</th>
+    </tr>
+    {% for t in seedVals.chanTypes %}
+    <tr>
+    <td>{{- forms.txtInput('name_'+t.rowid|string, t.name) -}}</td>
+    <td align='center'>{{- forms.checkBox('control_'+t.rowid|string, t.control) -}}</td> 
+    <td>{{- forms.selInput('variable_'+t.rowid|string, t.variable, '', {0:'On/Off', 1:'Variable'}, disabled=t.disCtls) -}}</td>
+    <td align='center'>{{- forms.checkBox('input_'+t.rowid|string, t.input) -}}</td>
+    <td align='center'>{{- forms.checkBox('output_'+t.rowid|string, t.output) -}}</td>
+    <td>{{- forms.numInput('max_'+t.rowid|string, t.max, disabled=t.varCtls) -}}</td>
+    <td>{{- forms.numInput('min_'+t.rowid|string, t.min, disabled=t.varCtls) -}}</td>
+    <td>{{- forms.numInput('scale_'+t.rowid|string, t.scale, disabled=t.varCtls) -}}</td>
+    {% if t.variable %}
+    <td>{{- forms.numInput('initialVal_'+t.rowid|string, t.initialVal, disabled=t.disCtls) -}}</td>
+    {% else %}
+    <td>{{- forms.selInput('initialVal_'+t.rowid|string, t.initialVal, '', {0:'Off', 1:'On'}, disabled=t.disCtls) -}}</td>
+    {% endif %}
+    <td>{{- forms.checkBox('invert_'+t.rowid|string, t.invert, disabled=t.disCtls) -}}</td>
+    <td>{{- forms.checkBox('hideInvert_'+t.rowid|string, t.hideInvert, disabled=t.disCtls) -}}</td>
+
+    <td>{{- forms.txtInput('units_'+t.rowid|string, t.units, disabled=t.temp) -}}</td>
+    <td align='center'>{{- forms.checkBox('temp_'+t.rowid|string, t.temp) -}}</td>
+    <td><input type="submit" name="{{ 'delete_'+t.rowid|string }}" value="Delete"></td>
+    </tr>
+    {% endfor %}
+    </table>
+    <br>
+    <input type="submit" name="new" value="Create New Type">
+    <input type="submit" name="update" value="Update Values">
+    <br><br>
+  </form>
+{% endblock %}

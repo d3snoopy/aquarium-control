@@ -1,0 +1,76 @@
+{% extends "layout.html" %}
+{% import 'formsMacros.html' as forms %}
+{% import 'plotMacros.html' as plots %}
+{% block title %}Status{% endblock %}
+{% block head %}
+  {{ super() }}
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+
+{% block content %}
+  <form method="POST" action="{{ url_for('status') }}">
+    <h2>Status Plotting</h2>
+    <table><tr>
+    <th>Axis 1 Plotting</th><th>Plot</th><th>Axis 2 Plotting</th><th>Pick a Favorite</th>
+    </tr>
+    <tr><td>
+    {{- forms.selInput('1type', seedVals.type1, 'Type', seedVals.typeOpts) -}}
+    <br>
+    {% for i, o in seedVals.ch1Opts.items() %}
+    {{- forms.checkBox('1chan_'+i|string, seedVals.l1Sel[i], o) -}}
+    <br>
+    {% endfor %}
+    </td><td>
+    {% if seedVals.plot %}{{ plots.doPlot(seedVals.plot) }}{% endif %}
+    </td><td>
+    {{- forms.selInput('2type', seedVals.type2, 'Type', seedVals.typeOpts) -}}
+    <br>
+    {% for i, o in seedVals.ch2Opts.items() %}
+    {{- forms.checkBox('2chan_'+i|string, seedVals.l2Sel[i], o) -}}
+    <br>
+    {% endfor %}
+    </td>
+    <td>
+    {% for f in seedVals.favPlots: %}
+    <a href={{ url_for('status') + '?fav=' + f.rowid|string }}>{{ f.name }}</a><input type='submit' name='delFav_{{ f.rowid|string }}' value='Delete Fav'>
+    <br>
+    {% endfor %}
+    </td>
+    </tr>
+    <tr><td>
+    {{- forms.shortTime('start', seedVals.start, 'Start (from now):') -}}
+    </td><td>
+    {{- forms.shortTime('end', seedVals.end, 'End (from now):') -}}
+    </td><td></td><td></td>
+    </tr>
+    </table>
+    <input type="submit" value="Update">
+    <br><br>
+    {{- forms.txtInput('name', '', 'Favorite Name') -}}<input type='submit' name='saveFav' value='Save As Favorite'>{{- forms.checkBox('toHome', 0, 'Add to Home Page') -}}
+    <br><br>
+  </form>
+
+<h2>Current Status</h2>
+{% if not seedVals.currVals %}
+<p>Current Values not found</p>
+{% else %}
+<table><tr><th>Channel Name</th><th>Out Value</th><th>In Value</th><th>React Function</th><th>React Mode</th></tr>
+{% for c in seedVals.currVals.values() %}
+<tr><td>{{ c.name }}</td><td>{{ c.out }}</td><td>{{ c.in }}</td><td>{{ c.react }}</td><td>{{ c.mode }}</td></tr>
+{% endfor %}
+</table>
+<br><br>
+{% endif %}
+<h2>Last Ten Log Comments & New Log Entries:</h2>
+<p>
+{% for s in seedVals.logStr.values() %}
+{% if s.new %}<span class="lefterr">New: </span>{% endif %}{{ s.string }}
+<br>
+{% endfor %}
+{% for s in seedVals.newLogs.values() %}
+{% if s.new %}<span class="lefterr">New: </span>{% endif %}{{ s.string }}
+<br>
+{% endfor %}
+
+</p>
+{% endblock %}

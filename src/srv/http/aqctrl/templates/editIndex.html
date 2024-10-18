@@ -1,0 +1,51 @@
+{% extends "layout.html" %}
+{% import 'formsMacros.html' as forms %}
+{% block title %}Homepage Edit{% endblock %}
+{% block head %}
+  {{ super() }}
+{% endblock %}
+{% block content %}
+    <form method='POST' action='{{ url_for('indexSetup') }}'>
+    <h2>Show Favorite Plots</h2>
+    <p>
+    {% for f in seedVals.favList %}
+    {{- forms.checkBox('fav_'+f.rowid|string, f.onHome, f.name) -}}
+    <br>
+    {% endfor %}
+    </p>
+    <input type='submit' name='update' value='Update'>
+    <h2>Show Channel Status</h2>
+    <p>
+    {% for c in seedVals.chList %}
+    {{- forms.checkBox('chan_'+c.rowid|string, c.onHome, c.name) -}}
+    <br>
+    {% endfor %}
+    </p>
+    <input type='submit' name='update' value='Update'>
+    <h2>Home Page Buttons</h2>
+    {% for b in seedVals.buttons.values() %}
+    <h3>{{ b.name }}</h3>
+    {{- forms.txtInput('name_'+b.rowid|string, b.name, 'Name:') -}}
+    <p>On button press, trigger:</p>
+    <table>
+    <tr><th>Modify Behave</th><th>Output Channel</th><th>Function</th><th>for duration (sec.)</th><th>With scale</th><th>Delete</th></tr>
+    {% for c in b['outCh'] %}
+    <tr>
+    <td>{{- forms.selInput('behave_'+c.rowid|string, c.behave, '', seedVals.behaveOpts) -}}</td>
+    <td>{{- forms.selInput('out_'+c.rowid|string, c.out, '', seedVals.outChans) -}}</td>
+    <td>{{- forms.selInput('function_'+c.rowid|string, c.function, '', seedVals.functOpts) -}}</td>
+    <td>{{- forms.numInput('duration_'+c.rowid|string, c.duration) -}}</td>
+    <td>{{- forms.numInput('scale_'+c.rowid|string, c.scale) -}}</td>
+    <td><input type='submit' name='{{ 'delete_'+c.rowid|string }}' value='Delete'></td>
+    </tr>
+    {% endfor %}
+    </table>
+    <input type='submit' name='{{ 'newOut_'+b.rowid|string }}' value='Add a New Output to Button'>
+    <input type='submit' name='{{ 'delButton_'+b.rowid|string }}' value='Delete This Button'>
+    {% endfor %}
+    <br><br>
+    <input type='submit' name='newButton' value='Add a New Button'>
+    <br>
+    <input type='submit' name='update' value='Update'>
+    <br><br>
+{% endblock %}

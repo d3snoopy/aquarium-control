@@ -1,0 +1,39 @@
+{% extends "layout.html" %}
+{% import 'formsMacros.html' as forms %}
+{% import 'subBarMacro.html' as subBar %}
+{% import 'plotMacros.html' as plots %}
+{% block title %}Schedule-Function{% endblock %}
+{% block head %}
+  {{ super() }}
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+{% block subbar %}
+{{ subBar.subBar('Schedule:',(('sched','Sources'),('channels','Channels'),('reactions','Reactions'),('functions','Functions')),(False, False, False, False)) }}
+{% endblock %}
+
+{% block content %}
+<form method="POST" action="{{ url_for('schedfn', ID=ID) }}">
+  <h2>Function Configuration</h2>
+  {{- forms.txtInput('name_'+ID,seedVals.name,'Name:') -}}<br>
+  {{ plots.doPlot(seedVals.plot) }}
+  <br>
+  <table>
+  <tr><th>Value</th><th>Time is:</th><th>Percent duration from:</th><th>and offset from: (sec.)</th><th>Beginning/End</th><th>Delete</th>
+  </tr>
+  {% for p in seedVals.points %}
+  <tr>
+  <td>{{- forms.numInput('value_'+p.rowid, p.value) -}}</td>
+  <td></td>
+  <td>{{- forms.numInput('percent_'+p.rowid, p.percent) -}}</td>
+  <td>{{- forms.numInput('offset_'+p.rowid, p.offset) -}}</td>
+  <td>{{- forms.selInput('align_'+p.rowid, p.align|string, options={'0':'Beginning', '1':'End'}) -}}</td>
+  <td><input type="submit" name="{{ 'delete_'+p.rowid }}" value="Delete"></td>
+  </tr>
+  {% endfor %}
+  </table>
+  <br>
+  <input type="submit" name="new" value="Add Point">
+  <input type="submit" value="Update"><br><br>
+  </form>
+
+{% endblock %}

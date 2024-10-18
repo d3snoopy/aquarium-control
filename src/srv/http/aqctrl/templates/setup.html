@@ -1,0 +1,88 @@
+{% extends "layout.html" %}
+{% import 'formsMacros.html' as forms %}
+{% import 'subBarMacro.html' as subBar %}
+{% block title %}Setup-General{% endblock %}
+{% block head %}
+  {{ super() }}
+{% endblock %}
+{% block subbar %}
+{{ subBar.subBar('Setup:',(('setup','General'),('chanTypes','Channel Types'),(False,'Device Channels')),(True, False, False)) }}
+<form method="POST" action="{{ url_for('setup') }}">
+<input type="submit" value="Update" class="alignright">
+{% endblock %}
+
+{% block content %}
+  
+    <h2>General Parameters</h2>
+    {{- forms.numInput('readInt', seedVals.readInt, 'Sensor Read Interval (Sec.):',
+      error=errors.readInt) -}}
+    <br>
+    {{- forms.numInput('writeInt', seedVals.writeInt, 'Output Write Interval (Sec.):',
+      error=errors.writeInt) -}}
+    <br>
+    {{- forms.numInput('checkInt', seedVals.checkInt, 'Database Check Interval (Sec.):',
+      error=errors.checkInt) -}}
+    <br>
+    {{- forms.selInput('tempUnits', seedVals.tempUnits|string, 'Temperature Units:', seedVals.tempOpts,
+      error=errors.tempUnits) -}}
+    <br>
+    <br>
+    {{- forms.txtInput('hostKey', seedVals.hostKey, 'API HMAC Key:',
+      error=errors.hostKey) -}}
+    <h2>Logging</h2>
+    {{- forms.selInput('readLog', seedVals.readLog, 'Read Logging:', seedVals.readOpts) -}}
+    <br>{{- forms.selInput('writeLog', seedVals.writeLog, 'Write Logging:', seedVals.writeOpts) -}}
+    <br>{{- forms.selInput('reactLog', seedVals.reactLog, 'Reaction Logging:', seedVals.reactOpts) -}}
+    <h2>Bus Information</h2>
+    {% for bus in seedVals.busInfo %}
+      {% if bus.canDetect %}
+        <p>Number of {{ bus.name }} devices detected: {{ bus.detected.numDet }}, number previously known: {{ seedVals.devNums[loop.index0] }}
+        <input type="submit" name={{ "AddDev_"+loop.index0|string }} value="Add Detected Devices"></p>
+      {% else %}
+        {{- forms.numInput('numDev' + loop.index0|string, seedVals.devNums[loop.index0],
+          'Number of devices on the ' + bus.name + ' bus:', '1') -}}
+      {% endif %}
+      <br>
+    {% endfor %}
+    <input type="submit" value="Update">
+    <br>
+    {% for bus in seedVals.devs %}{% if bus %}
+      <h2>{{ seedVals.busInfo[loop.index0].name }} Bus Details</h2>
+      <p>Note: Configure the physical pins of the bus in the device shield configuration.<br>
+         Blank fields will populate with default values.</p>
+      {% set thisBus = seedVals.busInfo[loop.index0] %}
+      {% if thisBus.ordered %}
+      <p>Configure devices in order, from furthest on the bus to the nearest on the bus.</p>
+      {% endif %}
+      {% set outer_index = loop.index0 %}
+      {% for dev in bus %}
+        <h3>Device {{ dev.number }}</h3>
+        {{- forms.selInput('number_'+dev.rowid|string, dev.number, 'Reorder Device To Number:', seedVals.devNumOpts[outer_index], disabled=not thisBus.ordered) -}}
+	<br>
+	{{- forms.txtInput('addr_'+dev.rowid|string, dev.addr, 'Device Address: ',
+	  error=errors.devices.addr[dev.rowid], disabled=not thisBus.InputIDs) -}}
+        <br>
+        {{- forms.selInput('type_'+dev.rowid|string, dev.type, 'Device Type:',
+            seedVals.devSubNames[outer_index]) -}}
+        <br>
+        {{- forms.numInput('scale_'+dev.rowid|string, dev.scale, 'Device Scale Factor:') -}}
+        <br>
+        {{- forms.numInput('max_'+dev.rowid|string, dev.max, 'Device Max Value:') -}}
+        <br>
+        {{- forms.numInput('min_'+dev.rowid|string, dev.min, 'Device Min Value:') -}}
+        <br>
+        {{- forms.selInput('inv_'+dev.rowid|string, dev.inv, 'Invert Device Values', {0:'False', 1:'True'}) -}}
+        <br>
+        <a href="{{ url_for('chanSetup', devID=dev.rowid) }}">Edit Channels</a>
+	{% if thisBus.canDetect %}
+	<br>{% if dev.addr not in thisBus.detected.detIDs %}
+	  <label class="error" for={{ "forget_"+dev.rowid|string }}>Device not detected</label>{% endif %}
+	<br><input type="submit" name={{ "forget_"+dev.rowid|string }} value="Forget this device"><br><br>
+	{% endif %}
+      {% endfor %}
+    {% endif %}{% endfor %}
+    <br>
+    <input type="submit" value="Update">
+    <br><br>
+  </form>
+{% endblock %}

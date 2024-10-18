@@ -1,0 +1,87 @@
+{% macro doPlot(plots) -%}
+{% for s in plots.values() %}{% if s.data %}
+<div class="chart-container">
+<canvas id="{{ s.id }}"></canvas>
+</div>
+{% endif %}{% endfor %}
+<script>
+  Chart.defaults.color = "#668cff";
+  {% for s in plots.values() %}{% if s.data %}
+  const data{{ s.id }} = {
+    datasets: [
+      {% for c in s.data.0 -%}
+      { backgroundColor: '{{ c.color }}',
+        borderColor: '{{ c.color }}',
+        data: {{ c.data | tojson}},
+        yAxisID: 'y',
+        label: '{{ c.name }}',
+      },
+      {% endfor -%}
+      {% if 1 in s.data -%}
+      {% for c in s.data.1 -%}
+      { backgroundColor: '{{ c.color }}',
+        borderColor: '{{ c.color }}',
+        data: {{ c.data | tojson}},
+        yAxisID: 'y1',
+        label: '{{ c.name }}',
+      },
+      {% endfor -%}
+      {% endif -%}
+    ]
+  };
+
+  const config{{ s.id }} = {
+    type: 'line',
+    data: data{{ s.id }},
+    options: {
+      maintainAspectRatio: false,
+      parsing: false,
+      responsive: true,
+      stacked: false,
+      scales: {
+        x: {
+          type: 'linear',
+          display: true,
+          position: 'bottom',
+          title: {
+            display: true,
+            text: '{{ s.xName }}',
+          },
+        },
+        y: {
+          type: 'linear',
+          display: true,
+          position: 'left',
+          title: {
+            display: true,
+            text: '{{ s.data.0[0].units }}',
+          },
+        },
+        {% if 1 in s.data -%}y1: {
+          type: 'linear',
+          display: true,
+          position: 'right',
+          title: {
+            display: true,
+            text: '{{ s.data.1[0].units }}',
+          },
+          grid: { drawOnChartArea: false },
+        },{% endif -%}
+      },
+      plugins: {
+        title: {
+          display: true,
+          text: '{{ s.name }}'
+        }
+      },
+      elements: { point: { radius: 0 }}
+    }
+  };
+
+  const myChart{{ s.id }} = new Chart(
+    document.getElementById({{ s.id }}),
+    config{{ s.id }},
+  );
+{% endif %}{% endfor %}
+</script>
+{%- endmacro %}

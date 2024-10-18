@@ -1,0 +1,66 @@
+{% extends "layout.html" %}
+{% import 'formsMacros.html' as forms %}
+{% import 'subBarMacro.html' as subBar %}
+{% import 'plotMacros.html' as plots %}
+{% block title %}Schedule-Sources{% endblock %}
+{% block head %}
+  {{ super() }}
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+{% block subbar %}
+{{ subBar.subBar('Schedule:',(('sched','Sources'),('channels','Channels'),('reactions','Reactions'),('functions','Functions')),(False, False, False, False)) }}
+{% endblock %}
+
+{% block content %}
+<form method="POST" action="{{ url_for('schedSrc', ID=ID) }}">
+  <h2>Source Configuration</h2>
+  <table>
+  <tr><th>{{ seedVals.name }}</th><th align='center'>=</th>
+  {% for p in seedVals.profData %}<th></th><th align='center'>*</th>{% endfor %}
+  </tr>
+  <tr>
+  <td>
+  {{ plots.doPlot(seedVals.plots) }}
+  </td><td align='center'>=</td>
+  {% for p in seedVals.profData.items() %}<td>
+  </td><td align='center'>*</td>{% endfor %}
+  </tr>
+  <tr><td>
+  <h3>Source:</h3>
+  {{- forms.txtInput('name_'+seedVals.rowid|string,seedVals.name,'Name:') -}}<br>
+  {{- forms.numInput('scale_'+seedVals.rowid|string,seedVals.scale,'Scale:') -}}<br>
+  {{- forms.selInput('type_'+seedVals.rowid|string,seedVals.type,'Type:',seedVals.typeOpts) }}<br>
+  Channels Used:<br>
+  {% for c in seedVals.chanOpts.values() %}{{- forms.checkBox('chan_'+c.id|string, c.selected, c.name, disabled=not(c.active)) }}<br>{% endfor %}
+  <input type="submit" name="newP" value="Add Function">
+  </td><td align='center'>=</td>
+  {% for i, p in seedVals.profData.items() %}<td>
+  <h3>Function:</h3>
+  {{- forms.selInput('prof_'+i|string+'_function',p.function,'Function:',seedVals.functOpts) }}<br>
+  <table><tr><th align='center'></th>
+  <th align='center'>Year</th><th align='center'>Month</th><th align='center'>Day</th>
+  <th align='center'>Hour</th><th align='center'>Minute</th><th align='center'>Second</th></tr>
+  <tr>{{- forms.datetime('prof_'+i|string+'_start',p.start,'Start At:') -}}</tr>
+  <tr>{{- forms.datetime('prof_'+i|string+'_end',p.end,'End At:') -}}</tr>
+  <tr>{{- forms.datetime('prof_'+i|string+'_refresh',p.refresh,'Refresh Every:',refresh=True) -}}</tr>
+  </table>
+  <input type="submit" name="delP_{{ i }}" value="Delete">
+  <h3>Channels:</h3>
+  {% for c in seedVals.selChans %}
+  {% if c in seedVals.profData[i].chans.keys() %}
+  {% set prefix = 'CPS_'+p.chans[c].rowid|string+'_' %}
+  {{- forms.checkBox(prefix + 'selected',True,seedVals.chanOpts[c].name) -}}
+  {{- forms.numInput(prefix + 'scale',seedVals.profData[i].chans[c].scale,'Scale:') -}}
+  {{- forms.numInput(prefix + 'offset',seedVals.profData[i].chans[c].offset,'Offset: (Sec.)') -}}
+  {% else %}
+  {% set prefix = 'newC_'+i|string+'_'+c|string %}
+  {{- forms.checkBox(prefix,False,seedVals.chanOpts[c].name) -}}
+  {% endif %}<br>
+  {% endfor %}
+  </td><td align='center'>*</td>{% endfor %}
+  </tr>
+  </table>
+  <input type="submit" value="Update"><br><br>
+  </form>
+
+{% endblock %}

@@ -1,0 +1,49 @@
+{% extends "layout.html" %}
+{% import 'formsMacros.html' as forms %}
+{% import 'subBarMacro.html' as subBar %}
+{% block title %}Schedule-Reactions{% endblock %}
+{% block head %}
+  {{ super() }}
+{% endblock %}
+{% block subbar %}
+{{ subBar.subBar('Schedule:',(('sched','Sources'),('channels','Channels'),('reactions','Reactions'),('functions','Functions')),(False, False, False, False)) }}
+{% endblock %}
+
+{% block content %}
+<form method="POST" action="{{ url_for('schedReact', ID=ID) }}">
+  <h2>Reaction Configuration: {{ seedVals.name }}</h2>
+  {# Image here #}
+  <br>{{- forms.txtInput('name', seedVals.name, 'Name:') -}}
+  <br>{{- forms.selInput('chan', seedVals.chan, 'Output Channel:', seedVals.outChans) -}}
+  <br>{{- forms.selInput('behave', seedVals.behave, 'Output Behavior:', seedVals.behaveOpts) -}}
+  <br>{{- forms.selInput('detect', seedVals.detect, 'Detection Behavior:', seedVals.detectOpts) -}}
+  <br>Channel Type: {{  seedVals.chTypeOpts.name }}
+  <br>Channel Type Scale: {{ seedVals.chTypeOpts.scale }}
+  <br>Channel Type Max: {{ seedVals.chTypeOpts.max }}
+  <br>Channel Type Min: {{seedVals.chTypeOpts.min }}
+  <br><a href="{{ url_for('chanTypes') }}">Edit Type</a>
+  <br><input type="submit" name="add" value="Add a Reaction"><br>
+  <table><tr><th></th>
+    <th>If channel:</th><th>Is:</th><th></th><th>run function</th><th>with a duration of: (sec)</th>
+    <th>after delaying: (sec)</th><th>with scale:</th><th>expire after duration:</th><th>Delete</th>
+    </tr>
+  {% for r in seedVals.reactions %}
+    <tr>
+    <td>{# function image here #}</td>
+    <td>{{- forms.selInput('trigChan_'+r.rowid|string, r.trigChan, '', seedVals.inChans) -}}</td>
+    <td>{{- forms.selInput('type_'+r.rowid|string, r.type, '', seedVals.typeOpts) -}}</td>
+    <td>{{- forms.numInput('trigVal_'+r.rowid|string, r.trigVal, disabled=not(r.type)) -}}</td>
+    <td>{{- forms.selInput('function_'+r.rowid|string, r.function, '', seedVals.functOpts) -}}</td>
+    <td>{{- forms.numInput('duration_'+r.rowid|string, r.duration, '') -}}</td>
+    <td>{{- forms.numInput('offset_'+r.rowid|string, r.offset, '') -}}</td>
+    <td>{{- forms.numInput('scale_'+r.rowid|string, r.scale, '') -}}</td>
+    <td align='center'>{{- forms.checkBox('expire_'+r.rowid|string, r.expire, '') -}}</td>
+    <td><input type="submit" name="{{ 'delete_'+r.rowid|string }}" value="Delete"></td>
+    </tr>
+  {% endfor %}
+  </table>
+  <p>Note: Only a single function will run, corresponding to the last test to yield a True result.</p>
+  <input type="submit" value="Update"><br><br>
+  </form>
+
+{% endblock %}

@@ -1,0 +1,9 @@
+{% macro subBar(barName, barOpts, optsSel) -%}
+<ul>
+<li class='unselected'><b>{{ barName }}</b></li><li class='unselected'></li>
+{% for o in barOpts %}
+<li{% if optsSel[loop.index0] %} class='selected'>{{ o[1] }}</li>{% else %}
+{% if o[0] %}><a href="{{ url_for(o[0]) }}">{% else %} class='unselected'>{% endif %}{{ o[1] }}{% if o[0] %}</a>{% endif %}</li>{% endif %}
+{% endfor %}
+</ul>
+{%- endmacro %}

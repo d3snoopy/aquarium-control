@@ -1,0 +1,45 @@
+{% extends "layout.html" %}
+{% import 'formsMacros.html' as forms %}
+{% import 'subBarMacro.html' as subBar %}
+{% import 'plotMacros.html' as plots %}
+{% block title %}Schedule-Channels{% endblock %}
+{% block head %}
+  {{ super() }}
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+{% block subbar %}
+{{ subBar.subBar('Schedule:',(('sched','Sources'),('channels','Channels'),('reactions','Reactions'),('functions','Functions')),(False, False, False, False)) }}
+{% endblock %}
+
+{% block content %}
+<form method="POST" action="{{ url_for('schedChan', ID=ID) }}">
+  <h2>Channel Configuration: {{ seedVals.name }}</h2>
+  {{ plots.doPlot(seedVals.plots) }}
+  <p>Channel Device: {{ seedVals.devName }}
+  <br>Channel Type: {{ seedVals.typeOpts.name }}
+  <br>Type Scale: {{ seedVals.typeOpts.scale }}
+  <br>Type Max: {{ seedVals.typeOpts.max }}
+  <br>Type Min: {{seedVals.typeOpts.min }}
+  <br><a href="{{ url_for('chanTypes') }}">Edit Type</a></p>
+  <table>
+  {% for s in seedVals.srcOpts.values() %}
+    <tr><td>
+    {# src image here #}
+    <br><h3>{{ s.name }}</h3>
+    <p>Source Scale: {{ s.scale }}
+    <br><a href="{{ url_for('schedSrc', ID=s.rowid ) }}">Edit Source</a></p></td>
+    <td align='center'>=<td>
+    {% for p in s.CPS %}
+      <td>
+        {{- forms.numInput('scale_'+p.rowid|string,p.scale,'Scale:') -}}
+        <br>
+        {{- forms.numInput('offset_'+p.rowid|string,p.offset,'Offset: (Sec.)') -}}
+      </td><td align='center'>*</td>
+    {% endfor %}
+    </tr>
+  {% endfor %}
+  </table>
+  <input type="submit" value="Update"><br><br>
+  </form>
+
+{% endblock %}

@@ -1,0 +1,134 @@
+body {
+    font-size: 0.8em;
+    color: #668cff;
+    background-color: #090909;
+    padding: 0;
+}
+
+table {
+    border-collapse: collapse;
+    width: 100%;
+}
+
+table, th, td {
+    border: 1px solid #00336d;
+}
+
+a:link {
+    text-decoration: none;
+    font-weight: bold;
+    color: #0077ff;
+}
+
+
+a:visited {
+    text-decoration: none;
+    font-weight: bold;
+    color: #0077ff;
+}
+
+a:hover {
+    text-decoration: underline;
+    font-weight: bold;
+    color: #0077ff;
+}
+
+input[type=number]{
+    width: 60px;
+}
+
+input[type=text]{
+    width: 120px;
+}
+
+.error {color: red;}
+
+
+/* Page Layout */
+
+.linkbar {
+    width: 100%;
+    #height: 40px;
+    margin:0;
+    padding:0;
+    border:0;
+    position: fixed;
+    top: 0;
+    left: 0;
+    background-color: #000000;
+}
+
+.content {
+    width: 100%;
+    padding-top: 60px;
+    padding-bottom: 20px;
+    margin:0;
+}
+
+ul {
+    list-style-type: none;
+    padding: 0;
+    margin: 0;
+    overflow: hidden;
+}
+
+li {
+    display: block;
+    color: #0077ff;
+    text-align: center;
+    float: left;
+    padding: 0;
+    border-color: #333;
+}
+
+li a {
+    display: block;
+    color: #0077ff;
+    text-align: center;
+    padding: 13px 16px;
+    text-decoration: none;
+}
+
+li a:hover {
+    background-color: #333;
+    text-decoration: none;
+}
+
+.footer {
+    width: 100%;
+    height: 40px;
+    margin:0;
+    padding:0;
+    border:0;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    background-color: #000000;
+}
+
+.alignleft {
+    float:left;
+}
+
+.lefterr {
+    float:left;
+    color:red;
+}
+
+.alignright {
+    float:right;
+}
+
+.selected {
+    background: #333;
+    padding: 13px 16px;
+}
+
+.unselected {
+    padding: 13px 16px;
+}
+
+.chart-container {
+    width: 800px;
+    height: 400px;
+}

@@ -1,0 +1,30 @@
+{% extends "layout.html" %}
+{% import 'formsMacros.html' as forms %}
+{% import 'subBarMacro.html' as subBar %}
+{% block title %}Schedule-{{ name }}{% endblock %}
+{% block head %}
+  {{ super() }}
+{% endblock %}
+{% block subbar %}
+{{ subBar.subBar('Schedule:',(('sched','Sources'),('channels','Channels'),('reactions','Reactions'),('functions','Functions')),subSel) }}
+{% endblock %}
+
+{% block content %}
+  <h2>{{ name }}</h2>
+  <form method="POST" action="{{ url_for(request.endpoint) }}">
+    {%- for s in seedVals.listInfo %}
+    <br>
+    <h3>{{ s.name }}</h3><br>
+    {%- if s.plot %}
+      <img src={{ url_for('static', filename=s.plot) }}>
+      {# Image for this source - use the url for thing with s.plot as the filename. #}
+      <br>
+    {%- endif %}
+    <a href="{{ url_for(target, ID=s.rowid) }}">Edit</a><br>
+    {% if not hideAddDel %}<input type="submit" name="{{ 'delete_'+s.rowid|string }}" value="Delete"><br>{% endif %}
+    {% endfor %}
+    <br>
+    {% if not hideAddDel %}<input type="submit" name="new" value="Create New">{% endif %}
+    <br><br>
+  </form>
+{% endblock %}
