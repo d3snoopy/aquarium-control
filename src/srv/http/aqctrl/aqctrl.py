@@ -1,24 +1,24 @@
 from flask import render_template, Flask, request, redirect, url_for, flash, g
-#import sqlite3
-#from flask import g
-#from os.path import exists
-#import sys
+from os.path import exists
 #from flask_debugtoolbar import DebugToolbarExtension
 from flask_login import LoginManager, UserMixin, login_required, fresh_login_required, login_user, logout_user, current_user
 from datetime import datetime
 import aqctrl.run.db as db
 from aqctrl.run.db import query_db
-#Make sure the script location is in python path.
-#For development, made symbolic links.
-#import time
 
 app = Flask(__name__)
 
 # debug toolbar
 #app.debug = True
 
+if not exists('appkey'):
+  with open('appkey', 'wb') as f:
+    from os import urandom
+    f.write(urandom(20).hex().encode('utf-8'))
 
-app.secret_key = b'' ######Make sure to set this!!!
+with open('appkey', 'rb') as f:
+  app.secret_key = f.read()
+
 
 #toolbar = DebugToolbarExtension(app)
 login_manager = LoginManager(app)
