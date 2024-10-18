@@ -12,3 +12,5 @@ nginx
 supervisor
 
 
+Make sure to edit src/srv/http/aqctrl/aqctrl.py to add a secret key to the app.
+
