@@ -18,7 +18,7 @@ This framework is an aquarium controller implementation using Python/Flask/SQLit
 
 ## Installation
 
-Designed to be hosted on a RPi device
+Designed to be hosted on a RPi device. 
 Make sure that the following packages are installed on your RPi:
 - python3-bcrypt
 - python3-flask
@@ -40,10 +40,10 @@ sudo supervisorctl status all
 ## Hardware Connections
 Images from [https://pinout.xyz/](https://pinout.xyz/)
 ### 1W
-![1W connect image](./doc/1W-connnect.png)
+![1W connect image](./doc/1W-connect.png)
 
 ### SPI
-Use the SPI0 pins - particularly SPI0 MOSI and SPI0 SCLK
+Use the SPI0 pins - particularly SPI0 MOSI and SPI0 SCLK.  
 ![SPI connect image](./doc/SPI-connect.png)
 
 
