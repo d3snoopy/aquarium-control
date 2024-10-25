@@ -112,8 +112,13 @@ class reactGroup(reactBase):
         thisP.scale = r.scale
         thisP.behave = self.behave
         if self.outChan.reactProf is None or not self.outChan.reactProf.lockout:
-          if self.withStdOut: print('Created a new reaction on ' + r.criteriaType.name + ' test.')
           self.outChan.replaceReact(thisP)
+          if logging:
+            logging.logError('Created a new reaction on ' + r.criteriaType.name + ' test of channel' + self.monChan.name + '.', self.monChan)
           return True #return true so we can trigger a write.
 
+    else:
+      if logging:
+        if logging.logType == 3:
+          logging.logError('Teasted reaction ' + r.criteriaType.name + '.', self.monChan)
     return False

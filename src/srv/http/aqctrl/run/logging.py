@@ -9,7 +9,7 @@ def writeOpts():
   return (noLog, errLog, noneLog, inflLog, chgLog, allLog)
 
 def reactOpts():
-  return (noLog, errLog, noneLog, chgLog, allLog)
+  return (noLog, chgLog, allLog)
 
 
 
@@ -67,8 +67,8 @@ class logType:
 
 
   def logError(self, errStr, c=None, d=None):
+    if self.logType == -1: return
     i = (int(datetime.now(UTC).timestamp()), c, d, errStr)
-    #print(i)
     modify_db('INSERT INTO AQlog (logDate, assocChan, assocDev, logEntry) VALUES (?, ?, ?, ?)', i, logUpdate=False, db=self.db)
     if self.withStdOut: print(errStr)
 
