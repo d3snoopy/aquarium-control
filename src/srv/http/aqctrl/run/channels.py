@@ -162,7 +162,7 @@ class aqChan:
       while self.dataPts[c+1]['x'] < (start+tShift)*scaleX:
         c += 1
 
-      self.lastFnVal = self.dataPts[c]
+      self.lastFnVal = self.dataPts[c]['y']
       self.lastIndex = c
       return doInterp((start+tShift)*scaleX, self.dataPts[c], self.dataPts[c+1])
 
