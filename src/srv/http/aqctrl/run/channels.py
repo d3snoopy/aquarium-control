@@ -1,12 +1,7 @@
 from aqctrl.run.helpers import adjVal, doInterp, cToF, findXscale
 from datetime import datetime, UTC
 from aqctrl.run.db import query_db
-
-
-#import sys
 import time
-#tl = 0
-#tc = 0
 
 #Note: with decision not to automatically call None and min/max errors,
 # I think self.withErr is pretty much always going to stay False.
@@ -50,6 +45,7 @@ class aqChan:
     self.reactOverride = False #Use this to track if a reaction has overridden.
     self.outVal = None
     self.lastOutVal = None
+    self.lastIndex = None
 
     return
 
@@ -165,6 +161,7 @@ class aqChan:
       while self.dataPts[c+1]['x'] < (start+tShift)*scaleX:
         c += 1
 
+      self.lastIndex = c
       return doInterp((start+tShift)*scaleX, self.dataPts[c], self.dataPts[c+1])
 
     #We're returning more than one point if we got here

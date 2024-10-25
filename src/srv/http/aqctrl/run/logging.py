@@ -3,12 +3,10 @@ from datetime import datetime, UTC
 #from aqctrl.aqctrl import app
 #import sys
 
-#Note: logType: 0=errors, 1=nones, 2=changes, 3=all events.
-
 def readOpts():
   return (noLog, errLog, noneLog, chgLog, allLog) #Add more operators if desired. Order matters, so make sure not to re-order. Saved in the DB based on order.
 def writeOpts():
-  return (noLog, errLog, noneLog, chgLog, allLog)
+  return (noLog, errLog, noneLog, inflLog, chgLog, allLog)
 
 def reactOpts():
   return (noLog, errLog, noneLog, chgLog, allLog)
@@ -124,6 +122,20 @@ class noneLog(logType):
     val = getattr(c, self.logVar)
     #Only log if val is None
     if val is None:
+      self.save(c)
+
+    return
+
+class inflLog(logType):
+  name='Function Points'
+  logType=4
+  lastIndex = None
+
+  def doLog(self, c):
+    val = getattr(c, self.logVar)
+    #Log if the point index has changed.
+    if c.lastIndex != self.lastIndex or self.lastIndex is None:
+      self.lastIndex = c.lastIndex
       self.save(c)
 
     return
