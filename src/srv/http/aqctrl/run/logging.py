@@ -132,7 +132,8 @@ class inflLog(logType):
   lastIndex = None
 
   def doLog(self, c):
-    val = getattr(c, self.logVar)
+    #This is a special exception to the values to use, so overwrite self.logVar
+    self.logVar = 'lastFnVal'
     #Log if the point index has changed.
     if c.lastIndex != self.lastIndex or self.lastIndex is None:
       self.lastIndex = c.lastIndex

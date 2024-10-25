@@ -45,6 +45,7 @@ class aqChan:
     self.reactOverride = False #Use this to track if a reaction has overridden.
     self.outVal = None
     self.lastOutVal = None
+    self.lastFnVal = None
     self.lastIndex = None
 
     return
@@ -161,6 +162,7 @@ class aqChan:
       while self.dataPts[c+1]['x'] < (start+tShift)*scaleX:
         c += 1
 
+      self.lastFnVal = self.dataPts[c]
       self.lastIndex = c
       return doInterp((start+tShift)*scaleX, self.dataPts[c], self.dataPts[c+1])
 
