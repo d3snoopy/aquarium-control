@@ -47,6 +47,7 @@ class aqChan:
     self.lastOutVal = None
     self.lastFnVal = None
     self.lastIndex = None
+    self.lastLogIndex = None
 
     return
 
