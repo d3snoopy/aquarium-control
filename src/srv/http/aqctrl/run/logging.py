@@ -72,6 +72,17 @@ class logType:
     modify_db('INSERT INTO AQlog (logDate, assocChan, assocDev, logEntry) VALUES (?, ?, ?, ?)', i, logUpdate=False, db=self.db)
     if self.withStdOut: print(errStr)
 
+    return
+
+
+  def logComment(self, cmtStr, c=None, d=None):
+    #Same functionality as logErr, but marks the entry as read so it doesn't show up as a new entry that has to be read.
+    if self.logType == -1: return
+    i = (int(datetime.now(UTC).timestamp()), c, d, cmtStr, 1)
+    modify_db('INSERT INTO AQlog (logDate, assocChan, assocDev, logEntry, entryRead) VALUES (?, ?, ?, ?, ?)', i, logUpdate=False, db=self.db)
+    if self.withStdOut: print(cmtStr)
+
+    return
 
 
 class noLog(logType):

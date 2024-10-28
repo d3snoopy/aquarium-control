@@ -114,11 +114,11 @@ class reactGroup(reactBase):
         if self.outChan.reactProf is None or not self.outChan.reactProf.lockout:
           self.outChan.replaceReact(thisP)
           if logging:
-            logging.logError('Created a new reaction on ' + r.criteriaType.name + ' test of channel ' + self.outChan.name + '.', self.outChan.rowid)
+            logging.logComment('Created a new reaction on ' + r.criteriaType.name + ' test of channel ' + self.outChan.name + '.', self.outChan.rowid)
           return True #return true so we can trigger a write.
 
     else:
       if logging:
         if logging.logType == 3:
-          logging.logError('Teasted reaction ' + r.criteriaType.name + '.', self.outChan.rowid)
+          logging.logComment('Teasted reaction ' + r.criteriaType.name + '.', self.outChan.rowid)
     return False
