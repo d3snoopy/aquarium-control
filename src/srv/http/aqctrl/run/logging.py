@@ -143,14 +143,10 @@ class inflLog(logType):
 
   def doLog(self, c):
     #This is a special exception to the values to use, so overwrite self.logVar
-    print('Function point logging')
-    print(c.lastIndex)
-    print(c.lastLogIndex)
     self.logVar = 'lastFnVal'
     #Log if the point index has changed.
     if c.lastIndex != c.lastLogIndex or c.lastLogIndex is None:
       c.lastLogIndex = c.lastIndex
       self.save(c)
-      print('Logged a function point')
 
     return
