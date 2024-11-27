@@ -64,9 +64,8 @@ def doIndex():
           currVals = load(f)
           v = dict()
         for c in dbChans:
-          #print(c['chanNum'])
-          #print(currVals)
-          v[c['chanNum']] = currVals[str(c['chanNum'])]
+          if str(c['chanNum']) in currVals:
+            v[c['chanNum']] = currVals[str(c['chanNum'])]
 
       seedVals['currVals'] = v
 

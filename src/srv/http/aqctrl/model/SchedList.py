@@ -147,8 +147,8 @@ def seedInitialFunctions():
     #print(ptVals, file=sys.stderr)
     modify_db(ptQuery, ptVals)
 
-    from aqctrl.run.plotting import fnPlot
-    fnPlot()
+    #from aqctrl.run.plotting import fnPlot
+    #fnPlot()
 
     return
 

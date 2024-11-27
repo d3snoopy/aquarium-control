@@ -21,8 +21,10 @@ def processForm():
     #Test for the delete button.
     for k in request.form:
       if 'delete' in k:
+        Q1 = 'UPDATE AQchannel SET chType = NULL WHERE chType=?'
         myQuery = 'DELETE FROM chanType WHERE rowid = ?'
         myVal = (k.split('_')[1])
+        modify_db(Q1, myVal)
         modify_db(myQuery, myVal)
         return errors
       

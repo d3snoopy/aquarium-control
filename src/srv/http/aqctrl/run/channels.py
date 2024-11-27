@@ -47,7 +47,7 @@ class aqChan:
     self.lastOutVal = None
     self.lastFnVal = None
     self.lastIndex = None
-    self.lastLogIndex = None
+    self.lastLogVal = None
 
     return
 
@@ -97,6 +97,10 @@ class aqChan:
   def getLogVal(self, var):
     a = getattr(self, var)
     if a is None: return a
+
+    if type(a) is dict: #This catches when saved is a x,y dictionary pair.
+      a = a['y']
+
     if self.hideInvert and self.invert:
       #need to re-invert the logged value.
       return -a + self.max + self.min
@@ -142,16 +146,20 @@ class aqChan:
       start = datetime.now(UTC).timestamp()-1 #Doing the minus one to try to fix interpolation issues with the first point.
       single = True
 
-    if end is None:
-      end = start+86400
-
     #If this channel is not a temptype, don't convert even if requested.
     if not self.tempType:
       Tempconv = False
 
-    if not self.dataPts or not self.dataPts[0]['x'] <= start+tShift or not self.dataPts[-1]['x'] >= end+tShift:
-      #We need to get some calculated data.
-      self.calcPts(start, end, tShift=tShift, Tempconv=Tempconv, scaleX=scaleX)
+    #See if we need newly calculated data.
+    if not self.dataPts or self.dataPts[0]['x'] > start+tShift:
+      #Need to test the end condition.
+      if end is None:
+        end = start+86400
+
+      if not self.dataPts or (single and self.dataPts[-1]['x'] < start+tShift) or (not single and self.dataPts[-1]['x'] < end+tShift):
+        #We need to get some calculated data.
+        self.calcPts(start, end, tShift=tShift, Tempconv=Tempconv, scaleX=scaleX)
+        self.lastIndex = 0
 
     #Catch the None case.
     if self.dataPts is None or not self.dataPts:
@@ -159,11 +167,11 @@ class aqChan:
 
     #We are only returning a single point.
     if single:
-      c = 0
+      c = self.lastIndex
       while self.dataPts[c+1]['x'] < (start+tShift)*scaleX:
         c += 1
 
-      self.lastFnVal = self.dataPts[c]['y']
+      self.lastFnVal = self.dataPts[c]
       self.lastIndex = c
       return doInterp((start+tShift)*scaleX, self.dataPts[c], self.dataPts[c+1])
 

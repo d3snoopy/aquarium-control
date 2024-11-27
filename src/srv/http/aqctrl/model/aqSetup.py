@@ -120,6 +120,8 @@ def processDev():
 
       if 'forget' in k:
         devNum = k.split('_')[1]
+        modify_db('DELETE FROM AQlog WHERE assocDev=?', (devNum, ))
+        modify_db('DELETE FROM aqChannel WHERE chDevice=?', (devNum, ))
         modify_db('DELETE FROM hostDevice WHERE rowid=?', (devNum, ))
         return
     
@@ -149,6 +151,7 @@ def processDev():
 
       elif thisKey in request.form and int(request.form['numDev' + str(n)]) < devNums[n]:
         #Looks like we need to drop items from the db.
+        #TODO: Do this more Manually. Find the IDs to Delete, delete the channels and logs, then delete the device.
         myQuery = 'DELETE FROM hostDevice WHERE busType=? AND busOrder>=?'
         modify_db(myQuery, (n, request.form['numDev' + str(n)]))
     

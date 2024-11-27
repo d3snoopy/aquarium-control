@@ -245,8 +245,8 @@ def createForm(srcID, errors):
 
     if not count:
       #Need to seed our functions.
-      import aqctrl.model.aqFunct
-      aqctrl.model.aqFunct.seedInitialFunctions()
+      import aqctrl.model.SchedList
+      aqctrl.model.SchedList.seedInitialFunctions()
       functDB = query_db('SELECT * FROM AQfunction')
 
     #Set up all of the profile data.

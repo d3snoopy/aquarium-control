@@ -7,7 +7,6 @@ def readOpts():
   return (noLog, errLog, noneLog, chgLog, allLog) #Add more operators if desired. Order matters, so make sure not to re-order. Saved in the DB based on order.
 def writeOpts():
   return (noLog, errLog, noneLog, inflLog, chgLog, allLog)
-
 def reactOpts():
   return (noLog, chgLog, allLog)
 
@@ -48,15 +47,17 @@ class logType:
     return None
 
   
-  def save(self, c):
+  def save(self, c, logTime=False):
     s = 'INSERT INTO AQdata (dataDate, logType, dataVal, dataTimebase, dataChannel) VALUES (?, ?, ?, ?, ?)'
-    now = int(datetime.now(UTC).timestamp())
+    if not logTime:
+      logTime = int(datetime.now(UTC).timestamp())
+      
     if getattr(c, self.chgSkip):
       #Saving both the previous value and the current value. This makes it evident how long the previous value held before this value arrived.
-      v = (now-1, self.logType, c.getLogVal(self.lastLogVar), None, c.rowid)
+      v = (logTime-1, self.logType, c.getLogVal(self.lastLogVar), None, c.rowid)
       modify_db(s, v, logUpdate=False, db=self.db)
 
-    v = (now, self.logType, c.getLogVal(self.logVar), self.timebase, c.rowid)
+    v = (logTime, self.logType, c.getLogVal(self.logVar), self.timebase, c.rowid)
     modify_db(s, v, logUpdate=False, db=self.db)
     if self.withStdOut: print('Chan ' + str(c.rowid) + ' value: ' + str(c.getLogVal(self.logVar)))
     #Decide if we are saving with or without error.
@@ -142,11 +143,24 @@ class inflLog(logType):
   logType=4
 
   def doLog(self, c):
+    #Log a None if this is a new channel.
+    newLog = False
+    if c.lastFnVal is None:
+      #Don't log None values
+      return
+
+    if c.lastLogVal is None:
+      self.logVar = 'lastLogVal'
+      self.save(c)
+      c.lastLogVal = c.lastFnVal
+      newLog = True
+
     #This is a special exception to the values to use, so overwrite self.logVar
     self.logVar = 'lastFnVal'
-    #Log if the point index has changed.
-    if c.lastIndex != c.lastLogIndex or c.lastLogIndex is None:
-      c.lastLogIndex = c.lastIndex
+      
+    #Log if the point x value has changed.
+    if c.lastFnVal['x'] > c.lastLogVal['x'] or newLog:
+      c.lastLogVal = c.lastFnVal
       self.save(c)
 
     return

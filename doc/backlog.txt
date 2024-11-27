@@ -1,0 +1,22 @@
+Store a db version number; be able to handle migrations and no full replacements
+db migration to new design
+db size management/data thinning. (new page)
+Logging on a per-channel basis.
+Per-bus write/read interval
+Logging interval (separate from read/write interval)
+Two SPI busses (SPI0 and SPI1)
+Add schedule loops
+Channel type - in or out; not both
+Channel in or out, not both.
+Channel type - source or loop schedule
+source/reaction - source schedule
+loop  - loop schedule
+Add channel RGB groups
+Fix deletion methods
+   automate on delete or not?
+   allow orphaned channels?
+Add channels setup page (all channels, filtered)
+New bus - sensors (sensors command)
+Virtual bus - create an in/out channel pair
+Handle NULL refs to chan type, etc.
+Page to make the user fix NULL chantypes?
